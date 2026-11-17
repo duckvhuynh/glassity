@@ -1,0 +1,4 @@
+{
+  "build": "npx --no-install node node_modules/@angular/cli/bin/ng.js build --configuration production",
+  "static": "dist/app/browser"
+}

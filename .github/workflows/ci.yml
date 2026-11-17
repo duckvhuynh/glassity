@@ -56,7 +56,7 @@ jobs:
           retention-days: 7
 
   # Install the packed package into one app per framework (Vue, Svelte, Solid, Preact,
-  # Angular, Next.js, Nuxt, SvelteKit) and check them in a browser, the way a user of
+  # Angular, Next.js, Nuxt, SvelteKit, Astro, React Router) and check them in a browser, the way a user of
   # each framework would get it.
   compat:
     runs-on: ubuntu-latest

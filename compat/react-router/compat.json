@@ -1,0 +1,5 @@
+{
+  "build": "npx react-router build",
+  "start": "npx react-router-serve ./build/server/index.js",
+  "ssr": true
+}

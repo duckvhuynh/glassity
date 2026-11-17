@@ -1,0 +1,5 @@
+{
+  "build": "npx astro build",
+  "start": "node dist/server/entry.mjs",
+  "ssr": true
+}

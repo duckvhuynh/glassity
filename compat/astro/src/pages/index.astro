@@ -1,0 +1,41 @@
+---
+// Rendered on the server. The page itself ships no framework; the React island below
+// hydrates on its own.
+import Controls from '../components/Controls.tsx';
+import Later from '../components/Later.tsx';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>glassity compat: astro</title>
+    <style is:global>
+      body { margin: 0; font: 14px system-ui, sans-serif; background: #111; color: #eee; }
+      .stage { display: flex; gap: 28px; align-items: center; padding: 36px; flex-wrap: wrap;
+        background: repeating-linear-gradient(90deg, #ffffff40 0 2px, transparent 2px 14px), linear-gradient(135deg, #e2572e, #2a2f7a); }
+      .stage svg { width: 64px; height: 64px; }
+      button { margin: 8px 4px; }
+    </style>
+  </head>
+  <body>
+    <!-- An island: React hydrates it after the page has loaded. -->
+    <Controls client:load />
+
+    <!-- Static, server-rendered markup: no framework owns it. glassity/auto handles it. -->
+    <div class="stage">
+      <svg data-glass data-expect-glass="static" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+      </svg>
+    </div>
+
+    <!-- Far below the fold: hydrates on scroll, which the checker never does. Its icon is
+         marked data-glass but not data-expect-glass: it must stay untouched until hydrated. -->
+    <div style="height: 2000px"></div>
+    <Later client:visible />
+
+    <script>
+      // Astro bundles this as a module script for the browser.
+      import 'glassity/auto';
+    </script>
+  </body>
+</html>

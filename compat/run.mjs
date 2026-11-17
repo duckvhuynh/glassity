@@ -201,12 +201,16 @@ for (const app of apps) {
       if (!supported) problems.push('WebGL2 not available');
       else {
         problems.push(...(await invariant(page, 'initial')));
-        for (const [button, label] of [
+        const steps = [
           ['#color', 'string style changed'],
           ['#swap', 'icon swapped'],
           ['#toggle', 'icon removed'],
           ['#toggle', 'icon added back'],
-        ]) {
+        ];
+        // Optional: an app with content that hydrates late (an Astro client:visible island)
+        // offers #reveal to bring it in and mark what must then be glass.
+        if (await page.locator('#reveal').count()) steps.push(['#reveal', 'late content revealed']);
+        for (const [button, label] of steps) {
           await page.click(button);
           problems.push(...(await invariant(page, label)));
         }

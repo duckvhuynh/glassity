@@ -33,3 +33,5 @@ compat/*/.svelte-kit/
 compat/*/build/
 compat/*/.angular/
 compat/*/next-env.d.ts
+compat/*/.astro/
+compat/*/.react-router/
