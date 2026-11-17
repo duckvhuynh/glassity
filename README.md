@@ -73,6 +73,16 @@ npm install glassity
 
 No other package is needed. The framework adapters (`glassity/react`, `glassity/vue`, …) use the framework your app already has. No build step? See [Script tag](#script-tag).
 
+### Or onboard your agent with ease
+
+Paste this into Claude Code, Cursor, Codex, Copilot or any coding agent:
+
+```text
+Set up glassity for me. Fetch https://raw.githubusercontent.com/duckvhuynh/glassity/main/get-started.md and follow it.
+```
+
+The agent reads [get-started.md](get-started.md): it finds your framework and icon library, installs glassity, wires it in, marks a few icons and checks that the glass shows. [skills/glassity/SKILL.md](skills/glassity/SKILL.md) is the full reference written for agents (every option, recipe and fix); the guide offers to save it in your project so the agent knows glassity next time. Both files also ship in the npm package.
+
 > glassity is at 0.1. The API may change before 1.0; the [changelog](CHANGELOG.md) lists every change, and [Limits](#limits) lists what it does not do yet.
 
 ## Use
