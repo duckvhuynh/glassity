@@ -5,6 +5,7 @@ import { copyFile, cp, mkdir, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeLibrary } from './library.mjs';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const root = join(here, '..');
@@ -119,6 +120,9 @@ const copyStatic = async () => {
   await cp(join(here, 'icons'), join(out, 'icons'), { recursive: true });
   // Backdrop photos: site/backdrops/*.webp (made from raw/ by site/backdrops.mjs).
   await cp(join(here, 'backdrops'), join(out, 'backdrops'), { recursive: true, filter: (src) => !/[\/]raw([\/]|$)/.test(src) });
+  // Every icon of 21 open icon sets, split into small files the library panel loads on demand.
+  const sets = await writeLibrary(out);
+  console.log(`icon library: ${sets.length} sets, ${sets.reduce((n, s) => n + s.total, 0)} icons`);
 };
 
 await copyStatic();
