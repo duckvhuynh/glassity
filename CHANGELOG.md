@@ -4,6 +4,13 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-18
+
+### Added
+- `get-started.md`: a setup guide for AI coding agents. Paste "Set up glassity for me. Fetch https://raw.githubusercontent.com/duckvhuynh/glassity/main/get-started.md and follow it." into any coding agent.
+- `skills/glassity/SKILL.md`: the full reference for agents (every option, recipe and fix), to keep in a project.
+- Both files ship in the npm package.
+
 ## [0.3.1] - 2026-11-17
 
 ### Fixed
@@ -85,7 +92,8 @@ First release.
 - Follows reduced motion, reduced transparency, increased contrast and forced colours.
 - Without WebGL2, icons stay plain SVG with a soft highlight.
 
-[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/duckvhuynh/glassity/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/duckvhuynh/glassity/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/duckvhuynh/glassity/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/duckvhuynh/glassity/compare/v0.1.2...v0.2.0
