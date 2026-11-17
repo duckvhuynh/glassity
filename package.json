@@ -15,27 +15,95 @@
   },
   "sideEffects": [
     "./dist/auto.js",
+    "./dist/auto.cjs",
     "./dist/glassity.global.js"
   ],
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "unpkg": "./dist/glassity.global.js",
   "jsdelivr": "./dist/glassity.global.js",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./react": {
-      "types": "./dist/react.d.ts",
-      "import": "./dist/react.js"
+      "import": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      },
+      "require": {
+        "types": "./dist/react.d.cts",
+        "default": "./dist/react.cjs"
+      }
     },
     "./auto": {
-      "types": "./dist/auto.d.ts",
-      "import": "./dist/auto.js"
+      "import": {
+        "types": "./dist/auto.d.ts",
+        "default": "./dist/auto.js"
+      },
+      "require": {
+        "types": "./dist/auto.d.cts",
+        "default": "./dist/auto.cjs"
+      }
+    },
+    "./vue": {
+      "import": {
+        "types": "./dist/vue.d.ts",
+        "default": "./dist/vue.js"
+      },
+      "require": {
+        "types": "./dist/vue.d.cts",
+        "default": "./dist/vue.cjs"
+      }
+    },
+    "./svelte": {
+      "import": {
+        "types": "./dist/svelte.d.ts",
+        "default": "./dist/svelte.js"
+      },
+      "require": {
+        "types": "./dist/svelte.d.cts",
+        "default": "./dist/svelte.cjs"
+      }
+    },
+    "./solid": {
+      "import": {
+        "types": "./dist/solid.d.ts",
+        "default": "./dist/solid.js"
+      },
+      "require": {
+        "types": "./dist/solid.d.cts",
+        "default": "./dist/solid.cjs"
+      }
     },
     "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "react": [
+        "./dist/react.d.ts"
+      ],
+      "auto": [
+        "./dist/auto.d.ts"
+      ],
+      "vue": [
+        "./dist/vue.d.ts"
+      ],
+      "svelte": [
+        "./dist/svelte.d.ts"
+      ],
+      "solid": [
+        "./dist/solid.d.ts"
+      ]
+    }
   },
   "files": [
     "dist",
@@ -52,10 +120,18 @@
     "demo:build": "node demo/build.mjs"
   },
   "peerDependencies": {
-    "react": ">=18"
+    "react": ">=18",
+    "solid-js": ">=1.6",
+    "vue": ">=3.3"
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
   },
@@ -68,9 +144,11 @@
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "solid-js": "^1.9.19",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "vue": "^3.5.45"
   },
   "keywords": [
     "liquid-glass",
@@ -79,6 +157,10 @@
     "icons",
     "webgl",
     "refraction",
-    "react"
+    "react",
+    "vue",
+    "svelte",
+    "solid",
+    "preact"
   ]
 }
