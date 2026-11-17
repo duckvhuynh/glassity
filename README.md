@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/hero.webp" alt="Six large Lucide icons in the default glass over a green meadow. They appear by bending light in, the highlight follows the pointer, then they fade out." width="100%">
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/site/icons/icon-192.png" alt="The glassity icon: a lowercase g made of glass over a blue and violet gradient, rendered with glassity itself." width="96" height="96">
 
 # glassity
 
@@ -11,6 +11,8 @@ Liquid glass for the SVG icons you already use.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [**Open the playground**](https://duckvhuynh.github.io/glassity/) · [Install](#install) · [Use](#use) · [Options](#options)
+
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/hero.webp" alt="Six large Lucide icons in the default glass over a green meadow. They appear by bending light in, the highlight follows the pointer, then they fade out." width="100%">
 
 </div>
 
