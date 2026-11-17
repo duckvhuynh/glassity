@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>glassity icon</title>
+<!-- Renders the glassity app icon with glassity itself. Used by site/icon/render.mjs. -->
+<style>
+  html, body { margin: 0; background: transparent; }
+  .icon {
+    width: 1024px; height: 1024px; position: relative; overflow: hidden;
+    background: center / cover no-repeat;
+    display: grid; place-items: center; color: #fff;
+  }
+  .icon.round { border-radius: 230px; }
+  .icon svg { width: 760px; height: 760px; }
+</style>
+</head>
+<body>
+<div class="icon" id="icon"></div>
+<script type="module">
+  const params = new URLSearchParams(location.hash.slice(1));
+  const icon = document.getElementById('icon');
+  // A background is an image path, or a plain colour such as #000.
+  const bg = params.get('bg') ?? '#000';
+  if (bg.startsWith('#')) icon.style.backgroundColor = bg;
+  else icon.style.backgroundImage = `url("${bg}")`;
+  if (params.has('round')) icon.classList.add('round');
+  icon.innerHTML = await (await fetch('mark.svg')).text();
+  const svg = icon.querySelector('svg');
+  const options = JSON.parse(params.get('o') ?? '{}');
+  const { glassify } = await import('../../dist/index.js');
+  await new Promise((r) => (document.readyState === 'complete' ? r() : addEventListener('load', r)));
+  window.handle = glassify(svg, { accessibility: false, pointerLight: false, duration: 0, maxDpr: 2, ...options });
+</script>
+</body>
+</html>

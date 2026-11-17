@@ -4,6 +4,7 @@ dist/
 demo/out/
 site/dist/
 site/backdrops/raw/
+site/icon/raw/
 *.tgz
 *.log
 
