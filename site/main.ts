@@ -837,7 +837,17 @@ function wire(): void {
   });
   $('#share').addEventListener('click', () => copy(location.href.split('#')[0] + (toHash() ? '#' + toHash() : ''), 'Link copied'));
   $('#copyCode').addEventListener('click', () => copy(code()));
-  for (const b of document.querySelectorAll<HTMLElement>('[data-copy]')) b.addEventListener('click', () => copy(b.dataset.copy!));
+  for (const b of document.querySelectorAll<HTMLElement>('[data-copy]')) b.addEventListener('click', () => copy(b.dataset.copy!, b.dataset.done));
+
+  // Get started: the install command for each package manager.
+  const managers: [string, string][] = [['npm', 'npm i glassity'], ['pnpm', 'pnpm add glassity'], ['yarn', 'yarn add glassity'], ['bun', 'bun add glassity']];
+  let manager = 'npm';
+  segmented($('#pm'), managers.map(([m]) => [m, m] as [string, string]), () => manager, (m) => {
+    manager = m;
+    $('#pmCmd').textContent = managers.find(([k]) => k === m)![1];
+    for (const sync of syncers) sync();
+  });
+  $('#pmCopy').addEventListener('click', () => copy($('#pmCmd').textContent!));
   window.addEventListener('hashchange', () => {
     fromHash();
     if (state.set === 'lib') {
