@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { auto, glassify, type BackdropSource, type GlassController, type GlassHandle, type GlassOptions } from './index';
+import { auto, glassify, group, type BackdropSource, type GlassController, type GlassHandle, type GlassOptions } from './index';
 
 export type { BackdropSource, GlassHandle, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './index';
 
@@ -21,7 +21,7 @@ export interface GlassProps extends Omit<GlassOptions, 'backdrop'> {
 }
 
 const OPTION_NAMES = [
-  'variant', 'profile', 'tile', 'tileRadius', 'glyphOpacity', 'padding', 'strokeWidth', 'bevel', 'curvature', 'depth',
+  'variant', 'profile', 'tile', 'tileRadius', 'glyphOpacity', 'padding', 'strokeWidth', 'spacing', 'bar', 'barPadding', 'bevel', 'curvature', 'depth',
   'ior', 'refraction', 'dispersion', 'bands', 'frost', 'saturation', 'brightness', 'contrast', 'tint', 'tintOpacity',
   'dim', 'opacity', 'shine', 'rim', 'reflection', 'lightAngle', 'shadow', 'interactive', 'pointerLight', 'visible',
   'duration', 'scheme', 'accessibility', 'backdrop', 'maxDpr',
@@ -108,6 +108,60 @@ export function GlassProvider(props: GlassProviderProps): ReactElement {
     Inherited.Provider,
     { value: merged },
     createElement(as, { ref: root, className, style: className || style ? style : { display: 'contents' } }, children),
+  );
+}
+
+export interface GlassGroupProps extends GlassProps {
+  /** Which elements inside the group become glass. Default `svg`. */
+  selector?: string;
+  /** Element to render around the children. Default: a `<div>` that does not affect layout. */
+  as?: keyof HTMLElementTagNameMap;
+  className?: string;
+  style?: CSSProperties;
+  children?: ReactNode;
+}
+
+/**
+ * Draws every icon inside it as one piece of glass. Icons that come close
+ * reach for each other and join; with `bar` they share a single glass bar.
+ *
+ * ```tsx
+ * <GlassGroup tile spacing={0.4}>
+ *   <House /> <Mail /> <Camera />
+ * </GlassGroup>
+ *
+ * <GlassGroup bar>…</GlassGroup>
+ * ```
+ *
+ * All icons of a group share the group's options. On a single icon only
+ * `data-glass="off"`, `data-glass-interactive` and `data-glass-visible` apply.
+ */
+export function GlassGroup(props: GlassGroupProps): ReactElement {
+  const { selector = 'svg', as = 'div', className, style, children, ...glass } = props;
+  const parent = useContext(Inherited);
+  const { options, key } = pickOptions(glass);
+  const merged = useMemo<GlassProps>(() => ({ ...parent, ...options }), [parent, key, options.backdrop]); // eslint-disable-line react-hooks/exhaustive-deps
+  const root = useRef<HTMLElement | null>(null);
+  const controller = useRef<GlassController | null>(null);
+
+  useEffect(() => {
+    if (!root.current) return;
+    const created = group(root.current, { selector, ...unwrap(merged) });
+    controller.current = created;
+    return () => {
+      created.destroy();
+      controller.current = null;
+    };
+  }, [selector]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    controller.current?.set(unwrap(merged));
+  }, [merged]);
+
+  return createElement(
+    Inherited.Provider,
+    { value: merged },
+    createElement(as, { ref: root, className, 'data-glassity-group': '', style: className || style ? style : { display: 'contents' } }, children),
   );
 }
 
