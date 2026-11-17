@@ -115,7 +115,8 @@ const copyStatic = async () => {
   await mkdir(out, { recursive: true });
   const html = (await readFile(join(here, 'index.html'), 'utf8')).replaceAll('%VERSION%', version);
   await (await import('node:fs/promises')).writeFile(join(out, 'index.html'), html);
-  await copyFile(join(here, 'favicon.svg'), join(out, 'favicon.svg'));
+  // The icon, rendered with glassity by site/icon/render.mjs.
+  await cp(join(here, 'icons'), join(out, 'icons'), { recursive: true });
   // Backdrop photos: site/backdrops/*.webp (made from raw/ by site/backdrops.mjs).
   await cp(join(here, 'backdrops'), join(out, 'backdrops'), { recursive: true, filter: (src) => !/[\/]raw([\/]|$)/.test(src) });
 };
