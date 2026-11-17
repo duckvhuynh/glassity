@@ -32,5 +32,5 @@ Every app follows the same contract, so one checker (`run.mjs`) covers them all:
 | `remix` | Remix 3, no build step: `glass` and `glassProvider` mixins in a client entry, static HTML with `glassity/auto`, and a frame reloaded by a `data-compat-step` button |
 | `react-router` | React Router 8 framework mode (formerly Remix): `glassity/auto` in a route module, `<Glass>`, `<GlassProvider>` |
 | `nextjs` | App Router: server component page, `glassity/auto` from the layout, `<Glass>` and `<GlassProvider>` in a client component |
-| `nuxt` | `glassity/auto` and `v-glass` from a client plugin, `<GlassProvider>` |
+| `nuxt` | `glassity/auto` and `v-glass` from a client plugin, `<GlassProvider>`, and a `hydrate-on-visible` component revealed by a `data-compat-step` button |
 | `sveltekit` | adapter-node, `glassity/auto` from the layout, `use:glass`, `use:glassProvider` |

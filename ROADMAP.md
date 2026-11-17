@@ -88,7 +88,7 @@ Ordered by what unlocks the most.
 - [x] Astro 7 (islands, including ones that hydrate on scroll) and React Router 8, the successor of Remix 2
 - [x] Remix 3: `glassity/remix` mixins; client entries, static HTML and frame reloads checked
 - [x] A provider that starts after the page-wide auto mode takes over its icons (a race seen on WebKit with Astro)
-- [ ] Detect lazily hydrated Vue components (`hydrateOnVisible` and similar) the way React and Astro islands are
+- [x] Lazily hydrated Vue components (`hydrateOnVisible` and the other strategies, Nuxt's `hydrate-on-*`) are left alone until they hydrate
 - [ ] Icon fonts: draw the glyph from the font instead of an SVG
 - [ ] Follow rotation and skew of the icon
 
