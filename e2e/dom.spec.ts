@@ -199,6 +199,26 @@ test.describe('server-rendered pages', () => {
   });
 });
 
+test.describe('server-rendered pages, continued', () => {
+  test('icons React has not hydrated yet are left alone until it has', async ({ page }) => {
+    // React marks its root with __reactContainer$… and every node it has hydrated with
+    // __reactFiber$…. Simulate a root whose hydration is still under way.
+    const markRoot = `<script>document.__reactContainer$test = {};</script>`;
+    await serve(page, `${markRoot}<div style="${WALL}">${icon('id="a"')}</div>${START}`);
+    await settle(page, 1200);
+    expect(await page.locator('canvas[data-glassity-canvas]').count()).toBe(0);
+    expect(await opacity(page, '#a')).toBe('1');
+
+    // React reaches the icon.
+    await page.evaluate(() => {
+      const svg = document.getElementById('a') as unknown as Record<string, unknown>;
+      svg['__reactFiber$test'] = {};
+    });
+    await drawn(page, 1);
+    expect(await opacity(page, '#a')).toBe('0');
+  });
+});
+
 test.describe('web components', () => {
   test('an icon inside an open shadow root becomes glass, also when it arrives late', async ({ page }) => {
     const define = `<script>

@@ -69,7 +69,13 @@ export function whenSettled(callback: () => void): () => void {
   const run = () => {
     if (cancelled) return;
     if (idleCallback) idle = idleCallback(() => !cancelled && callback(), { timeout: 400 });
-    else idle = window.setTimeout(() => !cancelled && callback(), 30);
+    // Safari has no requestIdleCallback: give frameworks two frames and a moment more.
+    else
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          idle = window.setTimeout(() => !cancelled && callback(), 120);
+        }),
+      );
   };
   const onLoad = () => run();
   if (document.readyState === 'complete') run();
@@ -82,4 +88,40 @@ export function whenSettled(callback: () => void): () => void {
       else clearTimeout(idle);
     }
   };
+}
+
+interface ZoneLike {
+  root: ZoneLike;
+  run<T>(fn: () => T): T;
+}
+
+/**
+ * Run `fn` outside any zone.js zone (Angular with zone.js, and some other apps). Timers,
+ * animation frames, observers and listeners created inside it then stay outside too, so
+ * glassity's work never triggers the app's change detection.
+ */
+export function outsideZones<T>(fn: () => T): T {
+  const zone = (globalThis as { Zone?: { root?: ZoneLike; current?: ZoneLike } }).Zone;
+  return zone?.root && zone.current !== zone.root ? zone.root.run(fn) : fn();
+}
+
+const ownKey = (node: object, prefix: string) => Object.keys(node).some((key) => key.startsWith(prefix));
+
+/**
+ * True when `el` sits in a React root that has not hydrated it yet. React marks its root
+ * container with `__reactContainer$…` and every node it has hydrated or rendered with
+ * `__reactFiber$…`. Changing a node React has still to hydrate makes hydration fail, and
+ * React then throws the server HTML away and renders the tree again. Hydration can run
+ * well after the page has loaded (streaming, Suspense, Safari without requestIdleCallback),
+ * so waiting for idle alone is not enough.
+ */
+export function awaitingHydration(el: Element): boolean {
+  let inReact = false;
+  for (let node: Node | null = el; node; node = node.parentNode ?? (node instanceof ShadowRoot ? node.host : null)) {
+    if (ownKey(node, '__reactContainer$')) {
+      inReact = true;
+      break;
+    }
+  }
+  return inReact && !ownKey(el, '__reactFiber$');
 }

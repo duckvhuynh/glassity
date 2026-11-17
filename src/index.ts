@@ -1,6 +1,6 @@
 import { getEngine, type GlassHandle, type Scope } from './engine';
 import type { GlassOptions } from './options';
-import { findSvg, OWN, whenSettled } from './dom';
+import { awaitingHydration, findSvg, outsideZones, OWN, whenSettled } from './dom';
 
 export type { GlassHandle } from './engine';
 export type { BackdropSource, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
@@ -40,7 +40,17 @@ export function glassify(target: Element, options: GlassOptions = {}): GlassHand
     console.warn('glassity: no <svg> found. Pass an <svg> element, or an element that contains one.', target);
     return inert;
   }
-  return getEngine().mount(svg, options, null);
+  return outsideZones(() => wrap(getEngine().mount(svg, options, null)));
+}
+
+/** Calls made later on a handle also leave any zone.js zone. */
+function wrap<T extends object>(target: T): T {
+  return new Proxy(target, {
+    get(object, key, receiver) {
+      const value = Reflect.get(object, key, receiver);
+      return typeof value === 'function' ? (...args: unknown[]) => outsideZones(() => value.apply(object, args)) : value;
+    },
+  });
 }
 
 export interface AutoOptions extends GlassOptions {
@@ -80,6 +90,10 @@ const noController: GlassController = { update() {}, set() {}, refresh() {}, des
  */
 export function auto(options: AutoOptions = {}): GlassController {
   if (!isBrowser) return noController;
+  return outsideZones(() => wrap(startAuto(options)));
+}
+
+function startAuto(options: AutoOptions): GlassController {
   const { root = document, selector = '[data-glass]', ...shared } = options;
   const engine = getEngine();
   const rootElement = root instanceof Document ? null : root;
@@ -89,6 +103,7 @@ export function auto(options: AutoOptions = {}): GlassController {
 
   let destroyed = false;
   let queued = false;
+  let retry = 0;
   const schedule = () => {
     if (queued || destroyed) return;
     queued = true;
@@ -121,6 +136,7 @@ export function auto(options: AutoOptions = {}): GlassController {
     if (destroyed) return;
     // What a copied page (Turbo, swup, Barba) left behind goes first.
     engine.sweep(container);
+    let hydrating = false;
     const wanted = new Set<SVGSVGElement>();
     let matches: Element[] = [];
     try {
@@ -138,7 +154,16 @@ export function auto(options: AutoOptions = {}): GlassController {
       if (match.shadowRoot || match.localName.includes('-')) watchShadow(match);
       const svg = findSvg(match);
       if (!svg || svg.getAttribute('data-glass')?.trim().toLowerCase() === 'off') continue;
+      // Not hydrated yet: look again shortly. An icon already glass keeps its glass.
+      if (!engine.get(svg) && awaitingHydration(svg)) {
+        hydrating = true;
+        continue;
+      }
       wanted.add(svg);
+    }
+    if (hydrating) {
+      clearTimeout(retry);
+      retry = window.setTimeout(schedule, 100);
     }
     for (const instance of engine.inScope(scope)) if (!wanted.has(instance.element) || !instance.element.isConnected) instance.destroy();
     for (const svg of wanted) if (!engine.get(svg)) engine.mount(svg, {}, scope);
@@ -183,6 +208,7 @@ export function auto(options: AutoOptions = {}): GlassController {
       if (destroyed) return;
       destroyed = true;
       cancelStart();
+      clearTimeout(retry);
       observer.disconnect();
       for (const watcher of shadows.values()) watcher.disconnect();
       shadows.clear();
