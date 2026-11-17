@@ -4,6 +4,8 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-17
+
 ### Added
 - `weight`: makes any icon bolder (or thinner), stroked or filled, by growing its outline evenly.
 - Playground presets "Round" (a round glass button: `tile`, `tileRadius: 0.5`) and "Bold".
@@ -68,7 +70,8 @@ First release.
 - Follows reduced motion, reduced transparency, increased contrast and forced colours.
 - Without WebGL2, icons stay plain SVG with a soft highlight.
 
-[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/duckvhuynh/glassity/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/duckvhuynh/glassity/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/duckvhuynh/glassity/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/duckvhuynh/glassity/releases/tag/v0.1.0
