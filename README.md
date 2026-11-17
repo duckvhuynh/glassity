@@ -173,7 +173,7 @@ Without WebGL2 the icon stays a plain SVG with a soft highlight.
 - **A canvas positioned by CSS transforms with rotation or skew** is not handled.
 - **Icons do not merge with each other yet**, and multi-layer icons are treated as one shape.
 - **Multicolour SVGs** are used for their outline only.
-- Tested in Chromium. Safari and Firefox use the same WebGL2 path but have not been checked yet.
+- Browser tests pass on Chromium, Firefox and WebKit (Playwright builds). Real Safari on macOS and iOS has not been checked yet.
 - "Liquid glass" here is a simulation of the look. It is not Apple's shader.
 
 ## Develop
@@ -182,15 +182,17 @@ Without WebGL2 the icon stays a plain SVG with a soft highlight.
 npm install
 npm run build      # dist/
 npm test           # geometry and options unit tests
+npx playwright install chromium firefox webkit   # once
+npm run test:e2e   # browser tests on Chromium, Firefox and WebKit (after a build)
 npm run demo:build # bundles the React demo
 npm run demo       # http://localhost:4173/  and  /demo/react.html
 ```
 
-The design decisions behind 0.1 are in [docs/design.md](docs/design.md) (Vietnamese).
+What is done and what comes next is in [ROADMAP.md](ROADMAP.md). The design decisions behind 0.1 are in [docs/design.md](docs/design.md) (Vietnamese).
 
 ## Contributing
 
-Issues and pull requests are welcome. Before opening a pull request, run `npm run typecheck`, `npm test` and `npm run build`, and check the change in both demo pages.
+Issues and pull requests are welcome. Before opening a pull request, run `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e`, and check the change in both demo pages.
 
 ## License
 
