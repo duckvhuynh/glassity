@@ -1,3 +1,4 @@
+import { parentOf } from './dom';
 /**
  * Turn a piece of the page into pixels so the glass has something to refract.
  * The browser has no "read what is behind me" API, so the element (or only its
@@ -189,7 +190,7 @@ function cloneTree(node: Node, job: CloneJob, isRoot: boolean): Node | null {
 
 /** First non-transparent background colour at or above `el`; the system canvas colour if none. */
 export function pageColor(el: Element | null): string {
-  for (let node = el; node; node = node.parentElement) {
+  for (let node: Element | null = el; node; node = parentOf(node)) {
     const color = getComputedStyle(node).backgroundColor;
     if (color && color !== 'transparent' && !/,\s*0\)$/.test(color) && !/\/\s*0\)$/.test(color)) return color;
   }

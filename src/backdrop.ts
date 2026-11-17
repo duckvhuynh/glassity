@@ -1,3 +1,4 @@
+import { parentOf } from './dom';
 import { pageColor, snapshot, SnapshotBudgetError } from './snapshot';
 
 export interface Rect {
@@ -283,7 +284,7 @@ export class SnapshotBackdrop extends Backdrop {
  * what the glass should look through.
  */
 export function nearestSurface(el: Element): { el: Element; mode: 'background' | 'dom' } | null {
-  for (let node = el.parentElement; node; node = node.parentElement) {
+  for (let node = parentOf(el); node; node = parentOf(node)) {
     const cs = getComputedStyle(node);
     if (cs.backgroundImage && cs.backgroundImage !== 'none') return { el: node, mode: 'background' };
     const color = cs.backgroundColor;

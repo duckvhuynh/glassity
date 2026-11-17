@@ -1,5 +1,6 @@
 import { getEngine, type GlassHandle, type Scope } from './engine';
 import type { GlassOptions } from './options';
+import { findSvg, OWN, whenSettled } from './dom';
 
 export type { GlassHandle } from './engine';
 export type { BackdropSource, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
@@ -20,11 +21,6 @@ const inert: GlassHandle = {
   destroy() {},
 };
 
-function findSvg(target: Element): SVGSVGElement | null {
-  if (target instanceof SVGSVGElement) return target;
-  return target.querySelector('svg');
-}
-
 /**
  * Turn one SVG into glass.
  *
@@ -35,7 +31,7 @@ function findSvg(target: Element): SVGSVGElement | null {
  * glass.destroy();
  * ```
  *
- * @param target an `<svg>`, or an element that contains one
+ * @param target an `<svg>`, or an element that contains one (also in its open shadow root)
  */
 export function glassify(target: Element, options: GlassOptions = {}): GlassHandle {
   if (!isBrowser) return inert;
@@ -78,6 +74,9 @@ const noController: GlassController = { update() {}, set() {}, refresh() {}, des
  * ```
  *
  * Per-icon attributes still apply: `data-glass="clear"`, `data-glass-depth="0.3"`, `data-glass="off"`.
+ *
+ * The first look happens once the page has loaded and the browser is idle, so a
+ * server-rendered page can hydrate before anything changes.
  */
 export function auto(options: AutoOptions = {}): GlassController {
   if (!isBrowser) return noController;
@@ -90,10 +89,38 @@ export function auto(options: AutoOptions = {}): GlassController {
 
   let destroyed = false;
   let queued = false;
+  const schedule = () => {
+    if (queued || destroyed) return;
+    queued = true;
+    queueMicrotask(scan);
+  };
+
+  // Web components (Ionicons, <iconify-icon>, Shoelace) keep their <svg> in a shadow
+  // root, often filled in later. The page observer cannot see inside, so each one is
+  // watched on its own.
+  const shadows = new Map<ShadowRoot, MutationObserver>();
+  const waiting = new Set<string>();
+  const watchShadow = (host: Element) => {
+    const shadow = host.shadowRoot;
+    if (shadow) {
+      if (shadows.has(shadow)) return;
+      const watcher = new MutationObserver(schedule);
+      watcher.observe(shadow, { subtree: true, childList: true });
+      shadows.set(shadow, watcher);
+    } else if (host.localName.includes('-') && !customElements.get(host.localName) && !waiting.has(host.localName)) {
+      waiting.add(host.localName);
+      customElements.whenDefined(host.localName).then(() => {
+        waiting.delete(host.localName);
+        schedule();
+      });
+    }
+  };
 
   const scan = () => {
     queued = false;
     if (destroyed) return;
+    // What a copied page (Turbo, swup, Barba) left behind goes first.
+    engine.sweep(container);
     const wanted = new Set<SVGSVGElement>();
     let matches: Element[] = [];
     try {
@@ -108,6 +135,7 @@ export function auto(options: AutoOptions = {}): GlassController {
       if (match.closest(`[${HOST}]`)) continue;
       const flag = match.getAttribute('data-glass')?.trim().toLowerCase();
       if (flag === 'off' || flag === 'false' || flag === 'none') continue;
+      if (match.shadowRoot || match.localName.includes('-')) watchShadow(match);
       const svg = findSvg(match);
       if (!svg || svg.getAttribute('data-glass')?.trim().toLowerCase() === 'off') continue;
       wanted.add(svg);
@@ -116,19 +144,23 @@ export function auto(options: AutoOptions = {}): GlassController {
     for (const svg of wanted) if (!engine.get(svg)) engine.mount(svg, {}, scope);
   };
 
-  const ownCanvas = (node: Node) => node instanceof Element && node.hasAttribute('data-glassity-canvas');
+  const ownCanvas = (node: Node) => node instanceof Element && node.hasAttribute(OWN);
   const observer = new MutationObserver((records) => {
     // Only the canvases glassity inserts itself are not a reason to look again. An
     // attribute change always is, also on an icon that is already glass (data-glass="off").
     const relevant = records.some(
       (record) => record.type === 'attributes' || [...record.addedNodes, ...record.removedNodes].some((node) => !ownCanvas(node)),
     );
-    if (queued || !relevant) return;
-    queued = true;
-    queueMicrotask(scan);
+    if (relevant) schedule();
   });
-  observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', 'class'] });
-  scan();
+
+  // Nothing is touched until the page has loaded and gone idle, so a server-rendered
+  // page can hydrate first (see whenSettled).
+  const cancelStart = whenSettled(() => {
+    if (destroyed) return;
+    observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', 'class'] });
+    scan();
+  });
 
   const apply = () => {
     for (const instance of engine.inScope(scope)) instance.configure();
@@ -150,7 +182,10 @@ export function auto(options: AutoOptions = {}): GlassController {
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      cancelStart();
       observer.disconnect();
+      for (const watcher of shadows.values()) watcher.disconnect();
+      shadows.clear();
       for (const instance of engine.inScope(scope)) instance.destroy();
       rootElement?.removeAttribute(ROOT);
     },
