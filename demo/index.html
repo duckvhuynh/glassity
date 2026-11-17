@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glassity — demo</title>
+<style>
+  :root { color-scheme: dark; --ink: #eef1f6; --muted: #9aa3b2; --line: #ffffff1f; --panel: #12151c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0d12; color: var(--ink); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  header { padding: 28px 24px 8px; max-width: 1120px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+  p { margin: 0; color: var(--muted); }
+  main { max-width: 1120px; margin: 0 auto; padding: 16px 24px 80px; display: grid; gap: 20px; }
+  .stage { border-radius: 22px; padding: 28px; position: relative; overflow: hidden; border: 1px solid var(--line); }
+  .stage h2 { color: #ffffffb8; text-shadow: 0 1px 8px #0006; }
+  .row { display: flex; flex-wrap: wrap; gap: 26px; align-items: center; }
+
+  /* A wallpaper with fine lines, so bending is easy to see. */
+  .dusk {
+    background:
+      repeating-linear-gradient(90deg, #ffffff2e 0 1px, transparent 1px 22px),
+      repeating-linear-gradient(0deg, #ffffff1c 0 1px, transparent 1px 22px),
+      radial-gradient(90% 120% at 12% 8%, #ffd08a 0%, transparent 55%),
+      radial-gradient(80% 110% at 88% 18%, #ff7a59 0%, transparent 60%),
+      radial-gradient(120% 120% at 60% 110%, #1b2a66 0%, transparent 62%),
+      linear-gradient(160deg, #f6a65c, #a8456f 45%, #232a5c);
+  }
+  .ocean {
+    background:
+      radial-gradient(70% 90% at 20% 20%, #3fd0ff 0%, transparent 60%),
+      radial-gradient(60% 90% at 85% 75%, #7b5cff 0%, transparent 62%),
+      conic-gradient(from 210deg at 50% 60%, #06224f, #0d4f8f, #1a1f6b, #06224f);
+  }
+  .paper {
+    background:
+      repeating-linear-gradient(45deg, #0000000f 0 2px, transparent 2px 16px),
+      linear-gradient(135deg, #fdf3e6, #e8eefc 60%, #f6e3f1);
+    color: #1b1e26;
+  }
+  .paper h2 { color: #1b1e26b0; text-shadow: none; }
+
+  .glyphs svg { width: 88px; height: 88px; }
+  .tiles svg { width: 84px; height: 84px; }
+  .small svg { width: 32px; height: 32px; }
+  .bar { display: inline-flex; gap: 18px; padding: 6px; }
+  button.icon { all: unset; cursor: pointer; display: inline-flex; border-radius: 22px; }
+  button.icon:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+
+  .prose { position: relative; background: #f4f1ea; color: #23252b; }
+  .prose h2 { color: #23252b99; text-shadow: none; }
+  .prose article { columns: 2; column-gap: 28px; font: 17px/1.55 Georgia, "Times New Roman", serif; }
+  .prose article p { color: #23252b; margin-bottom: 12px; }
+  .prose article strong { background: #ffd34d; padding: 0 4px; }
+  .prose .swatches { display: flex; gap: 8px; margin: 10px 0 14px; break-inside: avoid; }
+  .prose .swatches i { flex: 1; height: 46px; border-radius: 8px; }
+  .float { position: absolute; left: 50%; top: 54%; transform: translate(-50%, -50%); display: flex; gap: 20px; }
+  .float svg { width: 76px; height: 76px; }
+
+  .controls { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; display: grid; gap: 14px 22px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .controls label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .controls label span { display: flex; justify-content: space-between; }
+  .controls output { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .controls input[type=range] { width: 100%; accent-color: #8fb4ff; }
+  .controls select, .controls button { font: inherit; color: var(--ink); background: #1c2130; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; }
+  .controls .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 13px; color: var(--ink); }
+  .controls .checks label { display: inline-flex; grid-template-columns: none; gap: 6px; color: var(--ink); align-items: center; }
+  #status { font-size: 13px; color: var(--muted); }
+  @media (max-width: 720px) { .prose article { columns: 1; } .glyphs svg { width: 64px; height: 64px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>glassity</h1>
+  <p>Every icon below is a plain Lucide <code>&lt;svg data-glass&gt;</code>. One call to <code>auto()</code> turns them into glass. <span id="status"></span></p>
+</header>
+
+<main>
+  <section class="stage dusk">
+    <h2>Glass icons — regular</h2>
+    <div class="row glyphs" id="glyphs"></div>
+  </section>
+
+  <section class="controls" aria-label="Controls">
+    <label><span>Variant</span>
+      <select data-opt="variant"><option>regular</option><option>clear</option><option>identity</option></select></label>
+    <label><span>Profile</span>
+      <select data-opt="profile"><option>squircle</option><option>circle</option><option>lip</option></select></label>
+    <label><span>Depth <output></output></span><input type="range" data-opt="depth" min="0" max="0.6" step="0.01" value="0.16"></label>
+    <label><span>Bevel <output></output></span><input type="range" data-opt="bevel" min="0.01" max="0.3" step="0.005" value="0.09"></label>
+    <label><span>Curvature <output></output></span><input type="range" data-opt="curvature" min="0" max="2.5" step="0.05" value="1"></label>
+    <label><span>Dispersion <output></output></span><input type="range" data-opt="dispersion" min="0" max="2" step="0.05" value="0.35"></label>
+    <label><span>Frost <output></output></span><input type="range" data-opt="frost" min="0" max="1" step="0.02" value="0.3"></label>
+    <label><span>Tint opacity <output></output></span><input type="range" data-opt="tintOpacity" min="0" max="1" step="0.02" value="0.14"></label>
+    <label><span>Shine <output></output></span><input type="range" data-opt="shine" min="0" max="3" step="0.05" value="1"></label>
+    <label><span>Light angle <output></output></span><input type="range" data-opt="lightAngle" min="-180" max="180" step="5" value="-45"></label>
+    <div class="checks">
+      <label><input type="checkbox" data-opt="visible" checked> Visible</label>
+      <label><input type="checkbox" data-opt="pointerLight" checked> Pointer light</label>
+      <label><input type="checkbox" data-opt="accessibility" checked> Follow system accessibility settings</label>
+      <button id="morph" type="button">Morph first icon</button>
+    </div>
+  </section>
+
+  <section class="stage ocean">
+    <h2>On a glass tile — press them</h2>
+    <div class="row tiles" id="tiles"></div>
+  </section>
+
+  <section class="stage paper">
+    <h2>Light backdrop — the glass flips to dark by itself</h2>
+    <div class="row">
+      <div class="row glyphs" id="light-glyphs"></div>
+      <div class="row tiles" id="light-tiles"></div>
+      <div class="row small" id="light-small"></div>
+    </div>
+  </section>
+
+  <section class="stage prose" id="prose">
+    <h2>Over real page content — no background image, the HTML itself is refracted</h2>
+    <article>
+      <p>Glass does not blur what is behind it. <strong>It bends it.</strong> Lines that cross the edge of a lens break and reappear a little to one side, the way a straw seems to snap at the surface of a glass of water.</p>
+      <div class="swatches"><i style="background:#e4572e"></i><i style="background:#17bebb"></i><i style="background:#ffc914"></i><i style="background:#2e282a"></i><i style="background:#76b041"></i></div>
+      <p>The icons floating over this text are ordinary SVG. Behind them is ordinary HTML: paragraphs, coloured blocks, a highlighted phrase. Nothing here was drawn on a canvas by hand.</p>
+      <p>When the content changes, the picture the glass looks through is taken again. Move the pointer near an icon and the highlight follows it.</p>
+      <p>Short strokes become round tubes of glass. Wide shapes get a flat top and a bevelled rim. Both come from the same icon outline, untouched.</p>
+    </article>
+    <div class="float" id="float"></div>
+  </section>
+</main>
+
+<script type="module">
+  import { auto, isSupported } from '../dist/index.js';
+
+  const names = ['calendar', 'house', 'bell', 'heart', 'settings', 'camera', 'search', 'mail', 'map-pin', 'sun', 'sparkles', 'menu'];
+  const cache = new Map();
+  const load = async (name) => {
+    if (!cache.has(name)) cache.set(name, fetch(`icons/${name}.svg`).then((r) => r.text()));
+    return cache.get(name);
+  };
+  const icon = async (name, attrs = {}) => {
+    const holder = document.createElement('div');
+    holder.innerHTML = await load(name);
+    const svg = holder.querySelector('svg');
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', name);
+    svg.setAttribute('data-glass', '');
+    for (const [k, v] of Object.entries(attrs)) svg.setAttribute(k, v);
+    return svg;
+  };
+  const fill = async (id, list, attrs, wrap) => {
+    const host = document.getElementById(id);
+    for (const name of list) {
+      const svg = await icon(name, attrs);
+      if (wrap) {
+        const button = document.createElement('button');
+        button.className = 'icon';
+        button.type = 'button';
+        button.setAttribute('aria-label', name);
+        svg.removeAttribute('role');
+        svg.setAttribute('aria-hidden', 'true');
+        button.append(svg);
+        host.append(button);
+      } else host.append(svg);
+    }
+  };
+
+  await fill('glyphs', names.slice(0, 8));
+  await fill('tiles', names, { 'data-glass-tile': '', 'data-glass-interactive': '' }, true);
+  await fill('light-glyphs', ['calendar', 'heart', 'sun']);
+  await fill('light-tiles', ['house', 'mail', 'camera'], { 'data-glass-tile': '' });
+  await fill('light-small', ['search', 'bell', 'settings', 'menu']);
+  await fill('float', ['camera', 'heart', 'search'], { 'data-glass': 'clear' });
+
+  // The prose section has no background image, so its icons refract a snapshot of the HTML.
+  const controller = auto();
+  window.glass = controller;
+
+  const notes = [isSupported() ? 'WebGL2 is on.' : 'WebGL2 is not available: icons stay plain SVG.'];
+  if (matchMedia('(prefers-reduced-transparency: reduce)').matches) notes.push('Your system asks for reduced transparency, so the glass is frostier. Untick “Follow system accessibility settings” to see it clear.');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) notes.push('Your system asks for reduced motion, so the pointer light and the bounce are off.');
+  document.getElementById('status').textContent = notes.join(' ');
+
+  const read = (input) => (input.type === 'checkbox' ? input.checked : input.type === 'range' ? Number(input.value) : input.value);
+  for (const input of document.querySelectorAll('[data-opt]')) {
+    const output = input.closest('label')?.querySelector('output');
+    const sync = () => {
+      if (output) output.textContent = input.value;
+      controller.update({ [input.dataset.opt]: read(input) });
+    };
+    if (output) output.textContent = input.value;
+    input.addEventListener('input', sync);
+  }
+
+  // Swapping the paths of an icon in place morphs the glass from one shape to the other.
+  let step = 0;
+  document.getElementById('morph').addEventListener('click', async () => {
+    const first = document.querySelector('#glyphs svg');
+    const order = ['heart', 'sparkles', 'bell', 'calendar'];
+    const holder = document.createElement('div');
+    holder.innerHTML = await load(order[step++ % order.length]);
+    first.innerHTML = holder.querySelector('svg').innerHTML;
+  });
+</script>
+</body>
+</html>

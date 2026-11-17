@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "glassity-demo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["demo/serve.mjs", "4173"],
+      "port": 4173
+    }
+  ]
+}

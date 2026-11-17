@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glassity — React demo</title>
+<style>
+  :root { color-scheme: dark; --ink: #eef1f6; --muted: #9aa3b2; --line: #ffffff1f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0d12; color: var(--ink); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 28px 24px 80px; display: grid; gap: 20px; }
+  h1 { font-size: 26px; margin: 0; }
+  h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #ffffffb8; margin: 0 0 14px; }
+  p { margin: 0; color: var(--muted); }
+  .stage { border-radius: 22px; padding: 28px; border: 1px solid var(--line); }
+  .row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; }
+  .dusk {
+    background:
+      repeating-linear-gradient(90deg, #ffffff2e 0 1px, transparent 1px 22px),
+      repeating-linear-gradient(0deg, #ffffff1c 0 1px, transparent 1px 22px),
+      radial-gradient(90% 120% at 12% 8%, #ffd08a 0%, transparent 55%),
+      radial-gradient(80% 110% at 88% 18%, #ff7a59 0%, transparent 60%),
+      linear-gradient(160deg, #f6a65c, #a8456f 45%, #232a5c);
+  }
+  .ocean {
+    background:
+      repeating-linear-gradient(60deg, #ffffff24 0 1px, transparent 1px 18px),
+      radial-gradient(70% 90% at 20% 20%, #3fd0ff 0%, transparent 60%),
+      radial-gradient(60% 90% at 85% 75%, #7b5cff 0%, transparent 62%),
+      linear-gradient(135deg, #06224f, #1a1f6b);
+  }
+  button.icon { all: unset; cursor: pointer; display: inline-flex; border-radius: 22px; }
+  .buttons { display: grid; gap: 8px; }
+  .buttons button { font: inherit; color: var(--ink); background: #0b0d12cc; border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="out/react-demo.js"></script>
+</body>
+</html>
