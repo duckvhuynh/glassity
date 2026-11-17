@@ -48,13 +48,31 @@ const ICONS = [
   ['droplet', 'Droplet', 'drop'],
 ];
 
+const LOGOS = [
+  ['react', 'siReact'],
+  ['vue', 'siVuedotjs'],
+  ['svelte', 'siSvelte'],
+  ['angular', 'siAngular'],
+  ['astro', 'siAstro'],
+  ['solid', 'siSolid'],
+  ['nuxt', 'siNuxt'],
+  ['nextjs', 'siNextdotjs'],
+  ['remix', 'siRemix'],
+  ['nodejs', 'siNodedotjs'],
+  ['typescript', 'siTypescript'],
+  ['github', 'siGithub'],
+];
+
 async function iconData() {
   const lucide = require('lucide');
   const phosphorDir = join(root, 'node_modules/@phosphor-icons/core/assets/fill');
   const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   const node = ([tag, attrs]) => `<${tag} ${Object.entries(attrs).map(([k, v]) => `${k}="${esc(v)}"`).join(' ')}/>`;
   const pascal = (s) => s.replace(/(^|-)([a-z])/g, (_, __, c) => c.toUpperCase());
-  const data = { lucide: {}, phosphor: {}, components: {} };
+  const data = { lucide: {}, phosphor: {}, logos: {}, components: {} };
+  // Logos of tools glassity works with, from Simple Icons (CC0; the marks belong to their owners).
+  const simple = require('simple-icons');
+  for (const [name, key] of LOGOS) data.logos[name] = { viewBox: '0 0 24 24', attrs: { fill: 'currentColor' }, body: `<path d="${simple[key].path}"/>`, title: simple[key].title };
   for (const [name, l, p] of ICONS) {
     data.components[name] = { lucide: l, phosphor: pascal(p) };
     data.lucide[name] = {

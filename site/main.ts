@@ -6,7 +6,7 @@ import icons from 'virtual:icons';
 
 type Key = keyof ResolvedOptions;
 type Layout = 'single' | 'dock' | 'grid';
-type IconSet = 'lucide' | 'phosphor' | 'custom';
+type IconSet = 'lucide' | 'phosphor' | 'logos' | 'custom';
 type Tab = 'react' | 'vue' | 'svelte' | 'html' | 'js';
 
 interface BackdropInfo {
@@ -41,10 +41,11 @@ const backdropInfo = (id: string) => BACKDROPS.find((b) => b.id === id) ?? BACKD
 let uploadUrl = '';
 
 const LAYOUTS: [Layout, string][] = [['single', 'One'], ['dock', 'Dock'], ['grid', 'Grid']];
-const SETS: [IconSet, string][] = [['lucide', 'Lucide'], ['phosphor', 'Phosphor fill'], ['custom', 'Your SVG']];
+const SETS: [IconSet, string][] = [['lucide', 'Lucide'], ['phosphor', 'Phosphor fill'], ['logos', 'Logos'], ['custom', 'Your SVG']];
 const TABS: [Tab, string][] = [['react', 'React'], ['vue', 'Vue'], ['svelte', 'Svelte'], ['html', 'HTML'], ['js', 'JavaScript']];
-const SIZES: Record<Layout, number> = matchMedia('(max-width: 640px)').matches ? { single: 150, dock: 44, grid: 40 } : { single: 200, dock: 92, grid: 60 };
+const SIZES: Record<Layout, number> = matchMedia('(max-width: 640px)').matches ? { single: 170, dock: 46, grid: 44 } : { single: 260, dock: 116, grid: 76 };
 const DOCK = ['house', 'search', 'bell', 'heart', 'camera', 'music'];
+const LOGO_DOCK = ['react', 'vue', 'svelte', 'angular', 'astro', 'solid'];
 const GRID = ['house', 'search', 'bell', 'heart', 'settings', 'camera', 'mail', 'map-pin', 'calendar', 'sun', 'sparkles', 'music', 'cloud', 'star', 'message', 'zap', 'leaf', 'coffee'];
 
 interface State {
@@ -201,9 +202,16 @@ function parseCustom(text: string): IconData | null {
   return { viewBox, attrs, body: svg.innerHTML };
 }
 
+function iconLabel(name: string): string {
+  if (state.set === 'custom') return 'Your SVG';
+  if (state.set === 'logos') return icons.logos[name]?.title ?? name;
+  return name;
+}
+
 function iconFor(name: string): IconData {
   if (state.set === 'custom') return customIcon ?? icons.lucide.sparkles;
-  return icons[state.set][name] ?? icons.lucide.heart;
+  const set = icons[state.set];
+  return set[name] ?? Object.values(set)[0];
 }
 
 function paint(svg: SVGSVGElement, data: IconData): void {
@@ -219,7 +227,7 @@ function makeIcon(name: string, glass: boolean): SVGSVGElement {
   if (glass) {
     svg.setAttribute('data-glass', '');
     svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', state.set === 'custom' ? 'Your SVG' : name);
+    svg.setAttribute('aria-label', iconLabel(name));
   } else {
     svg.setAttribute('data-glass', 'off');
   }
@@ -229,6 +237,7 @@ function makeIcon(name: string, glass: boolean): SVGSVGElement {
 
 function names(): string[] {
   if (state.layout === 'single' || state.set === 'custom') return [state.icon];
+  if (state.set === 'logos') return state.layout === 'dock' ? LOGO_DOCK : Object.keys(icons.logos);
   return state.layout === 'dock' ? DOCK : GRID;
 }
 
@@ -246,7 +255,7 @@ function renderIcons(): void {
     const data = iconFor(list[0]);
     for (const svg of [glassIcons.firstElementChild, plainIcons.firstElementChild] as SVGSVGElement[]) {
       paint(svg, data);
-      if (svg.hasAttribute('role')) svg.setAttribute('aria-label', state.set === 'custom' ? 'Your SVG' : list[0]);
+      if (svg.hasAttribute('role')) svg.setAttribute('aria-label', iconLabel(list[0]));
     }
     return;
   }
@@ -260,14 +269,14 @@ function renderPicker(): void {
   picker.hidden = state.set === 'custom';
   if (state.set === 'custom') return;
   picker.replaceChildren(
-    ...Object.keys(icons.lucide).map((name) => {
+    ...Object.keys(icons[state.set as 'lucide' | 'phosphor' | 'logos']).map((name) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.title = name;
-      button.setAttribute('aria-label', name);
+      button.title = iconLabel(name);
+      button.setAttribute('aria-label', iconLabel(name));
       button.setAttribute('aria-pressed', String(state.layout === 'single' && state.icon === name));
       const svg = document.createElementNS(NS, 'svg');
-      paint(svg, icons[state.set as 'lucide' | 'phosphor'][name]);
+      paint(svg, icons[state.set as 'lucide' | 'phosphor' | 'logos'][name]);
       svg.setAttribute('aria-hidden', 'true');
       button.append(svg);
       button.addEventListener('click', () => {
@@ -525,15 +534,16 @@ function component(name: string): { name: string; from: string; extra: string } 
 
 function code(): string {
   const o = overrides();
-  const list = state.set === 'custom' ? ['custom'] : names().slice(0, state.layout === 'single' ? 1 : 3);
-  const more = state.set !== 'custom' && names().length > list.length;
-  const customSvg = '<svg data-glass viewBox="…">…</svg>';
+  const own = state.set === 'custom' || state.set === 'logos';
+  const list = own ? ['custom'] : names().slice(0, state.layout === 'single' ? 1 : 3);
+  const more = !own && names().length > list.length;
+  const customSvg = state.set === 'logos' ? '<svg data-glass viewBox="0 0 24 24"><path d="…" /></svg>  {/* your logo */}' : '<svg data-glass viewBox="…">…</svg>';
   switch (state.tab) {
     case 'react': {
       const props = o.map(([k, v]) => (v === true ? ` ${k}` : typeof v === 'string' ? ` ${k}="${v}"` : ` ${k}={${num(v)}}`)).join('');
       const comps = list.map(component);
-      const imports = state.set === 'custom' ? '' : `import { ${[...new Set(comps.map((c) => c.name))].join(', ')} } from '${comps[0].from}';\n`;
-      const body = state.set === 'custom' ? `      ${customSvg}` : comps.map((c) => `      <${c.name}${c.extra} data-glass />`).join('\n') + (more ? '\n      {/* … */}' : '');
+      const imports = own ? '' : `import { ${[...new Set(comps.map((c) => c.name))].join(', ')} } from '${comps[0].from}';\n`;
+      const body = own ? `      ${customSvg}` : comps.map((c) => `      <${c.name}${c.extra} data-glass />`).join('\n') + (more ? '\n      {/* … */}' : '');
       return `import { GlassProvider } from 'glassity/react';\n${imports}\nexport function Icons() {\n  return (\n    <GlassProvider${props}>\n${body}\n    </GlassProvider>\n  );\n}`;
     }
     case 'vue': {
@@ -542,8 +552,8 @@ function code(): string {
         const c = component(n);
         return state.set === 'phosphor' ? { ...c, name: 'Ph' + c.name, from: '@phosphor-icons/vue' } : { ...c, from: '@lucide/vue' };
       });
-      const imports = state.set === 'custom' ? '' : `import { ${[...new Set(comps.map((c) => c.name))].join(', ')} } from '${comps[0].from}';\n`;
-      const body = state.set === 'custom' ? `    ${customSvg}` : comps.map((c) => `    <${c.name}${c.extra} data-glass />`).join('\n') + (more ? '\n    <!-- … -->' : '');
+      const imports = own ? '' : `import { ${[...new Set(comps.map((c) => c.name))].join(', ')} } from '${comps[0].from}';\n`;
+      const body = own ? `    ${customSvg.replace('{/* your logo */}', '<!-- your logo -->')}` : comps.map((c) => `    <${c.name}${c.extra} data-glass />`).join('\n') + (more ? '\n    <!-- … -->' : '');
       return `<script setup>\nimport { GlassProvider } from 'glassity/vue';\n${imports}</script>\n\n<template>\n  <GlassProvider${props}>\n${body}\n  </GlassProvider>\n</template>`;
     }
     case 'svelte': {
@@ -552,8 +562,8 @@ function code(): string {
         const c = component(n);
         return state.set === 'phosphor' ? { ...c, from: 'phosphor-svelte' } : { ...c, from: '@lucide/svelte' };
       });
-      const imports = state.set === 'custom' ? '' : `  import { ${[...new Set(comps.map((c) => c.name))].join(', ')} } from '${comps[0].from}';\n`;
-      const body = state.set === 'custom' ? `  ${customSvg}` : comps.map((c) => `  <${c.name}${c.extra} data-glass />`).join('\n') + (more ? '\n  <!-- … -->' : '');
+      const imports = own ? '' : `  import { ${[...new Set(comps.map((c) => c.name))].join(', ')} } from '${comps[0].from}';\n`;
+      const body = own ? `  ${customSvg.replace('{/* your logo */}', '<!-- your logo -->')}` : comps.map((c) => `  <${c.name}${c.extra} data-glass />`).join('\n') + (more ? '\n  <!-- … -->' : '');
       return `<script>\n  import { glassProvider } from 'glassity/svelte';\n${imports}</script>\n\n<nav use:glassProvider${obj ? '=' + obj : ''}>\n${body}\n</nav>`;
     }
     case 'html': {
@@ -562,7 +572,7 @@ function code(): string {
         .map(([k, v]) => (v === true ? ` data-glass-${kebab(k)}` : ` data-glass-${kebab(k)}="${num(v)}"`))
         .join('');
       const variant = state.options.variant ? `="${state.options.variant}"` : '';
-      const n = state.set === 'custom' ? 1 : list.length;
+      const n = own ? 1 : list.length;
       const svgs = Array.from({ length: n }, () => `<svg data-glass${variant}${attrs} viewBox="…">…</svg>`).join('\n');
       return `<script src="https://unpkg.com/glassity"></script>\n\n${svgs}${more ? '\n<!-- … -->' : ''}`;
     }
@@ -606,9 +616,9 @@ function fromHash(): void {
   const layout = p.get('layout');
   if (layout && LAYOUTS.some(([l]) => l === layout)) state.layout = layout as Layout;
   const set = p.get('set');
-  if (set === 'lucide' || set === 'phosphor') state.set = set;
+  if (set === 'lucide' || set === 'phosphor' || set === 'logos') state.set = set;
   const icon = p.get('icon');
-  if (icon && icons.lucide[icon]) state.icon = icon;
+  if (icon && (icons.lucide[icon] || icons.logos[icon])) state.icon = icon;
   const size = Number(p.get('size'));
   if (size >= 24 && size <= 400) state.size[state.layout] = size;
   if (p.has('compare')) {
