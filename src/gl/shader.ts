@@ -129,6 +129,30 @@ Layer makeLayer(float sd, vec2 g, float thick, float bevel, float aa) {
   return L;
 }
 
+// The distance field folds along the middle of every stroke and along the bisector of
+// every corner, so normals taken from it straight show sharp creases: a chiselled look.
+// Real glass flows. The direction of the slope comes from the field averaged over a small
+// ring; across a fold the two sides cancel, so the surface rounds over the ridge instead
+// of breaking. The steepness still follows the profile at this point.
+void smoothSurface(vec2 uv, inout Layer L) {
+  float r = max(0.6 * L.edge, 0.8);
+  vec2 dir = vec2(0.0);
+  for (int i = 0; i < 8; i++) {
+    float a = float(i) * 0.7853982;
+    vec2 o = vec2(cos(a), sin(a));
+    dir += fieldAt(uv + o * r / uCanvas).r * o;
+  }
+  dir *= 2.0 * uUnit / (8.0 * r);
+  float m = length(dir);
+  if (m > 1.0) dir /= m;
+  float u = clamp(L.d / L.edge, 0.0, 1.0);
+  float lo = max(u - 0.02, 0.0), hi = min(u + 0.02, 1.0);
+  float slope = clamp((profile(hi) - profile(lo)) / (hi - lo), -5.0, 5.0) * uCurv * uLens;
+  L.n = normalize(vec3(dir * slope, 1.0));
+  // Shading and the rim light follow the same smoothed direction, fading out on the ridge.
+  L.g = dir;
+}
+
 vec2 backUv(vec2 p) { return (p - uBackRect.xy) / uBackRect.zw; }
 
 vec3 sampleBack(vec2 p, float blur) {
@@ -294,7 +318,10 @@ void main() {
     fieldAt(vUv + vec2(0.0, e.y)).r - fieldAt(vUv - vec2(0.0, e.y)).r);
   vec2 g = dot(grad, grad) > 1e-12 ? normalize(grad) : vec2(0.0);
   float fieldAa = max(aa, 0.6 * uFieldTexel.x * uCanvas.x);
-  Layer glyph = makeLayer(f.r * uUnit, g, f.g * uUnit, uBevel, fieldAa);
+  // A mark on a tile is small; a wider bevel keeps it round and soft rather than a flat slab.
+  Layer glyph = makeLayer(f.r * uUnit, g, f.g * uUnit, uTile > 0.5 ? uBevel * 2.2 : uBevel, fieldAa);
+  // Past the bevel the top is flat, whatever the direction: nothing to smooth there.
+  if (glyph.cover > 0.0 && glyph.d < glyph.edge + 1.0) smoothSurface(vUv, glyph);
 
   vec2 shadowShift = (vec2(0.0, 0.035) - uLight * 0.02) * uUnit;
   float shadowBlur = 0.07 * uUnit;
