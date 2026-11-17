@@ -26,3 +26,10 @@ compat/.pack/
 compat/*/node_modules/
 compat/*/dist/
 compat/*/package-lock.json
+compat/*/.next/
+compat/*/.nuxt/
+compat/*/.output/
+compat/*/.svelte-kit/
+compat/*/build/
+compat/*/.angular/
+compat/*/next-env.d.ts

@@ -1,0 +1,5 @@
+{
+  "build": "npx nuxi build",
+  "start": "node .output/server/index.mjs",
+  "ssr": true
+}

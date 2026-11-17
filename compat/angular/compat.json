@@ -1,0 +1,4 @@
+{
+  "build": "npx ng build --configuration production",
+  "static": "dist/app/browser"
+}
