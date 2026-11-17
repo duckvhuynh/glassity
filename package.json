@@ -134,7 +134,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsup",
@@ -143,6 +144,7 @@
     "test:e2e": "playwright test",
     "test:compat": "node compat/run.mjs",
     "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build",
     "demo": "node demo/serve.mjs",
     "demo:build": "node demo/build.mjs"
   },
@@ -202,5 +204,8 @@
     "preact",
     "angular",
     "remix"
-  ]
+  ],
+  "engines": {
+    "node": ">=18"
+  }
 }
