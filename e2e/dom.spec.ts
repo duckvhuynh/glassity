@@ -231,6 +231,37 @@ test.describe('server-rendered pages, islands', () => {
   });
 });
 
+test.describe('server-rendered pages, Vue lazy hydration', () => {
+  test('icons in a Vue component that hydrates lazily are left alone until it has', async ({ page }) => {
+    // What Vue leaves in production: __vue_app__ and the root vnode (_vnode) on the app
+    // container. A lazily hydrated async wrapper's subTree is a plain element vnode until
+    // it hydrates, then the inner component's vnode (as observed in Nuxt 4 / Vue 3.5).
+    const setup = `<script>
+      const container = document.currentScript.parentElement;
+      addEventListener('DOMContentLoaded', () => {
+        const lazy = document.getElementById('lazy');
+        const wrapper = { type: { __asyncLoader: () => {} }, subTree: { type: 'div', el: lazy }, vnode: { el: lazy } };
+        window.lazyWrapper = wrapper;
+        container.__vue_app__ = {};
+        container._vnode = { component: { type: {}, subTree: { children: [{ component: wrapper }] } } };
+      });
+    </script>`;
+    await serve(page, `<div id="app">${setup}<div style="${WALL}">${icon('id="eager"')}<div id="lazy">${icon('id="a"')}</div></div></div>${START}`);
+    await drawn(page, 1);
+    await settle(page, 800);
+    expect(await opacity(page, '#eager')).toBe('0');
+    expect(await opacity(page, '#a')).toBe('1');
+    expect(await page.locator('#lazy canvas[data-glassity-canvas]').count()).toBe(0);
+
+    // Vue hydrates the component: its subTree appears.
+    await page.evaluate(() => {
+      (window as unknown as { lazyWrapper: { subTree: object } }).lazyWrapper.subTree = { component: { type: {}, subTree: {} } };
+    });
+    await drawn(page, 2);
+    expect(await opacity(page, '#a')).toBe('0');
+  });
+});
+
 test.describe('nested scopes', () => {
   test('a provider that starts after the page-wide auto mode takes over its icons and keeps them', async ({ page }) => {
     // Page-wide auto mode first (glassity/auto), then a provider inside the page, as when a

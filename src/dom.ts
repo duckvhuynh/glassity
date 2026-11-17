@@ -113,12 +113,14 @@ const ownKey = (node: object, prefix: string) => Object.keys(node).some((key) =>
  * `__reactFiber$…`. Changing a node React has still to hydrate makes hydration fail, and
  * React then throws the server HTML away and renders the tree again. Hydration can run
  * well after the page has loaded (streaming, Suspense, Safari without requestIdleCallback),
- * so waiting for idle alone is not enough. Astro islands are recognised the same way.
+ * so waiting for idle alone is not enough. Astro islands and lazily hydrated Vue
+ * components are recognised too.
  */
 export function awaitingHydration(el: Element): boolean {
   // Astro islands (any framework) carry an ssr attribute until they have hydrated;
   // client:visible and client:idle islands can stay that way long after load.
   if (el.closest('astro-island[ssr]')) return true;
+  if (awaitingVueHydration(el)) return true;
   let inReact = false;
   for (let node: Node | null = el; node; node = node.parentNode ?? (node instanceof ShadowRoot ? node.host : null)) {
     if (ownKey(node, '__reactContainer$')) {
@@ -127,4 +129,78 @@ export function awaitingHydration(el: Element): boolean {
     }
   }
   return inReact && !ownKey(el, '__reactFiber$');
+}
+
+interface VueVNode {
+  component?: VueInstance | null;
+  children?: unknown;
+  suspense?: { activeBranch?: VueVNode | null } | null;
+  el?: Node | null;
+}
+interface VueInstance {
+  type?: { __asyncLoader?: unknown } | null;
+  subTree?: VueVNode | null;
+  vnode?: VueVNode | null;
+}
+
+/** DOM that a lazily hydrated Vue component has yet to claim, per app container, briefly cached. */
+const vueCache = new WeakMap<object, { at: number; roots: Node[] }>();
+
+function pendingVueRoots(root: VueVNode): Node[] {
+  const roots: Node[] = [];
+  const seen = new Set<object>();
+  const visit = (vnode: unknown, depth: number) => {
+    if (!vnode || typeof vnode !== 'object' || depth > 400 || seen.has(vnode)) return;
+    seen.add(vnode);
+    const node = vnode as VueVNode;
+    const instance = node.component;
+    if (instance) {
+      // An async wrapper's subTree becomes the inner component's vnode once it has
+      // hydrated. Before that (hydrateOnVisible, hydrateOnIdle, hydrateOnInteraction,
+      // Nuxt's hydrate-on-* props) it is missing or a plain element vnode.
+      if (instance.type?.__asyncLoader && !instance.subTree?.component) {
+        const el = instance.vnode?.el ?? node.el;
+        if (el) roots.push(el);
+        return;
+      }
+      visit(instance.subTree, depth + 1);
+      return;
+    }
+    if (node.suspense) visit(node.suspense.activeBranch, depth + 1);
+    if (Array.isArray(node.children)) for (const child of node.children) visit(child, depth + 1);
+  };
+  visit(root, 0);
+  return roots;
+}
+
+/** True when `node` lies in the DOM range Vue will hydrate from `start` (an element, or a `[` … `]` fragment). */
+function inVueRange(start: Node, node: Node): boolean {
+  if (start.nodeType !== Node.COMMENT_NODE || (start as Comment).data !== '[') return start.contains(node);
+  let depth = 1;
+  for (let next = start.nextSibling; next; next = next.nextSibling) {
+    if (next.nodeType === Node.COMMENT_NODE) {
+      const data = (next as Comment).data;
+      if (data === ']' && --depth === 0) return false;
+      if (data === '[') depth++;
+    } else if (next.contains(node)) return true;
+  }
+  return false;
+}
+
+/**
+ * True when `el` sits in a Vue component that hydrates lazily and has not hydrated yet.
+ * Production Vue marks no node it has hydrated, so the component tree is read instead,
+ * from the root vnode Vue keeps on the app's container.
+ */
+function awaitingVueHydration(el: Element): boolean {
+  for (let node: Node | null = el; node; node = node.parentNode) {
+    if (!Object.prototype.hasOwnProperty.call(node, '__vue_app__')) continue;
+    const root = (node as unknown as { _vnode?: VueVNode })._vnode;
+    if (!root) return false;
+    let cached = vueCache.get(node);
+    const now = performance.now();
+    if (!cached || now - cached.at > 50) vueCache.set(node, (cached = { at: now, roots: pendingVueRoots(root) }));
+    return cached.roots.some((start) => inVueRange(start, el));
+  }
+  return false;
 }
