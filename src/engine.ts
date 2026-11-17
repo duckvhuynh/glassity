@@ -4,6 +4,7 @@ import { planRaster, rasterAlpha, serializeIcon, type RasterPlan } from './core/
 import { Renderer, type BackTexture, type FieldTexture } from './gl/renderer';
 import { readAttributes, resolveOptions, type GlassOptions, type ResolvedOptions } from './options';
 import { pageColor } from './snapshot';
+import { ensureStyles, HIDDEN, OWN } from './dom';
 
 /** Control over one glass icon. */
 export interface GlassHandle {
@@ -31,6 +32,8 @@ interface Geometry {
   key: string;
   plan: RasterPlan;
   data: Float32Array;
+  /** The raster had no opaque pixel. */
+  empty: boolean;
   refs: number;
   texture: FieldTexture | null;
 }
@@ -58,14 +61,29 @@ let bevelId = 0;
 function applyBevel(svg: SVGSVGElement): () => void {
   const ns = 'http://www.w3.org/2000/svg';
   const id = 'glassity-bevel-' + ++bevelId;
-  const defs = document.createElementNS(ns, 'defs');
-  defs.setAttribute('data-glassity-canvas', '');
-  defs.innerHTML =
-    `<filter id="${id}" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">` +
-    '<feGaussianBlur in="SourceAlpha" stdDeviation=".3" result="h"/>' +
-    '<feSpecularLighting in="h" surfaceScale="1.8" specularConstant="1" specularExponent="24" lighting-color="white" result="s"><feDistantLight azimuth="225" elevation="50"/></feSpecularLighting>' +
-    '<feComposite in="s" in2="SourceAlpha" operator="in" result="shine"/>' +
-    '<feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="shine"/></feMerge></filter>';
+  const node = (name: string, attributes: Record<string, string>, ...children: Element[]) => {
+    const el = document.createElementNS(ns, name);
+    for (const [key, value] of Object.entries(attributes)) el.setAttribute(key, value);
+    el.append(...children);
+    return el;
+  };
+  // Built node by node: pages that enforce Trusted Types refuse innerHTML.
+  const defs = node(
+    'defs',
+    { [OWN]: '' },
+    node(
+      'filter',
+      { id, x: '-25%', y: '-25%', width: '150%', height: '150%', 'color-interpolation-filters': 'sRGB' },
+      node('feGaussianBlur', { in: 'SourceAlpha', stdDeviation: '.3', result: 'h' }),
+      node(
+        'feSpecularLighting',
+        { in: 'h', surfaceScale: '1.8', specularConstant: '1', specularExponent: '24', 'lighting-color': 'white', result: 's' },
+        node('feDistantLight', { azimuth: '225', elevation: '50' }),
+      ),
+      node('feComposite', { in: 's', in2: 'SourceAlpha', operator: 'in', result: 'shine' }),
+      node('feMerge', {}, node('feMergeNode', { in: 'SourceGraphic' }), node('feMergeNode', { in: 'shine' })),
+    ),
+  );
   const previous = svg.getAttribute('filter');
   svg.prepend(defs);
   svg.setAttribute('filter', `url(#${id})`);
@@ -117,7 +135,10 @@ class Instance implements GlassHandle {
   private revealed = false;
   private drawnVersion = -1;
   private relation = '';
-  private savedOpacity: [string, string] | null = null;
+  /** True while the stylesheet hides the original SVG. */
+  private hidden = false;
+  /** The icon rasterized to nothing (an unresolved reference, say): leave the SVG alone. */
+  private blank = false;
   private pressHost: Element | null = null;
   private readonly observer: MutationObserver;
 
@@ -130,7 +151,7 @@ class Instance implements GlassHandle {
     this.own = own;
     this.scope = scope;
     this.canvas = document.createElement('canvas');
-    this.canvas.setAttribute('data-glassity-canvas', '');
+    this.canvas.setAttribute(OWN, '');
     this.canvas.setAttribute('aria-hidden', 'true');
     this.canvas.width = this.canvas.height = 1;
     this.canvas.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;visibility:hidden;transform-origin:50% 50%;max-width:none;max-height:none;margin:0;';
@@ -157,9 +178,24 @@ class Instance implements GlassHandle {
   }
 
   private onMutation(records: MutationRecord[]): void {
-    // Our own writes to the SVG (hiding it) are not a reason to rebuild.
-    if (records.every((record) => record.target === this.element && record.attributeName === 'style')) return;
-    if (this.mutationQueued) return;
+    let rebuild = false;
+    for (const record of records) {
+      if (record.target === this.element && record.type === 'attributes') {
+        // The icon's own style changes when a framework re-renders or an animation runs.
+        // It does not change the shape; only its opacity is carried over to the glass.
+        if (record.attributeName === 'style') {
+          this.syncOpacity();
+          continue;
+        }
+        // Something removed our marker (a framework replacing all attributes): put it back.
+        if (record.attributeName === HIDDEN) {
+          if (this.hidden && !this.element.hasAttribute(HIDDEN)) this.element.setAttribute(HIDDEN, '');
+          continue;
+        }
+      }
+      rebuild = true;
+    }
+    if (!rebuild || this.mutationQueued) return;
     this.mutationQueued = true;
     queueMicrotask(() => {
       this.mutationQueued = false;
@@ -240,18 +276,28 @@ class Instance implements GlassHandle {
   }
 
   private hideSvg(): void {
-    if (this.savedOpacity) return;
-    const style = this.element.style;
-    this.savedOpacity = [style.getPropertyValue('opacity'), style.getPropertyPriority('opacity')];
-    style.setProperty('opacity', '0', 'important');
+    if (this.hidden) return;
+    this.hidden = true;
+    ensureStyles(this.element);
+    this.element.setAttribute(HIDDEN, '');
+    this.syncOpacity();
+  }
+
+  /**
+   * An opacity written on the icon itself (GSAP, Motion, the Web Animations API, a
+   * framework binding) applies to the glass instead. Opacity on ancestors already
+   * reaches the canvas, which sits next to the icon.
+   */
+  private syncOpacity(): void {
+    const own = parseFloat(this.element.style.opacity);
+    const value = Number.isFinite(own) ? String(Math.min(1, Math.max(0, own))) : '';
+    if (this.canvas.style.opacity !== value) this.canvas.style.opacity = value;
   }
 
   private showSvg(): void {
-    if (!this.savedOpacity) return;
-    const [value, priority] = this.savedOpacity;
-    this.savedOpacity = null;
-    if (value) this.element.style.setProperty('opacity', value, priority);
-    else this.element.style.removeProperty('opacity');
+    if (!this.hidden) return;
+    this.hidden = false;
+    this.element.removeAttribute(HIDDEN);
     this.revealed = false;
   }
 
@@ -263,7 +309,8 @@ class Instance implements GlassHandle {
     const plan = planRaster(rect.width, rect.height, this.engine.dpr(this.r.maxDpr));
     let source: string;
     try {
-      source = serializeIcon(this.element, this.r.strokeWidth);
+      source = await serializeIcon(this.element, this.r.strokeWidth);
+      if (this.destroyed) return;
     } catch (error) {
       console.warn('glassity: could not read this SVG; it is left as it is.', this.element, error);
       return;
@@ -285,6 +332,19 @@ class Instance implements GlassHandle {
     }
     if (token !== this.token || this.destroyed) {
       this.engine.releaseGeometry(geometry);
+      return;
+    }
+    // Nothing drawn (a reference that cannot be resolved, an empty icon): hiding the
+    // original would make the icon vanish, so it stays as it is.
+    this.blank = geometry.empty;
+    if (geometry.empty) {
+      this.engine.releaseGeometry(geometry);
+      this.engine.releaseGeometry(this.geometry);
+      this.engine.releaseGeometry(this.previous);
+      this.geometry = this.previous = null;
+      this.showSvg();
+      this.canvas.style.visibility = 'hidden';
+      console.warn('glassity: this SVG draws nothing that glassity can read (an unresolved <use> or url(#…)?), so it is left as it is.', this.element);
       return;
     }
 
@@ -317,7 +377,7 @@ class Instance implements GlassHandle {
   step(now: number, dt: number, back: Rect | null): boolean {
     const rect = this.rect;
     const geometry = this.geometry;
-    if (this.destroyed || this.inert || !rect || !geometry || !this.backdrop || !back || rect.width < 1) return false;
+    if (this.destroyed || this.inert || this.blank || !rect || !geometry || !this.backdrop || !back || rect.width < 1) return false;
     const { engine, r } = this;
     const plan = geometry.plan;
     const calm = this.system.reducedMotion;
@@ -513,7 +573,11 @@ class Instance implements GlassHandle {
     this.destroyed = true;
     clearTimeout(this.sizeTimer);
     this.detach();
-    this.canvas.remove();
+    // A framework that is unmounting this icon may be holding the canvas as the
+    // anchor for its next insertBefore (Vue does). Take it away a moment later.
+    this.canvas.style.visibility = 'hidden';
+    const canvas = this.canvas;
+    queueMicrotask(() => canvas.remove());
     this.engine.releaseGeometry(this.geometry);
     this.engine.releaseGeometry(this.previous);
     this.engine.releaseBackdrop(this.backdrop);
@@ -590,6 +654,12 @@ export class Engine {
 
   mount(svg: SVGSVGElement, options: GlassOptions, scope: Scope | null): GlassHandle {
     const existing = this.instances.get(svg);
+    if (!existing) {
+      // A copied page brings a stale canvas and marker along with the icon.
+      const next = svg.nextElementSibling;
+      if (next instanceof HTMLCanvasElement && next.hasAttribute(OWN)) next.remove();
+      svg.removeAttribute(HIDDEN);
+    }
     if (existing) {
       existing.scope = scope ?? existing.scope;
       existing.set(options);
@@ -625,10 +695,22 @@ export class Engine {
     if (!this.instances.size) this.unlisten();
   }
 
+  /**
+   * Remove what a copy of the page left behind (Turbo, swup and Barba cache pages by
+   * cloning them): canvases no glass owns, and hidden markers on icons no glass draws.
+   */
+  sweep(root: ParentNode): void {
+    const owned = new Set<Element>();
+    for (const instance of this.instances.values()) owned.add(instance.canvas);
+    for (const canvas of Array.from(root.querySelectorAll(`canvas[${OWN}]`))) if (!owned.has(canvas)) canvas.remove();
+    for (const el of Array.from(root.querySelectorAll(`[${HIDDEN}]`)))
+      if (!(el instanceof SVGSVGElement && this.instances.has(el))) el.removeAttribute(HIDDEN);
+  }
+
   /** True for nodes glassity writes to itself. */
   readonly isOwn = (node: Node): boolean => {
     if (!(node instanceof Element)) return node.parentElement ? this.isOwn(node.parentElement) : false;
-    return node.hasAttribute('data-glassity-canvas') || (node instanceof SVGSVGElement && this.instances.has(node));
+    return node.hasAttribute(OWN) || (node instanceof SVGSVGElement && this.instances.has(node));
   };
 
   observe(svg: SVGSVGElement): void {
@@ -777,13 +859,18 @@ export class Engine {
   async acquireGeometry(key: string, source: string, plan: RasterPlan, padding: number): Promise<Geometry> {
     let pending = this.geometries.get(key);
     if (!pending) {
-      pending = rasterAlpha(source, plan, padding).then((alpha) => ({
-        key,
-        plan,
-        data: buildField(alpha, plan.gw, plan.gh, plan.unit * plan.scale),
-        refs: 0,
-        texture: null,
-      }));
+      pending = rasterAlpha(source, plan, padding).then((alpha) => {
+        let opaque = false;
+        for (let i = 0; i < alpha.length && !opaque; i++) opaque = alpha[i] > 127;
+        return {
+          key,
+          plan,
+          data: buildField(alpha, plan.gw, plan.gh, plan.unit * plan.scale),
+          empty: !opaque,
+          refs: 0,
+          texture: null,
+        };
+      });
       this.geometries.set(key, pending);
       pending.catch(() => this.geometries.delete(key));
     }
@@ -907,7 +994,7 @@ export class Engine {
   }
 }
 
-const KEY = Symbol.for('glassity.engine');
+const KEY = Symbol.for('glassity.engine@' + __VERSION__);
 
 /** The page's engine, created on first use. Shared by every entry point of the package. */
 export function getEngine(): Engine {
