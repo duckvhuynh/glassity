@@ -20,3 +20,9 @@ Thumbs.db
 # test output
 test-results/
 playwright-report/
+
+# compatibility suite
+compat/.pack/
+compat/*/node_modules/
+compat/*/dist/
+compat/*/package-lock.json

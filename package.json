@@ -115,6 +115,7 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:compat": "node compat/run.mjs",
     "typecheck": "tsc --noEmit",
     "demo": "node demo/serve.mjs",
     "demo:build": "node demo/build.mjs"

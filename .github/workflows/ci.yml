@@ -54,3 +54,21 @@ jobs:
           name: playwright-results
           path: test-results/
           retention-days: 7
+
+  # Install the packed package into Vue, Svelte, Solid and Preact apps and check them
+  # in a browser, the way a user of each framework would get it.
+  compat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:compat
+        env:
+          COMPAT_BROWSERS: chromium,webkit

@@ -1,0 +1,6 @@
+import { render } from 'preact';
+import { isSupported } from 'glassity';
+import { App } from './App.jsx';
+
+window.__glassity = isSupported();
+render(<App />, document.getElementById('app'));
