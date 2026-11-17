@@ -39,7 +39,15 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chromium firefox webkit
-      - run: npm run test:e2e
+      - name: Browser tests (Chromium, WebKit)
+        run: npx playwright test --project=chromium --project=webkit
+        env:
+          REQUIRE_WEBGL2: '1'
+      # Headless Firefox on Linux has no GL context, so it runs headed on a virtual display.
+      - name: Browser tests (Firefox)
+        run: xvfb-run --auto-servernum npx playwright test --project=firefox --headed
+        env:
+          REQUIRE_WEBGL2: '1'
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

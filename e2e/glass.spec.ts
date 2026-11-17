@@ -112,7 +112,10 @@ test.beforeEach(async ({ page }, testInfo) => {
   await page.waitForFunction(() => !!window.glassity);
   const supported = await page.evaluate(() => window.glassity.isSupported());
   testInfo.annotations.push({ type: 'webgl2', description: String(supported) });
-  test.skip(!supported && !testInfo.title.includes('without WebGL2'), 'This browser build has no WebGL2; only the fallback applies.');
+  const needsWebgl = !testInfo.title.includes('without WebGL2');
+  // CI sets REQUIRE_WEBGL2 so a browser without WebGL2 fails loudly instead of skipping every real test.
+  if (process.env.REQUIRE_WEBGL2 && needsWebgl) expect(supported, 'WebGL2 must be available in this browser').toBe(true);
+  test.skip(!supported && needsWebgl, 'This browser build has no WebGL2; only the fallback applies.');
 });
 
 test('turns marked icons into glass and keeps them accessible', async ({ page }) => {
