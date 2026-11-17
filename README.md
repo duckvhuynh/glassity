@@ -334,9 +334,11 @@ What is done and what comes next is in [ROADMAP.md](ROADMAP.md); releases are in
 
 1. Move the `Unreleased` notes in [CHANGELOG.md](CHANGELOG.md) under the new version and bump `version` in `package.json`.
 2. Commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
-3. The release workflow publishes to npm with provenance and creates the GitHub release from the changelog. It needs an `NPM_TOKEN` repository secret, and skips publishing if that version is already on npm.
+3. The release workflow publishes to npm and creates the GitHub release from the changelog. It skips publishing if that version is already on npm.
 
-`npm publish` by hand also works: `prepublishOnly` runs the typecheck, the unit tests and the build first.
+The workflow uses [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers): no token or secret is stored, and npm attaches provenance. It has to be set up once on npmjs.com, after the package exists: glassity → Settings → Trusted publishing → GitHub Actions, with owner `duckvhuynh`, repository `glassity`, workflow `release.yml`, and direct `npm publish` allowed.
+
+`npm publish` by hand also works (that is how the first version gets onto npm): `prepublishOnly` runs the typecheck, the unit tests and the build first.
 
 ## Contributing
 

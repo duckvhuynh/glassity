@@ -1,21 +1,26 @@
 name: Release
 
 # Push a tag like v0.2.0 (matching "version" in package.json) to publish that version
-# to npm with provenance and create a GitHub release from the changelog.
-# Needs a repository secret NPM_TOKEN: an npm "Automation" (or granular, publish) token.
+# to npm and create a GitHub release from the changelog.
+#
+# Publishing uses npm Trusted Publishing (OIDC): no token or secret. On npmjs.com,
+# glassity → Settings → Trusted publishing → GitHub Actions must name this repository
+# and the workflow file "release.yml", with direct "npm publish" allowed. npm adds
+# provenance on its own for public packages published this way.
 on:
   push:
     tags: ['v*']
 
 permissions:
   contents: write # create the GitHub release
-  id-token: write # npm provenance
+  id-token: write # OIDC for npm Trusted Publishing
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Node 24 ships npm 11; Trusted Publishing needs npm 11.5.1+ and Node 22.14+.
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -42,9 +47,7 @@ jobs:
       # prepublishOnly runs typecheck, unit tests and the build.
       - name: Publish to npm
         if: env.PUBLISHED != '1'
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish
 
       - name: GitHub release
         env:
