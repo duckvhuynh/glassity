@@ -296,7 +296,7 @@ const scenes = {
       ['Clear', 'variant=clear'],
       ['Frosted', 'frost=0.8&tintOpacity=0.32&dispersion=0.1&shine=0.8'],
       ['Crystal', 'variant=clear&depth=0.34&curvature=1.7&dispersion=1.3&shine=1.6'],
-      ['Chunky', 'bevel=0.2&depth=0.42&curvature=2.2&strokeWidth=3.2'],
+      ['Round', 'tile=true&tileRadius=0.5&profile=circle&bevel=0.5&depth=0.3&weight=0.02'],
       ['Tiles', 'tile=true'],
     ])
       files.push(await still(`look-${caption}`, `${common}&caption=${caption}${opts ? '&' + opts : ''}`, panel));
@@ -307,7 +307,7 @@ const scenes = {
     const panel = { width: 600, height: 340, scale: 2 };
     const files = [];
     for (const [caption, hash] of [
-      ['Leaves: dark glass by itself', 'bg=leaves&layout=dock&size=70'],
+      ['Leaves: light glass on white', 'bg=leaves&layout=dock&size=70'],
       ['Silk', 'bg=silk&layout=dock&set=phosphor&size=70'],
       ['Ocean', 'bg=ocean&layout=dock&size=70&tile=true'],
       ['Aurora', 'bg=aurora&layout=dock&set=phosphor&size=70'],

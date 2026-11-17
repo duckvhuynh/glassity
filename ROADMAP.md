@@ -47,7 +47,8 @@ Last updated: 2026-11-17.
 - [x] Vue: `v-glass`, `useGlass`, `GlassProvider`; Svelte: `use:glass`, `use:glassProvider`; Solid: `use:glass`, `use:glassProvider`
 - [x] Angular: `provideGlassity`, `injectGlass`, `injectGlassProvider`; Remix 3: `glass` and `glassProvider` mixins; Preact through `glassity/react`
 - [x] Script-tag build with auto mode
-- [x] 35 options, all with defaults
+- [x] 36 options, all with defaults, including `weight` (bolder icons, stroked or filled) and round buttons (`tileRadius: 0.5`)
+- [x] Light glass on light pages, as Apple's: outlined by its own refracted shadow and a thin contour instead of turning grey
 
 ### Living in other people's DOM
 - [x] Hiding by attribute and stylesheet: survives frameworks rewriting `style` and animation libraries (browser test)

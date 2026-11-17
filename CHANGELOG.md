@@ -4,6 +4,16 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Added
+- `weight`: makes any icon bolder (or thinner), stroked or filled, by growing its outline evenly.
+- Playground presets "Round" (a round glass button: `tile`, `tileRadius: 0.5`) and "Bold".
+
+### Changed
+- On a light page the glass stays light, as Apple's does, instead of turning grey. It is outlined by its own shadow seen through the edge and a thin contour, and its shadow is lighter. Only icons under about 28 px turn dark there.
+- `dim: 'auto'` (the clear variant) darkens only over bright, busy backdrops such as photos, not a plain light page.
+- Glyphs on tiles stay white on a light page, with a stronger contact shadow.
+- Highlights take a little colour from what is behind them.
+
 ## [0.1.2] - 2026-11-17
 
 No change to the library code.

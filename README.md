@@ -39,13 +39,13 @@ The original `<svg>` stays in the page, so screen readers, focus and clicks see 
 </tr>
 </table>
 
-<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/looks.webp" alt="One camera icon in six looks: default, clear, frosted, crystal, chunky, and on a glass tile." width="100%">
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/looks.webp" alt="One camera icon in six looks: default, clear, frosted, crystal, on a round glass button, and on a glass tile." width="100%">
 
-Each look above is a handful of options on the same icon. Thin strokes turn into round tubes, wide shapes get a flat top and a bevelled rim, and `tile` puts the icon on a plate. There are 35 options, all with defaults.
+Each look above is a handful of options on the same icon. Thin strokes turn into round tubes, wide shapes get a flat top and a bevelled rim, and `tile` puts the icon on a plate (`tileRadius: 0.5` makes it round). `weight` makes any icon bolder, stroked or filled. There are 36 options, all with defaults.
 
 <img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/backdrops.webp" alt="Glass icons over leaves, silk, an ocean, an aurora, light streaks and a page of plain HTML text." width="100%">
 
-It refracts whatever sits behind it: a photo, a CSS gradient, a canvas, or ordinary HTML text, which it photographs and looks through. Over a light background the glass turns dark by itself.
+It refracts whatever sits behind it: a photo, a CSS gradient, a canvas, or ordinary HTML text, which it photographs and looks through. On a white page it stays light, the way Apple's glass does, and is drawn by its own shadow seen through the edge and a thin contour. Only small icons, under about 28 px, turn dark there to stay readable.
 
 ### Your own icons and logos
 
@@ -245,10 +245,11 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `variant` | `'regular'` | `regular` keeps content legible; `clear` is see-through; `identity` leaves the SVG untouched |
 | `profile` | `'squircle'` | Cross-section of the edge: `squircle`, `circle`, `lip` |
 | `tile` | `false` | Put the icon on a rounded glass plate that fills the SVG's box |
-| `tileRadius` | `0.26` | Plate corner radius, 0 to 0.5 |
+| `tileRadius` | `0.26` | Plate corner radius, 0 to 0.5. `0.5` makes a round button |
 | `glyphOpacity` | `0.9` | How solid the icon is on a plate |
 | `padding` | `0` (`0.22` with `tile`) | Inset of the icon inside its box, per side |
-| `strokeWidth` | from the SVG | Override the stroke width, in viewBox units |
+| `strokeWidth` | from the SVG | Override the stroke width, in viewBox units. Stroked icons only |
+| `weight` | `0` | Make any shape bolder, stroked or filled, as a fraction of the box: up to `0.08`, down to `-0.03` |
 | `bevel` | `0.09` | Width of the curved edge. Thin strokes use their own half-width |
 | `curvature` | `1` | How steep the edge is. `0` is flat glass |
 | `depth` | `0.16` | Optical depth: how far light travels after bending |
@@ -260,9 +261,9 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `saturation` | `1.35` | Saturation of what is seen through the glass |
 | `brightness` | `1` | Brightness of what is seen through the glass |
 | `contrast` | `0.9` | Contrast of what is seen through the glass |
-| `tint` | `'auto'` | Glass colour. `auto` picks white or near-black from the backdrop |
+| `tint` | `'auto'` | Glass colour. `auto` is white; icons under about 28 px turn near-black on a light page |
 | `tintOpacity` | `0.14` (`0.04` clear) | How much tint is mixed in |
-| `dim` | `0` (`'auto'` clear) | Darkening under the glass. `auto`: up to 35%, only over bright backdrops |
+| `dim` | `0` (`'auto'` clear) | Darkening under the glass. `auto`: up to 35%, only over bright, busy backdrops such as photos; none on a plain light page |
 | `opacity` | `1` | Overall opacity |
 | `shine` | `1` | Specular highlight |
 | `rim` | `1` | Thin light along the edge |
