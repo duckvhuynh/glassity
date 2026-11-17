@@ -1,0 +1,5 @@
+{
+  "build": false,
+  "start": "node --import remix/node-tsx server.ts",
+  "ssr": true
+}

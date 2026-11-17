@@ -34,7 +34,7 @@ export default function Controls() {
       <button id="color" onClick={() => setColor('#ffd400')}>color</button>
       <button id="swap" onClick={() => setSwapped(!swapped)}>swap</button>
       <button id="toggle" onClick={() => setShown(!shown)}>toggle</button>
-      <button id="reveal" onClick={reveal}>reveal</button>
+      <button data-compat-step="late island revealed" onClick={reveal}>reveal</button>
 
       <div className="stage">
         {shown && (

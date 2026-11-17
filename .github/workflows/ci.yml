@@ -56,7 +56,7 @@ jobs:
           retention-days: 7
 
   # Install the packed package into one app per framework (Vue, Svelte, Solid, Preact,
-  # Angular, Next.js, Nuxt, SvelteKit, Astro, React Router) and check them in a browser, the way a user of
+  # Angular, Next.js, Nuxt, SvelteKit, Astro, React Router, Remix 3) and check them in a browser, the way a user of
   # each framework would get it.
   compat:
     runs-on: ubuntu-latest
@@ -65,7 +65,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24 # Remix 3 needs Node 24.3+
           cache: npm
       - run: npm ci
       - run: npm run build

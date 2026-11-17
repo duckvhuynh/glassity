@@ -14,6 +14,8 @@
 // An app may describe itself in compat.json:
 //   { "build": "npx next build", "start": "npx next start -p {port}", "ssr": true }
 //   { "build": "npx ng build", "static": "dist/app/browser" }
+//   { "build": false, "start": "node server.ts" }          (no build step)
+// Buttons with data-compat-step="label" are clicked after the standard steps.
 // Defaults: build with Vite, serve dist/ as static files. With "ssr", the HTML the server
 // sends must contain the icons and nothing from glassity.
 import { execSync, spawn } from 'node:child_process';
@@ -153,7 +155,7 @@ for (const app of apps) {
   try {
     sh('npm install --no-audit --no-fund --loglevel=error', dir);
     sh(`npm install --no-save --no-audit --no-fund --loglevel=error "${tarball}"`, dir);
-    sh(config.build ?? 'npx vite build --logLevel error', dir, { NODE_ENV: 'production' });
+    if (config.build !== false) sh(config.build ?? 'npx vite build --logLevel error', dir, { NODE_ENV: 'production' });
     server = config.start ? await serveCommand(config.start, dir) : await serveStatic(join(dir, config.static ?? 'dist'));
   } catch (error) {
     results.push({ app, browser: 'install/build/start', problems: [firstLine(error)] });
@@ -207,9 +209,10 @@ for (const app of apps) {
           ['#toggle', 'icon removed'],
           ['#toggle', 'icon added back'],
         ];
-        // Optional: an app with content that hydrates late (an Astro client:visible island)
-        // offers #reveal to bring it in and mark what must then be glass.
-        if (await page.locator('#reveal').count()) steps.push(['#reveal', 'late content revealed']);
+        // Optional extra steps an app offers, clicked in page order: content that hydrates
+        // late (an Astro client:visible island), a Remix frame reload, …
+        for (const label of await page.locator('[data-compat-step]').evaluateAll((all) => all.map((b) => b.getAttribute('data-compat-step'))))
+          steps.push([`[data-compat-step="${label}"]`, label]);
         for (const [button, label] of steps) {
           await page.click(button);
           problems.push(...(await invariant(page, label)));
