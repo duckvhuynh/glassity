@@ -219,6 +219,18 @@ test.describe('server-rendered pages, continued', () => {
   });
 });
 
+test.describe('server-rendered pages, islands', () => {
+  test('icons inside an Astro island that has not hydrated are left alone until it has', async ({ page }) => {
+    await serve(page, `<astro-island ssr><div style="${WALL}">${icon('id="a"')}</div></astro-island>${START}`);
+    await settle(page, 1200);
+    expect(await page.locator('canvas[data-glassity-canvas]').count()).toBe(0);
+
+    // Astro removes the attribute once the island has hydrated.
+    await page.evaluate(() => document.querySelector('astro-island')!.removeAttribute('ssr'));
+    await drawn(page, 1);
+  });
+});
+
 test.describe('web components', () => {
   test('an icon inside an open shadow root becomes glass, also when it arrives late', async ({ page }) => {
     const define = `<script>

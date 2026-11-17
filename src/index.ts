@@ -104,6 +104,7 @@ function startAuto(options: AutoOptions): GlassController {
   let destroyed = false;
   let queued = false;
   let retry = 0;
+  let retryDelay = 100;
   const schedule = () => {
     if (queued || destroyed) return;
     queued = true;
@@ -161,10 +162,13 @@ function startAuto(options: AutoOptions): GlassController {
       }
       wanted.add(svg);
     }
+    // React's marks cannot be observed, so look again, less often the longer it takes
+    // (an island that hydrates on scroll may wait indefinitely).
+    clearTimeout(retry);
     if (hydrating) {
-      clearTimeout(retry);
-      retry = window.setTimeout(schedule, 100);
-    }
+      retry = window.setTimeout(schedule, retryDelay);
+      retryDelay = Math.min(retryDelay * 2, 2000);
+    } else retryDelay = 100;
     for (const instance of engine.inScope(scope)) if (!wanted.has(instance.element) || !instance.element.isConnected) instance.destroy();
     for (const svg of wanted) if (!engine.get(svg)) engine.mount(svg, {}, scope);
   };
@@ -183,7 +187,7 @@ function startAuto(options: AutoOptions): GlassController {
   // page can hydrate first (see whenSettled).
   const cancelStart = whenSettled(() => {
     if (destroyed) return;
-    observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', 'class'] });
+    observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', 'class', 'ssr'] });
     scan();
   });
 

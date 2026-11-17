@@ -113,9 +113,12 @@ const ownKey = (node: object, prefix: string) => Object.keys(node).some((key) =>
  * `__reactFiber$…`. Changing a node React has still to hydrate makes hydration fail, and
  * React then throws the server HTML away and renders the tree again. Hydration can run
  * well after the page has loaded (streaming, Suspense, Safari without requestIdleCallback),
- * so waiting for idle alone is not enough.
+ * so waiting for idle alone is not enough. Astro islands are recognised the same way.
  */
 export function awaitingHydration(el: Element): boolean {
+  // Astro islands (any framework) carry an ssr attribute until they have hydrated;
+  // client:visible and client:idle islands can stay that way long after load.
+  if (el.closest('astro-island[ssr]')) return true;
   let inReact = false;
   for (let node: Node | null = el; node; node = node.parentNode ?? (node instanceof ShadowRoot ? node.host : null)) {
     if (ownKey(node, '__reactContainer$')) {
