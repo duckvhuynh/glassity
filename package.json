@@ -135,7 +135,9 @@
     "dist",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "get-started.md",
+    "skills"
   ],
   "scripts": {
     "build": "tsup",

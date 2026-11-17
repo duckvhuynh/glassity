@@ -1,0 +1,264 @@
+---
+name: glassity
+description: Use when adding, styling, animating or debugging liquid-glass SVG icons with the glassity library (data-glass attributes, GlassProvider, Glass, glassify, auto, glassity/react, glassity/vue, glassity/svelte, glassity/solid, glassity/angular, glassity/remix, glassity/auto). Covers setup in every framework, all options with defaults and ranges, recipes for common looks, server rendering, accessibility and troubleshooting.
+---
+
+# glassity
+
+glassity turns inline SVG icons into liquid glass with WebGL2. It reads the outline of an `<svg>`, builds a distance field from it, and draws the icon as a lens that refracts what is behind it, with dispersion at the rim, frost, a specular highlight that follows the pointer and a soft shadow. The original `<svg>` stays in the DOM (hidden with an attribute), so its accessible name, focus and clicks are unchanged. Without WebGL2 the plain icon shows.
+
+- Package: `glassity` on npm. ESM and CommonJS, types for every `moduleResolution`. No runtime dependencies.
+- Playground with every option: https://duckvhuynh.github.io/glassity/
+- Setup guide for agents: https://raw.githubusercontent.com/duckvhuynh/glassity/main/get-started.md
+
+## How it works, in one paragraph
+
+Each glass icon gets a `<canvas data-glassity-canvas>` inserted right after its `<svg>`, positioned over it and sized larger than it (room for the bevel and shadow). One WebGL2 context, shared by the whole page, draws every icon. The SVG is rasterised once (and again when its paths change), turned into a distance field plus local thickness, and the shader turns that into a curved glass surface. Thin strokes become round tubes; wide shapes get a flat top and a bevelled rim. What the glass refracts is the backdrop: the CSS background image of the nearest ancestor that paints one, or a snapshot of the HTML around the icon, or a source you pass.
+
+## Entry points
+
+| Import | What it gives |
+|---|---|
+| `glassity` | `glassify(element, options)`, `auto(options)`, `isSupported()`, types |
+| `glassity/auto` | Side effect: every `[data-glass]` on the page becomes glass, now and later |
+| `glassity/react` | `GlassProvider`, `Glass`, `useGlass` (also Preact through `preact/compat`) |
+| `glassity/vue` | `GlassProvider`, `vGlass` (directive `v-glass`), `useGlass` |
+| `glassity/svelte` | `glass`, `glassProvider` actions |
+| `glassity/solid` | `glass`, `glassProvider` directives |
+| `glassity/angular` | `provideGlassity`, `injectGlass`, `injectGlassProvider` |
+| `glassity/remix` | `glass`, `glassProvider` mixins (Remix 3) |
+| `https://unpkg.com/glassity` | Script-tag build: `window.glassity` and page-wide auto mode |
+
+### Core API
+
+```ts
+import { glassify, auto, isSupported } from 'glassity';
+
+const one = glassify(svgOrElementContainingSvg, { tile: true });
+one.update({ depth: 0.3 }); // change some options
+one.set({ variant: 'clear' }); // replace all options
+one.retarget(otherSvg);     // move the glass to another SVG; the shape morphs
+one.refresh();              // re-read the icon and the backdrop
+one.destroy();              // remove the glass, show the SVG again
+
+const group = auto({ root: element, selector: 'svg.lucide', tile: true }); // default root: document, selector: [data-glass]
+group.update({ depth: 0.3 });
+group.set({});
+group.refresh();
+group.destroy();
+
+isSupported(); // false without WebGL2
+```
+
+`auto()` watches the DOM: icons added later become glass, removed ones are cleaned up, `data-glass="off"` opts out. Providers (`auto` scopes) nest; an inner one inherits the outer options and overrides them.
+
+### React
+
+```tsx
+import { GlassProvider, Glass, useGlass } from 'glassity/react';
+
+<GlassProvider depth={0.3} tile>          {/* every [data-glass] inside */}
+  <Bell data-glass />
+</GlassProvider>
+
+<GlassProvider selector="svg.lucide">…</GlassProvider>  {/* a whole icon set */}
+
+<Glass tile interactive>                   {/* one icon; swapping the child morphs */}
+  <Calendar size={64} />
+</Glass>
+
+const ref = useRef<SVGSVGElement>(null);
+useGlass(ref, { variant: 'clear' });
+```
+
+Options are props. `GlassProvider` also takes `selector`, `as`, `className`, `style`; it renders a wrapper `div` that does not affect layout. The files carry `'use client'`.
+
+Next.js: `lucide-react` drops `data-*` props inside Server Components. Mark icons in client components, use a provider `selector`, or import `glassity/auto` from a `'use client'` file rendered in the root layout.
+
+### Vue
+
+```vue
+<script setup>
+import { GlassProvider, vGlass } from 'glassity/vue';
+</script>
+
+<template>
+  <GlassProvider tile :depth="0.3">   <!-- attributes in kebab-case, or :options="{...}" -->
+    <House data-glass />
+  </GlassProvider>
+  <Calendar v-glass="{ depth: 0.3 }" />
+</template>
+```
+
+`useGlass(templateRef, options)` for a ref. Nuxt: register in `plugins/glass.client.ts` (`import 'glassity/auto'`, `nuxtApp.vueApp.directive('glass', vGlass)`) and an empty `glass` directive in `plugins/glass.server.ts`.
+
+### Svelte
+
+```svelte
+<script>
+  import { glass, glassProvider } from 'glassity/svelte';
+</script>
+
+<nav use:glassProvider={{ tile: true }}>…</nav>
+<span use:glass={{ depth: 0.3 }}><Calendar /></span>
+```
+
+Actions work on elements: put `use:glass` on the `<svg>` or on a wrapper of an icon component. SvelteKit: `if (browser) import('glassity/auto')` in `+layout.svelte`.
+
+### Solid
+
+```tsx
+import { glass, glassProvider } from 'glassity/solid';
+void glass, glassProvider; // directives are referenced by name only
+
+<nav use:glassProvider={{ tile: true }}>…</nav>
+<span use:glass={{ depth: 0.3 }}><Calendar /></span>
+```
+
+### Angular
+
+```ts
+import { provideGlassity, injectGlass, type GlassOptions } from 'glassity/angular';
+
+bootstrapApplication(App, { providers: [provideGlassity({ tile: true })] }); // every [data-glass]
+
+@Directive({ selector: '[glass]' })
+export class GlassDirective {
+  readonly glass = input<GlassOptions | ''>('');
+  constructor() { injectGlass(() => this.glass() || {}); } // options read as a signal
+}
+```
+
+Plain functions, no decorators shipped. Works with zone.js and zoneless; glassity runs outside zones and never triggers change detection. `injectGlassProvider()` scopes a container.
+
+### Remix 3
+
+```tsx
+import { glass, glassProvider } from 'glassity/remix';
+<svg mix={glass({ tile: true })} viewBox="0 0 24 24">…</svg>
+<nav mix={glassProvider({ selector: 'svg' })}>…</nav>
+```
+
+Browser-only mixins. Add `glassity` to the asset server's `allowPackages`. For static server HTML use `glassity/auto` in the browser entry.
+
+### Astro, React Router, plain HTML
+
+- Astro: `<script>import 'glassity/auto';</script>` in a layout. Late islands become glass after they hydrate.
+- React Router framework mode: `import 'glassity/auto'` in `app/root` or a route module.
+- No build: `<script src="https://unpkg.com/glassity@0.3"></script>` (pin the current version) and `data-glass` on icons. `window.glassity.controller.update({...})` changes the page-wide options.
+
+## Attributes
+
+| Attribute | Effect |
+|---|---|
+| `data-glass` | Glass with the shared options |
+| `data-glass="clear"` | Pick a variant: `regular`, `clear`, `identity` |
+| `data-glass="off"` | Leave this icon alone |
+| `data-glass-depth="0.3"`, `data-glass-tile`, `data-glass-light-angle="-30"` | Any option, kebab-case; a bare attribute is `true` |
+
+## Options
+
+All optional. Lengths are fractions of the icon's box, so a look holds at any size. Precedence: provider options, then attributes on the icon, then options passed to `glassify`/`Glass`.
+
+| Option | Default | Range | Effect |
+|---|---|---|---|
+| `variant` | `'regular'` | `regular`, `clear`, `identity` | `clear` presets: frost 0, saturation 1.1, contrast 1, tintOpacity 0.04, dim `auto`, dispersion 0.5. `identity` leaves the SVG as is |
+| `profile` | `'squircle'` | `squircle`, `circle`, `lip`, `dome` | Edge cross-section. `dome`: a glass ball traced through both surfaces; magnifies, and from depth about 0.3 shows the page upside down. Best on a round tile |
+| `tile` | `false` | boolean | Rounded glass plate filling the SVG's box; the icon becomes a white glass mark on it |
+| `tileRadius` | `0.26` | 0 to 0.5 | Plate corner radius; `0.5` is a circle on a square box |
+| `glyphOpacity` | `0.9` | 0 to 1 | How solid the mark is on a plate |
+| `padding` | `0` (`0.22` with tile) | 0 to 0.45 | Inset of the icon in its box |
+| `strokeWidth` | from the SVG | > 0 | Override stroke width in viewBox units; stroked icons only |
+| `weight` | `0` | -0.03 to 0.08 | Bolder (or thinner) shape, stroked or filled, by growing the outline |
+| `bevel` | `0.09` | 0.005 to 0.5 | Width of the curved edge; strokes thinner than it become round tubes |
+| `curvature` | `1` | 0 to 4 | Steepness of the edge; 0 is flat glass |
+| `depth` | `0.16` | 0 to 2 | Optical depth: how far light travels after bending |
+| `ior` | `1.5` | 1 to 2.5 | Index of refraction |
+| `refraction` | `1` | 0 to 8 | Overall strength of the bending |
+| `dispersion` | `0.35` | 0 to 2 | Colour separation at the rim |
+| `bands` | `6` | 1 to 8 | Wavelength samples for dispersion (cost) |
+| `frost` | `0.3` | 0 to 1 | Blur of what is seen through |
+| `saturation` | `1.35` | 0 to 3 | Of what is seen through |
+| `brightness` | `1` | 0 to 3 | Of what is seen through |
+| `contrast` | `0.9` | 0 to 2 | Of what is seen through |
+| `tint` | `'auto'` | CSS colour or `auto` | Glass body colour. `auto` is white; icons under about 28 px turn near-black on light pages |
+| `tintOpacity` | `0.14` | 0 to 1 | How much tint is mixed in |
+| `dim` | `0` | 0 to 1 or `'auto'` | Darkening under the glass. `auto` (clear default): up to 35% over bright, busy backdrops only |
+| `opacity` | `1` | 0 to 1 | Overall opacity. An inline `opacity` on the `<svg>` also applies |
+| `shine` | `1` | 0 to 4 | Specular highlight |
+| `rim` | `1` | 0 to 4 | Thin light along the edge |
+| `reflection` | `0.6` | 0 to 4 | Fresnel reflection of the surroundings |
+| `lightAngle` | `-45` | degrees | Light direction, clockwise from the top |
+| `shadow` | `0.3` | 0 to 1 | Drop shadow; also the dark outline that draws glass on white pages |
+| `interactive` | `false` | boolean | Swell, bounce and glow when pressed |
+| `pointerLight` | `true` | boolean | Highlight follows the pointer |
+| `visible` | `true` | boolean | Hide or show; the glass materialises by bending light in and out |
+| `duration` | `520` | 0 to 10000 ms | Materialise and morph time |
+| `scheme` | `'auto'` | `auto`, `light`, `dark` | `auto` reads the backdrop under each icon; force for a known page colour |
+| `accessibility` | `true` | boolean | Follow reduced motion, reduced transparency, more contrast, forced colours |
+| `backdrop` | `'auto'` | see below | What the glass refracts |
+| `maxDpr` | `2` | 0.5 to 4 | Cap on device pixel ratio (cost) |
+
+### Backdrop
+
+| Value | Refracts |
+|---|---|
+| `'auto'` | The nearest ancestor with a CSS background image or gradient. If it only has a colour, a snapshot of its HTML (retaken when it changes; up to 1500 nodes). If none, the provider root or `<body>` |
+| `'none'` | Only the page colour |
+| `'/path.webp'` (URL) | That image, covering the container |
+| `<img>`, `<video>`, `<canvas>` element | That element, live (video and canvas every frame) |
+| Any other element | A snapshot of it |
+
+## Recipes
+
+| Look | Options |
+|---|---|
+| Clear Apple-like glass | `{ variant: 'clear' }` |
+| Frosted | `{ frost: 0.8, tintOpacity: 0.32, dispersion: 0.1, shine: 0.8 }` |
+| Crystal | `{ variant: 'clear', depth: 0.34, curvature: 1.7, dispersion: 1.3, shine: 1.6 }` |
+| Bold, thin icon sets | `{ weight: 0.03 }` or `{ weight: 0.04, depth: 0.22 }` |
+| App icon tiles (dock) | `{ tile: true, interactive: true }` |
+| Round glass buttons | `{ tile: true, tileRadius: 0.5, profile: 'circle', bevel: 0.5, depth: 0.3, weight: 0.02 }` |
+| Glass ball lens | `{ tile: true, tileRadius: 0.5, profile: 'dome', variant: 'clear', depth: 0.6, weight: 0.02 }` |
+| Over a video | `backdrop: videoElement` (React: the element from a ref) |
+| Morph between icons | Swap the paths inside the same `<svg>`, swap the child of `<Glass>`, or `handle.retarget(newSvg)` |
+| Show and hide | `visible: false` / `true` (or `data-glass-visible="false"`) |
+| Tinted glass | `{ tint: '#4f8cff', tintOpacity: 0.35 }` |
+
+Playground links carry settings after `#`: keys that are option names are options (`depth=0.3&tile=true&variant=clear`). `bg`, `layout`, `set`, `lib`, `icon`, `size`, `compare` only describe the playground.
+
+## Behaviour to know
+
+- **Server rendering.** Importing glassity on the server is safe; nothing runs there. `auto()` waits for load and idle and skips icons that React, Astro islands or lazily hydrated Vue components have not hydrated yet, so there are no hydration warnings.
+- **Hiding.** The SVG gets `data-glassity-hidden` and a constructed stylesheet sets its opacity to 0. Frameworks rewriting `style` cannot make it reappear. Printing shows the original icons.
+- **Accessibility.** Keep the icon's own `aria-label`/`role` (or `aria-hidden` when decorative). The canvas is `aria-hidden` and ignores the pointer. Reduced motion stops the pointer light and bounce; reduced transparency makes the glass frostier; more contrast makes it solid; forced colours show the plain SVG.
+- **Colour.** The glass shows what is behind the icon; the icon's own CSS `color` and fills are not drawn (only its outline is used). For white or coloured glass use `tint` with `tintOpacity`, or `tile: true` for a white mark on a plate.
+- **Light pages.** Glass stays light on white (as Apple's); it is drawn by its own refracted shadow and a thin contour. Small icons (under about 28 px) flip to dark ink.
+- **Performance.** One WebGL context; icons redraw only when something changes (pointer, animation, backdrop). Off-screen icons are skipped. `bands` and `maxDpr` are the cost knobs.
+- **Supported icon sources.** Inline SVG from any library (Lucide, Phosphor, Heroicons, Tabler, react-icons, Iconify, Material Symbols SVG, Font Awesome SVG), sprites through `<use href>` (same origin or CORS), gradients, masks, clip paths defined elsewhere, web components with an open shadow root (put `data-glass` on the element).
+- **CSP.** `img-src` needs `blob:` and `data:`. Trusted Types are fine. `style-src` needs no `unsafe-inline`.
+
+## Limits
+
+- Icon fonts are not supported (no SVG to read).
+- Rotation and skew of the icon, or of the canvas's ancestors, are not followed; translation and scale are.
+- Multicolour SVGs are used for their outline only.
+- HTML snapshots are pictures: web fonts, cross-origin images without CORS, pseudo-elements and iframes may be missing.
+- Real Safari on macOS and iOS has not been checked; WebKit builds pass the test suite.
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| No `canvas[data-glassity-canvas]` | Setup did not run in the browser, or no `data-glass`. Check the import is client-side |
+| `data-glass` not on the `<svg>` | The component drops props (lucide-react in a Server Component). Client component or provider `selector` |
+| Flat, invisible glass | Nothing behind it: use a gradient or image background, `tile: true`, or a bigger icon |
+| Very frosted and tinted | The OS asks for reduced transparency. Intended; `accessibility: false` only for testing |
+| Plain icon | No WebGL2: `isSupported()` is false; the fallback is the plain SVG |
+| Part of the icon missing | External `<use>` sprite without CORS, or a reference that does not resolve |
+| Glass in the wrong place after an animation | Rotation or skew is not followed; animate opacity, translate or scale instead |
+| Images blocked | Add `blob:` and `data:` to `img-src` |
+
+## Removing it
+
+`data-glass="off"` on one icon, `handle.destroy()` / `controller.destroy()` in code, or remove the setup import. The original SVGs are untouched.
