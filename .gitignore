@@ -1,0 +1,18 @@
+# dependencies and build output
+node_modules/
+dist/
+demo/out/
+*.tgz
+*.log
+
+# local research material, not part of the library
+glass-svg-conversation-bundle/
+research/
+
+# editor and tool state
+.claude/*
+!.claude/launch.json
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

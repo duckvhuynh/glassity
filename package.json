@@ -1,0 +1,81 @@
+{
+  "name": "glassity",
+  "version": "0.1.0",
+  "description": "Liquid-glass material for any SVG icon. One provider, real refraction, WebGL2.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Duc Huynh (https://github.com/duckvhuynh)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/duckvhuynh/glassity.git"
+  },
+  "homepage": "https://github.com/duckvhuynh/glassity#readme",
+  "bugs": {
+    "url": "https://github.com/duckvhuynh/glassity/issues"
+  },
+  "sideEffects": [
+    "./dist/auto.js",
+    "./dist/glassity.global.js"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "unpkg": "./dist/glassity.global.js",
+  "jsdelivr": "./dist/glassity.global.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./auto": {
+      "types": "./dist/auto.d.ts",
+      "import": "./dist/auto.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "demo": "node demo/serve.mjs",
+    "demo:build": "node demo/build.mjs"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.25.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "liquid-glass",
+    "glass",
+    "svg",
+    "icons",
+    "webgl",
+    "refraction",
+    "react"
+  ]
+}
