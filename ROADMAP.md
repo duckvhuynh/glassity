@@ -10,7 +10,7 @@ Last updated: 2026-11-17.
 |---|---|
 | Core rendering (WebGL2) | Working |
 | Adapters: React, Vue, Svelte, Solid, Preact, Angular; plain JS, script tag | Working, checked from the packed package |
-| Server rendering: Next.js, Nuxt, SvelteKit | Checked end to end, no hydration warnings |
+| Server rendering: Next.js, Nuxt, SvelteKit, Astro, React Router | Checked end to end, no hydration warnings |
 | ESM + CommonJS, types for every resolver | Working |
 | Automatic backdrop | Working, with documented limits |
 | Accessibility behaviour | Working |
@@ -84,8 +84,10 @@ Ordered by what unlocks the most.
 - [x] glassity leaves zone.js zones by itself: no change detection from its frames, also for direct `glassify` calls
 - [x] Next.js, Nuxt, SvelteKit in the compatibility suite: production build, server HTML, hydration, interactions
 - [x] `auto()` skips icons React has not hydrated yet (a race that showed up on Safari, which has no requestIdleCallback)
-- [ ] Run Angular 22 (needs Node 24.15 or 22.22) and Angular with zoneless change detection
-- [ ] Astro and Remix in the compatibility suite
+- [x] Angular 22 with zoneless change detection in the compatibility suite (its CLI runs on a Node 24.15+ fetched from npm)
+- [x] Astro 7 (islands, including ones that hydrate on scroll) and React Router 8, the successor of Remix 2
+- [ ] Remix 3 (new framework, its own components)
+- [ ] Detect lazily hydrated Vue components (`hydrateOnVisible` and similar) the way React and Astro islands are
 - [ ] Icon fonts: draw the glyph from the font instead of an SVG
 - [ ] Follow rotation and skew of the icon
 
