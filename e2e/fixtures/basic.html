@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>glassity e2e</title>
+<!-- Icon outlines are from Lucide (ISC licence): https://lucide.dev -->
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #101218; font: 16px/1.5 Arial, sans-serif; }
+  /* Sharp lines make any bending or misalignment show up in a pixel comparison. */
+  .wall {
+    width: 600px; height: 200px; padding: 40px; display: flex; gap: 40px; align-items: center;
+    background:
+      repeating-linear-gradient(90deg, #ffffff 0 2px, transparent 2px 14px),
+      linear-gradient(135deg, #e2572e, #2a2f7a);
+  }
+  .wall svg { width: 96px; height: 96px; color: #fff; flex: none; }
+  .page { width: 600px; height: 260px; padding: 24px 30px; background: #f3f0e8; color: #222; position: relative; overflow: hidden; }
+  .page p { margin: 0 0 10px; }
+  .page .block { height: 40px; margin: 8px 0; background: linear-gradient(90deg, #17bebb 0 33%, #ffc914 33% 66%, #e4572e 66%); }
+  .page svg { width: 96px; height: 96px; position: absolute; left: 80px; top: 70px; color: #222; }
+</style>
+</head>
+<body>
+<div class="wall" id="wall">
+  <svg id="a" data-glass role="img" aria-label="Calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+  <svg id="b" data-glass="off" role="img" aria-label="Heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+  <button id="press" type="button" style="all:unset;display:inline-flex;cursor:pointer" aria-label="Search">
+    <svg id="t" data-glass data-glass-tile data-glass-interactive aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+  </button>
+</div>
+
+<div class="page" id="page">
+  <p>Glass does not blur what is behind it. It bends it. Lines that cross the edge of a lens break and reappear a little to one side.</p>
+  <div class="block"></div>
+  <p>The icon floating over this text is ordinary SVG. Behind it is ordinary HTML: paragraphs and coloured blocks.</p>
+  <div class="block"></div>
+  <svg id="c" data-glass="clear" role="img" aria-label="Search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+</div>
+
+<script type="module">
+  import * as glassity from '/dist/index.js';
+  window.glassity = glassity;
+</script>
+</body>
+</html>

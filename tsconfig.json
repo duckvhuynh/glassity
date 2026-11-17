@@ -27,7 +27,10 @@
   "include": [
     "src",
     "test",
+    "e2e",
     "demo/*.tsx",
-    "tsup.config.ts"
+    "tsup.config.ts",
+    "playwright.config.ts",
+    "vitest.config.ts"
   ]
 }

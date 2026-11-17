@@ -16,3 +16,7 @@ research/
 .idea/
 .DS_Store
 Thumbs.db
+
+# test output
+test-results/
+playwright-report/
