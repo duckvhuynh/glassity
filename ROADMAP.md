@@ -15,7 +15,7 @@ Last updated: 2026-11-17.
 | Automatic backdrop | Working, with documented limits |
 | Accessibility behaviour | Working |
 | Browser coverage | Chromium, Firefox and WebKit pass the browser tests. Real Safari on macOS and iOS not checked yet |
-| Published on npm | No |
+| Published on npm | Yes, 0.1.0 |
 | Live demo, visuals in the README | No |
 
 ## Done in 0.1
@@ -66,6 +66,7 @@ Last updated: 2026-11-17.
 
 ### Project
 - [x] Public repository, MIT licence
+- [x] Published on npm; tagged releases publish and create the GitHub release
 - [x] CI on Node 24: typecheck, unit tests, build, demo build, browser tests, compatibility suite
 - [x] Browser tests with Playwright on Chromium, Firefox and WebKit, in CI
 - [x] Vanilla and React demo pages
@@ -107,8 +108,8 @@ Kept here so nothing is forgotten; none of it blocks development.
 
 - [ ] Hero image or GIF at the top of the README
 - [ ] Live demo on GitHub Pages
-- [ ] Check that the name `glassity` is free on npm, then publish 0.1.0
-- [ ] CHANGELOG and tagged GitHub releases
+- [x] Publish 0.1.0 on npm
+- [x] CHANGELOG and tagged GitHub releases (v0.1.0)
 - [ ] CONTRIBUTING guide, issue and pull-request templates, code of conduct
 - [ ] Social preview image for the repository
 - [ ] API reference generated from the source comments
