@@ -9,8 +9,8 @@ Liquid-glass material for the SVG icons you already use. No redrawn icon set: gl
 - Real refraction of what is behind the icon, with dispersion, frost, highlights and a drop shadow.
 - Works with Lucide, Feather, Tabler, Heroicons, or your own SVG. Outline and filled.
 - The original `<svg>` stays in the DOM, so labels, focus and clicks keep working.
-- Adapters for React, Vue, Svelte, Solid and Preact; plain JavaScript and a script tag for everything else. No runtime dependencies.
-- Ships ESM and CommonJS with types; safe to import during server rendering.
+- Adapters for React, Vue, Svelte, Solid, Preact and Angular; plain JavaScript and a script tag for everything else. No runtime dependencies.
+- Ships ESM and CommonJS with types. Checked end to end with Next.js, Nuxt and SvelteKit server rendering.
 
 > Status: 0.1, early. Not on npm yet: until it is, clone the repo and run `npm install && npm run build` (see [Develop](#develop)). See also [Limits](#limits).
 
@@ -115,18 +115,34 @@ void glass, glassProvider; // directives are referenced by name only
 
 `glassity/react` works through `preact/compat` (the Vite preset aliases it for you).
 
-### Angular and anything else
-
-Use the core: call `glassify(element, options)` after the view is created and `destroy()` when it goes, or `auto({ root })` for a container. In Angular, run it outside the zone so glassity's animation frames do not trigger change detection:
+### Angular
 
 ```ts
-ngAfterViewInit() {
-  this.zone.runOutsideAngular(() => (this.glass = glassify(this.icon.nativeElement, { tile: true })));
-}
-ngOnDestroy() {
-  this.glass?.destroy();
+import { provideGlassity } from 'glassity/angular';
+
+bootstrapApplication(App, { providers: [provideGlassity({ tile: true })] }); // every [data-glass]
+```
+
+For one element or one container, call `injectGlass()` or `injectGlassProvider()` in a constructor. They are plain functions (no decorators, so the package needs no Angular compiler); a directive is a few lines:
+
+```ts
+import { Directive, input } from '@angular/core';
+import { injectGlass, type GlassOptions } from 'glassity/angular';
+
+@Directive({ selector: '[glass]' })
+export class GlassDirective {
+  readonly glass = input<GlassOptions | ''>('');
+  constructor() {
+    injectGlass(() => this.glass() || {});   // options are read as a signal
+  }
 }
 ```
+
+glassity leaves zone.js zones on its own, so its animation frames and observers never trigger change detection, also when you call `glassify` directly. Nothing runs during server rendering.
+
+### Anything else
+
+Use the core: `glassify(element, options)` after the element is in the page and `destroy()` when it goes, or `auto({ root })` for a container.
 
 ### Plain JavaScript
 
@@ -228,8 +244,9 @@ What has been run, and what is known not to work. The [compatibility suite](comp
 | | |
 |---|---|
 | React 18/19, Vue 3, Svelte 5, Solid, Preact | Adapters, checked from the packed package |
-| Next.js, Nuxt, SvelteKit, Astro, Remix (server rendering) | Importing glassity on the server is safe. `auto()` and `glassity/auto` wait until the page has loaded and gone idle, so hydration is not disturbed (checked with React `hydrateRoot`). Adapters run after hydration anyway |
-| Angular | Core API; run it outside the zone (see above). Not covered by the suite |
+| Next.js 16, Nuxt 4, SvelteKit 3 | Checked end to end: production build, server HTML, hydration, then the same interactions, with both the adapters and `glassity/auto`. The server HTML carries no glass; no hydration warning appears |
+| Other server rendering (Astro, Remix, …) | Importing glassity on the server is safe. `auto()` waits until the page has loaded and gone idle, and skips icons React has not hydrated yet |
+| Angular 21 (zone.js) | `glassity/angular`, checked from the packed package; an idle page with glass causes no change detection. Angular 22 needs Node 24.15 or 22.22, not run here yet |
 | htmx, Alpine, Turbo, swup, Barba | `auto()` follows DOM changes; pages restored from a clone are cleaned up |
 | Jest, CommonJS | `require('glassity')` works (checked in Node). Under jsdom there is no WebGL, so icons should stay plain SVG; not run in Jest yet |
 | TypeScript | Types for every `moduleResolution` mode, including `node` |
@@ -239,6 +256,7 @@ What has been run, and what is known not to work. The [compatibility suite](comp
 | | |
 |---|---|
 | Lucide, Heroicons, Tabler, Feather, Phosphor, Radix, MUI, Ant Design, react-icons, Font Awesome (SVG) | Inline `<svg>`: works. Lucide is checked in every framework; the others are expected to work the same way |
+| lucide-react inside a React Server Component | It drops `data-*` props there, so `data-glass` never reaches the `<svg>`. Use `<Glass>` or a provider `selector` in a client component, or mark a wrapper |
 | Sprite sheets: `<use href="#id">`, `<use href="icons.svg#id">` | Works: the referenced symbol is copied in. An external sheet must be same-origin or allow CORS |
 | Gradients, masks, clip paths defined in another SVG | Works: copied in |
 | Web components with an open shadow root (Ionicons, `<iconify-icon>`, Shoelace) | Works: put `data-glass` on the element. A closed shadow root cannot be read |

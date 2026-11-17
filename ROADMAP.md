@@ -9,7 +9,8 @@ Last updated: 2026-11-17.
 | Area | State |
 |---|---|
 | Core rendering (WebGL2) | Working |
-| Adapters: React, Vue, Svelte, Solid, Preact; plain JS, script tag | Working, checked from the packed package |
+| Adapters: React, Vue, Svelte, Solid, Preact, Angular; plain JS, script tag | Working, checked from the packed package |
+| Server rendering: Next.js, Nuxt, SvelteKit | Checked end to end, no hydration warnings |
 | ESM + CommonJS, types for every resolver | Working |
 | Automatic backdrop | Working, with documented limits |
 | Accessibility behaviour | Working |
@@ -79,8 +80,12 @@ Ordered by what unlocks the most.
 - [ ] **Snapshot quality**: embed web fonts, capture pseudo-elements, and avoid re-reading the whole subtree after small changes.
 
 ## Compatibility follow-ups
-- [ ] Angular: an official directive package, and a check in the compatibility suite
-- [ ] Next.js, Nuxt, SvelteKit apps in the compatibility suite (server rendering + hydration end to end)
+- [x] Angular: `glassity/angular` (`provideGlassity`, `injectGlass`, `injectGlassProvider`), checked with zone.js
+- [x] glassity leaves zone.js zones by itself: no change detection from its frames, also for direct `glassify` calls
+- [x] Next.js, Nuxt, SvelteKit in the compatibility suite: production build, server HTML, hydration, interactions
+- [x] `auto()` skips icons React has not hydrated yet (a race that showed up on Safari, which has no requestIdleCallback)
+- [ ] Run Angular 22 (needs Node 24.15 or 22.22) and Angular with zoneless change detection
+- [ ] Astro and Remix in the compatibility suite
 - [ ] Icon fonts: draw the glyph from the font instead of an SVG
 - [ ] Follow rotation and skew of the icon
 
