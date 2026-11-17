@@ -9,8 +9,8 @@ Liquid-glass material for the SVG icons you already use. No redrawn icon set: gl
 - Real refraction of what is behind the icon, with dispersion, frost, highlights and a drop shadow.
 - Works with Lucide, Feather, Tabler, Heroicons, or your own SVG. Outline and filled.
 - The original `<svg>` stays in the DOM, so labels, focus and clicks keep working.
-- Adapters for React, Vue, Svelte, Solid, Preact and Angular; plain JavaScript and a script tag for everything else. No runtime dependencies.
-- Ships ESM and CommonJS with types. Checked end to end with Next.js, Nuxt, SvelteKit, Astro and React Router (Remix) server rendering.
+- Adapters for React, Vue, Svelte, Solid, Preact, Angular and Remix 3; plain JavaScript and a script tag for everything else. No runtime dependencies.
+- Ships ESM and CommonJS with types. Checked end to end with Next.js, Nuxt, SvelteKit, Astro, React Router and Remix 3 server rendering.
 
 > Status: 0.1, early. Not on npm yet: until it is, clone the repo and run `npm install && npm run build` (see [Develop](#develop)). See also [Limits](#limits).
 
@@ -140,6 +140,17 @@ export class GlassDirective {
 
 Works with zone.js and with zoneless change detection (`provideZonelessChangeDetection`). glassity leaves zone.js zones on its own, so its animation frames and observers never trigger change detection, also when you call `glassify` directly. Nothing runs during server rendering.
 
+### Remix 3
+
+```tsx
+import { glass, glassProvider } from 'glassity/remix';
+
+<svg mix={glass({ tile: true })} viewBox="0 0 24 24">…</svg>   {/* one icon */}
+<nav mix={glassProvider({ selector: 'svg' })}>…</nav>          {/* a container */}
+```
+
+Both are browser-only mixins: they add nothing to the server HTML. Use them inside a client entry. For static server HTML, import `glassity/auto` in your browser entry. Add `glassity` to `allowPackages` in your asset server so the browser may load it. Frame reloads keep the glass: Remix reuses the same `<svg>` and leaves the canvas next to it alone.
+
 ### Anything else
 
 Use the core: `glassify(element, options)` after the element is in the page and `destroy()` when it goes, or `auto({ root })` for a container.
@@ -247,7 +258,7 @@ What has been run, and what is known not to work. The [compatibility suite](comp
 | Next.js 16, Nuxt 4, SvelteKit 3, React Router 8 (the successor of Remix 2) | Checked end to end: production build, server HTML, hydration, then the same interactions, with both the adapters and `glassity/auto`. The server HTML carries no glass; no hydration warning appears |
 | Astro 7 | Checked the same way, with a React island and static markup. Islands that hydrate late (`client:visible`, `client:idle`) are left alone until they have hydrated, then their icons become glass |
 | Other server rendering | Importing glassity on the server is safe. `auto()` waits until the page has loaded and gone idle, and skips icons that React or an Astro island has not hydrated yet. Components hydrated lazily by other means (Vue's `hydrateOnVisible` and similar) are not detected: use the adapters there, which run after hydration |
-| Remix 3 | Not covered: it is a new framework with its own components, not React. The core API should apply; not run |
+| Remix 3 | `glassity/remix` mixins, checked end to end: client entries, static server HTML with `glassity/auto`, and frame reloads that reconcile new server HTML into the page |
 | Angular 21 with zone.js, Angular 22 zoneless | `glassity/angular`, checked from the packed package in both setups; an idle page with glass causes no change detection in either |
 | htmx, Alpine, Turbo, swup, Barba | `auto()` follows DOM changes; pages restored from a clone are cleaned up |
 | Jest, CommonJS | `require('glassity')` works (checked in Node). Under jsdom there is no WebGL, so icons should stay plain SVG; not run in Jest yet |

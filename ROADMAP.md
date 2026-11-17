@@ -9,8 +9,8 @@ Last updated: 2026-11-17.
 | Area | State |
 |---|---|
 | Core rendering (WebGL2) | Working |
-| Adapters: React, Vue, Svelte, Solid, Preact, Angular; plain JS, script tag | Working, checked from the packed package |
-| Server rendering: Next.js, Nuxt, SvelteKit, Astro, React Router | Checked end to end, no hydration warnings |
+| Adapters: React, Vue, Svelte, Solid, Preact, Angular, Remix 3; plain JS, script tag | Working, checked from the packed package |
+| Server rendering: Next.js, Nuxt, SvelteKit, Astro, React Router, Remix 3 | Checked end to end, no hydration warnings |
 | ESM + CommonJS, types for every resolver | Working |
 | Automatic backdrop | Working, with documented limits |
 | Accessibility behaviour | Working |
@@ -86,7 +86,8 @@ Ordered by what unlocks the most.
 - [x] `auto()` skips icons React has not hydrated yet (a race that showed up on Safari, which has no requestIdleCallback)
 - [x] Angular 22 with zoneless change detection in the compatibility suite (its CLI runs on a Node 24.15+ fetched from npm)
 - [x] Astro 7 (islands, including ones that hydrate on scroll) and React Router 8, the successor of Remix 2
-- [ ] Remix 3 (new framework, its own components)
+- [x] Remix 3: `glassity/remix` mixins; client entries, static HTML and frame reloads checked
+- [x] A provider that starts after the page-wide auto mode takes over its icons (a race seen on WebKit with Astro)
 - [ ] Detect lazily hydrated Vue components (`hydrateOnVisible` and similar) the way React and Astro islands are
 - [ ] Icon fonts: draw the glyph from the font instead of an SVG
 - [ ] Follow rotation and skew of the icon
