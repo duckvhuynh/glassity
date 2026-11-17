@@ -46,7 +46,7 @@ interface BackState {
 
 const PRESS_HOSTS = 'button,a,[role="button"],summary,label';
 const NO_PREFERENCES = { reducedMotion: false, reducedTransparency: false, moreContrast: false, forcedColors: false };
-const PROFILES = { squircle: 0, circle: 1, lip: 2 } as const;
+const PROFILES = { squircle: 0, circle: 1, lip: 2, dome: 3 } as const;
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 

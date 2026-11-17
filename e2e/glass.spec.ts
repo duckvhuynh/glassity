@@ -283,6 +283,30 @@ test('weight makes a stroked icon bolder, and a filled one too', async ({ page }
   expect(errors).toEqual([]);
 });
 
+test('a dome lens draws a different picture than a plain round tile', async ({ page }) => {
+  const errors = await open(page);
+  const look = async (profile: string) => {
+    await page.evaluate((p) => {
+      window.handle?.destroy();
+      window.handle = window.glassity.glassify(document.querySelector('#a')!, {
+        accessibility: false,
+        duration: 0,
+        tile: true,
+        tileRadius: 0.5,
+        profile: p as 'dome',
+        depth: 0.8,
+      });
+    }, profile);
+    await drawn(page, 1);
+    await settle(page);
+    return shot(page, '#a');
+  };
+  const round = await look('circle');
+  const dome = await look('dome');
+  expect((await difference(page, round, dome)).changed).toBeGreaterThan(0.02);
+  expect(errors).toEqual([]);
+});
+
 test('pressing an interactive icon makes it swell and settle back', async ({ page }) => {
   await open(page);
   await page.evaluate(() => {

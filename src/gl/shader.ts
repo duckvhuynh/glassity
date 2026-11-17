@@ -32,7 +32,7 @@ uniform vec2 uBox;
 uniform float uUnit;
 uniform float uDpr;
 
-uniform int uProfile;        // 0 squircle, 1 circle, 2 lip
+uniform int uProfile;        // 0 squircle, 1 circle, 2 lip, 3 dome
 uniform float uBevel;
 uniform float uCurv;
 uniform float uDepth;
@@ -91,7 +91,7 @@ float vnoise(vec2 p) {
 // Height of the edge cross-section: 0 at the rim, rising over the bevel.
 float profile(float u) {
   float v = 1.0 - clamp(u, 0.0, 1.0);
-  float convex = uProfile == 1 ? sqrt(max(0.0, 1.0 - v * v)) : pow(max(0.0, 1.0 - v * v * v * v), 0.25);
+  float convex = uProfile == 1 || uProfile == 3 ? sqrt(max(0.0, 1.0 - v * v)) : pow(max(0.0, 1.0 - v * v * v * v), 0.25);
   if (uProfile != 2) return convex;
   float t = u * u * u * (u * (u * 6.0 - 15.0) + 10.0);
   return mix(convex, 1.0 - convex, clamp(t, 0.0, 1.0)) * 1.6;
@@ -117,7 +117,8 @@ Layer makeLayer(float sd, vec2 g, float thick, float bevel, float aa) {
   L.cover = 1.0 - smoothstep(-aa, aa, sd);
   L.g = g;
   // A stroke thinner than the bevel becomes a round tube of its own width.
-  float b = max(min(bevel, thick), 0.6);
+  // A dome is round all the way across: its bevel is the whole half-width.
+  float b = uProfile == 3 ? max(thick, 0.6) : max(min(bevel, thick), 0.6);
   float u = clamp(L.d / b, 0.0, 1.0);
   float lo = max(u - 0.02, 0.0), hi = min(u + 0.02, 1.0);
   float slope = (profile(hi) - profile(lo)) / (hi - lo);
@@ -146,6 +147,23 @@ vec3 sampleBack(vec2 p, float blur) {
 
 float shadowSeen(vec2 q);
 
+// A dome is traced as a ball of glass of radius R floating uDepth above the page:
+// light enters the upper surface, crosses the ball, leaves through the lower surface
+// and lands on the page. Past the focal length the picture turns upside down, as in
+// a real glass sphere. Returns where the page is seen, relative to the entry point.
+vec2 domeOffset(Layer L, float ior) {
+  float R = L.edge;
+  float rho = clamp(R - max(L.d, 0.0), 0.0, R * 0.985); // distance from the ball's axis
+  vec3 p1 = vec3(L.g * rho, sqrt(max(R * R - rho * rho, 0.0)));
+  vec3 t1 = refract(vec3(0.0, 0.0, -1.0), p1 / R, 1.0 / ior);
+  vec3 p2 = p1 - 2.0 * dot(p1, t1) * t1;
+  vec3 t2 = refract(t1, -p2 / R, ior);
+  if (dot(t2, t2) < 1e-6) { t2 = t1; } // total internal reflection near the rim
+  float plane = -(R + uDepth);
+  vec2 hit = p2.xy + t2.xy * (plane - p2.z) / min(t2.z, -0.15);
+  return (hit - p1.xy) * uRefr * min(uCurv, 2.0) * uLens;
+}
+
 // What is seen through the surface. Each wavelength band has its own index of
 // refraction, so colours separate where the surface is steep.
 vec3 refracted(vec2 p, Layer L, float blur) {
@@ -157,7 +175,7 @@ vec3 refracted(vec2 p, Layer L, float blur) {
     vec3 w = uBands > 1 ? clamp(1.5 - abs(4.0 * s - vec3(1.0, 2.0, 3.0)), 0.0, 1.0) + 0.03 : vec3(1.0);
     float ior = uIor + (s - 0.5) * 0.16 * uDisp; // shorter wavelengths bend more
     vec3 ray = refract(vec3(0.0, 0.0, -1.0), L.n, 1.0 / ior);
-    vec2 offset = ray.xy / max(-ray.z, 0.3) * travel;
+    vec2 offset = uProfile == 3 ? domeOffset(L, ior) : ray.xy / max(-ray.z, 0.3) * travel;
     // The glass casts a shadow; where the edge bends light outward it shows that shadow,
     // which is what outlines glass on a white page. Bands see it at slightly different
     // places, so the dark rim picks up colour fringes.
@@ -228,6 +246,21 @@ float shadowSeen(vec2 q) {
   return s * smoothstep(-0.5, 0.06 * uUnit, body);
 }
 
+// The glass plate of a tile at q: what it refracts, graded and lit. With contact set, the
+// icon's soft shadow on the plate is included.
+vec3 plate(vec2 q, float aa, float dim, float bright, vec3 ambient, float grain, float glow, bool contact, out Layer tile) {
+  vec2 tg;
+  float tsd = tileDistance(q - 0.5 * uCanvas, tg);
+  tile = makeLayer(tsd, tg, 0.5 * min(uBox.x, uBox.y), uTileBevel, aa);
+  vec3 body = refracted(q, tile, uFrost * uLens);
+  body = grade(body, dim, mix(uTint, vec3(1.0), uTintAuto), uTintOpacity);
+  if (contact) {
+    float d = fieldAt((q - gShadowShift * 0.5) / uCanvas).r * uUnit;
+    body *= 1.0 - (0.22 + 0.2 * bright) * min(uShadow / 0.3, 1.5) * uGlyphOpacity * (1.0 - smoothstep(-0.01 * uUnit, 0.05 * uUnit, d)) * uLens;
+  }
+  return lit(body, tile, ambient, grain, glow, uRefl, bright);
+}
+
 void main() {
   vec2 p = vUv * uCanvas;
   vec2 c = p - 0.5 * uCanvas;
@@ -276,19 +309,18 @@ void main() {
   float shadow;
 
   if (uTile > 0.5) {
-    vec2 tg;
-    float tsd = tileDistance(c, tg);
-    Layer tile = makeLayer(tsd, tg, 0.5 * min(uBox.x, uBox.y), uTileBevel, aa);
-
-    vec3 body = refracted(p, tile, uFrost * uLens);
-    body = grade(body, dim, mix(uTint, vec3(1.0), uTintAuto), uTintOpacity);
     // The icon rests on the plate and casts a soft contact shadow onto it.
-    float contact = fieldAt(vUv - shadowShift * 0.5 / uCanvas).r * uUnit;
-    body *= 1.0 - (0.22 + 0.2 * bright) * min(uShadow / 0.3, 1.5) * uGlyphOpacity * (1.0 - smoothstep(-0.01 * uUnit, 0.05 * uUnit, contact)) * uLens;
-    body = lit(body, tile, ambient, grain, glow, uRefl, bright);
+    Layer tile;
+    vec3 body = plate(p, aa, dim, bright, ambient, grain, glow, true, tile);
 
-    // The mark stays white, like a glyph on an app icon; only tiny ones turn dark.
-    vec3 mark = lit(mix(vec3(1.0), ink, small), glyph, ambient, 1.0, glow, uRefl * 0.35, bright);
+    // The mark is a second layer of glass on the plate: it lenses the plate behind it
+    // through its own curved surface, under a white, frosted body. Only tiny marks turn dark.
+    Layer seen;
+    vec3 bend = refract(vec3(0.0, 0.0, -1.0), glyph.n, 1.0 / uIor);
+    vec2 lensed = p + bend.xy / max(-bend.z, 0.3) * (glyph.h + 0.06 * uUnit) * uRefr;
+    vec3 through = plate(lensed, aa, dim, bright, ambient, grain, glow, false, seen);
+    vec3 face = mix(mix(through, vec3(1.0), 0.35), mix(vec3(1.0), ink, small), 0.55 + 0.4 * small);
+    vec3 mark = lit(face, glyph, ambient, 1.0, glow, uRefl * 0.6, bright);
     color = mix(body, mark, glyph.cover * uGlyphOpacity * uLens);
     cover = tile.cover;
 

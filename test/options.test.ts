@@ -49,6 +49,10 @@ describe('resolveOptions', () => {
     expect(o.profile).toBe('squircle');
   });
 
+  it('accepts the dome profile', () => {
+    expect(resolveOptions({ profile: 'dome' }).profile).toBe('dome');
+  });
+
   it('keeps weight in a range where the shape stays inside its canvas', () => {
     expect(resolveOptions().weight).toBe(0);
     expect(resolveOptions({ weight: 0.5 }).weight).toBe(0.08);

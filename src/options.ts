@@ -1,5 +1,5 @@
 export type GlassVariant = 'regular' | 'clear' | 'identity';
-export type GlassProfile = 'squircle' | 'circle' | 'lip';
+export type GlassProfile = 'squircle' | 'circle' | 'lip' | 'dome';
 export type GlassScheme = 'auto' | 'light' | 'dark';
 
 /**
@@ -15,7 +15,11 @@ export type BackdropSource = 'auto' | 'none' | string | HTMLElement;
 export interface GlassOptions {
   /** `regular` keeps content legible, `clear` is see-through, `identity` leaves the SVG untouched. Default `regular`. */
   variant?: GlassVariant;
-  /** Cross-section of the edge. Default `squircle`. */
+  /**
+   * Cross-section of the edge. `dome` is a ball of glass traced through both of its surfaces:
+   * it magnifies, and with `depth` around 0.3 or more it shows the page upside down, like a
+   * glass sphere. Best on a round tile (`tile`, `tileRadius: 0.5`). Default `squircle`.
+   */
   profile?: GlassProfile;
 
   /** Put the icon on a rounded glass plate that fills the SVG's box. Default `false`. */
@@ -199,7 +203,7 @@ export function resolveOptions(...layers: (GlassOptions | undefined | null)[]): 
   const tile = merged.tile === true;
   const o = { ...BASE, ...VARIANTS[variant], ...(tile ? { padding: 0.22 } : null), ...merged, variant, tile } as ResolvedOptions;
 
-  o.profile = o.profile === 'circle' || o.profile === 'lip' ? o.profile : 'squircle';
+  o.profile = o.profile === 'circle' || o.profile === 'lip' || o.profile === 'dome' ? o.profile : 'squircle';
   o.scheme = o.scheme === 'light' || o.scheme === 'dark' ? o.scheme : 'auto';
   o.tileRadius = clamp(+o.tileRadius || 0, 0, 0.5);
   o.glyphOpacity = clamp(+o.glyphOpacity, 0, 1);
