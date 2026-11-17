@@ -317,7 +317,7 @@ class Instance implements GlassHandle {
     this.place();
     const rect = this.element.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return; // not laid out yet; the resize observer calls again
-    const plan = planRaster(rect.width, rect.height, this.engine.dpr(this.r.maxDpr));
+    const plan = planRaster(rect.width, rect.height, this.engine.dpr(this.r.maxDpr), this.r.weight);
     let source: string;
     try {
       source = await serializeIcon(this.element, this.r.strokeWidth);
@@ -531,6 +531,8 @@ class Instance implements GlassHandle {
       tile: r.tile ? 1 : 0,
       tileRadius: r.tileRadius * plan.unit,
       tileBevel: r.bevel * plan.unit,
+      // The field is in units of the reference size; a tile's glyph is drawn smaller.
+      weight: r.weight * (r.tile ? glyphScale : 1),
       glyphOpacity: r.glyphOpacity,
       highContrast: moreContrast ? 1 : 0,
       seed: this.seed,

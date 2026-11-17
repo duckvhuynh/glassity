@@ -20,9 +20,10 @@ export interface RasterPlan {
   scale: number;
 }
 
-export function planRaster(boxW: number, boxH: number, dpr: number): RasterPlan {
+export function planRaster(boxW: number, boxH: number, dpr: number, grow = 0): RasterPlan {
   const unit = Math.min(boxW, boxH);
-  const bleed = Math.ceil(unit * BLEED);
+  // A shape made bolder (`weight`) needs that much more room for its edge and shadow.
+  const bleed = Math.ceil(unit * (BLEED + Math.max(grow, 0)));
   const cssW = boxW + bleed * 2;
   const cssH = boxH + bleed * 2;
   const longest = Math.max(cssW, cssH);

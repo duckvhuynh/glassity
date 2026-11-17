@@ -15,7 +15,7 @@ const camel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.to
 
 /** Every option name, for picking options out of a bag of attributes. */
 const NAMES = new Set([
-  'variant', 'profile', 'tile', 'tileRadius', 'glyphOpacity', 'padding', 'strokeWidth', 'bevel', 'curvature', 'depth',
+  'variant', 'profile', 'tile', 'tileRadius', 'glyphOpacity', 'padding', 'strokeWidth', 'weight', 'bevel', 'curvature', 'depth',
   'ior', 'refraction', 'dispersion', 'bands', 'frost', 'saturation', 'brightness', 'contrast', 'tint', 'tintOpacity',
   'dim', 'opacity', 'shine', 'rim', 'reflection', 'lightAngle', 'shadow', 'interactive', 'pointerLight', 'visible',
   'duration', 'scheme', 'accessibility', 'backdrop', 'maxDpr',

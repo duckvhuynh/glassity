@@ -55,6 +55,7 @@ export interface DrawParams {
   tile: number;
   tileRadius: number;
   tileBevel: number;
+  weight: number;
   glyphOpacity: number;
   highContrast: number;
   seed: number;
@@ -65,7 +66,7 @@ const UNIFORMS = [
   'uCanvas', 'uBox', 'uUnit', 'uDpr', 'uProfile', 'uBevel', 'uCurv', 'uDepth', 'uIor', 'uRefr', 'uDisp',
   'uBands', 'uFrost', 'uSat', 'uBright', 'uContrast', 'uTint', 'uTintAuto', 'uTintOpacity', 'uDim',
   'uOpacity', 'uShine', 'uRim', 'uRefl', 'uShadow', 'uLight', 'uScheme', 'uLens', 'uTouch', 'uTile',
-  'uTileRadius', 'uTileBevel', 'uGlyphOpacity', 'uHighContrast', 'uSeed',
+  'uTileRadius', 'uTileBevel', 'uGlyphOpacity', 'uHighContrast', 'uSeed', 'uWeight',
 ] as const;
 
 type UniformName = (typeof UNIFORMS)[number];
@@ -259,6 +260,7 @@ export class Renderer {
     gl.uniform1f(u.uTile, p.tile);
     gl.uniform1f(u.uTileRadius, p.tileRadius);
     gl.uniform1f(u.uTileBevel, p.tileBevel);
+    gl.uniform1f(u.uWeight, p.weight);
     gl.uniform1f(u.uGlyphOpacity, p.glyphOpacity);
     gl.uniform1f(u.uHighContrast, p.highContrast);
     gl.uniform1f(u.uSeed, p.seed);

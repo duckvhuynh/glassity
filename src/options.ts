@@ -26,8 +26,10 @@ export interface GlassOptions {
   glyphOpacity?: number;
   /** Inset of the icon inside its box, as a fraction per side. Default `0` (`0.22` with `tile`). */
   padding?: number;
-  /** Override the SVG's stroke width, in viewBox units. */
+  /** Override the SVG's stroke width, in viewBox units. Stroked icons only. */
   strokeWidth?: number;
+  /** Make the shape bolder (or thinner when negative) by this fraction of the box: works for strokes and fills alike, 0.08 to -0.03. Default `0`. */
+  weight?: number;
 
   /** Width of the curved edge as a fraction of the box. Thin strokes use their own half-width. Default `0.09`. */
   bevel?: number;
@@ -51,11 +53,11 @@ export interface GlassOptions {
   brightness?: number;
   /** Contrast of what is seen through the glass. Default `0.9`. */
   contrast?: number;
-  /** Glass body colour, any CSS colour. `auto` picks white or near-black from the backdrop. Default `auto`. */
+  /** Glass body colour, any CSS colour. `auto` is white; icons under about 28 px turn near-black on a light page. Default `auto`. */
   tint?: string;
   /** How much of the tint is mixed in, 0–1. Default `0.14` (`0.04` for clear). */
   tintOpacity?: number;
-  /** Darkening under the glass, 0–1. `auto` darkens up to 35% only over bright backdrops. Default `0` (`auto` for clear). */
+  /** Darkening under the glass, 0–1. `auto` darkens up to 35%, only over bright and busy backdrops (photos), never a plain light page. Default `0` (`auto` for clear). */
   dim?: number | 'auto';
   /** Overall opacity, 0–1. Default `1`. */
   opacity?: number;
@@ -103,6 +105,7 @@ export interface ResolvedOptions {
   glyphOpacity: number;
   padding: number;
   strokeWidth: number | null;
+  weight: number;
   bevel: number;
   curvature: number;
   depth: number;
@@ -141,6 +144,7 @@ const BASE: ResolvedOptions = {
   glyphOpacity: 0.9,
   padding: 0,
   strokeWidth: null,
+  weight: 0,
   bevel: 0.09,
   curvature: 1,
   depth: 0.16,
@@ -201,6 +205,7 @@ export function resolveOptions(...layers: (GlassOptions | undefined | null)[]): 
   o.glyphOpacity = clamp(+o.glyphOpacity, 0, 1);
   o.padding = clamp(+o.padding || 0, 0, 0.45);
   o.strokeWidth = o.strokeWidth == null || !(+o.strokeWidth > 0) ? null : +o.strokeWidth;
+  o.weight = clamp(+o.weight || 0, -0.03, 0.08);
   o.bevel = clamp(+o.bevel, 0.005, 0.5);
   o.curvature = clamp(+o.curvature, 0, 4);
   o.depth = clamp(+o.depth, 0, 2);

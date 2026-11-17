@@ -259,6 +259,30 @@ test('glassify handles one icon: update, hide, morph, destroy', async ({ page })
   expect(errors).toEqual([]);
 });
 
+test('weight makes a stroked icon bolder, and a filled one too', async ({ page }) => {
+  const errors = await open(page);
+  const covered = async (weight: number) => {
+    await page.evaluate((w) => {
+      window.handle?.destroy();
+      window.handle = window.glassity.glassify(document.querySelector('#a')!, { accessibility: false, duration: 0, shadow: 0, weight: w });
+    }, weight);
+    await drawn(page, 1);
+    await settle(page);
+    return coverage(page, '#a');
+  };
+  const thin = await covered(0);
+  const bold = await covered(0.05);
+  expect(bold).toBeGreaterThan(thin * 1.3);
+
+  await page.evaluate(() => {
+    document.querySelector('#a')!.innerHTML = '<circle cx="12" cy="12" r="6" fill="currentColor" stroke="none"></circle>';
+  });
+  const dot = await covered(0);
+  const bigDot = await covered(0.05);
+  expect(bigDot).toBeGreaterThan(dot * 1.2);
+  expect(errors).toEqual([]);
+});
+
 test('pressing an interactive icon makes it swell and settle back', async ({ page }) => {
   await open(page);
   await page.evaluate(() => {

@@ -48,6 +48,13 @@ describe('resolveOptions', () => {
     expect(o.variant).toBe('regular');
     expect(o.profile).toBe('squircle');
   });
+
+  it('keeps weight in a range where the shape stays inside its canvas', () => {
+    expect(resolveOptions().weight).toBe(0);
+    expect(resolveOptions({ weight: 0.5 }).weight).toBe(0.08);
+    expect(resolveOptions({ weight: -1 }).weight).toBe(-0.03);
+    expect(resolveOptions({ weight: 'x' as never }).weight).toBe(0);
+  });
 });
 
 describe('readAttributes', () => {
