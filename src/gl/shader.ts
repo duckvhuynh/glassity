@@ -178,7 +178,7 @@ vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflec
   vec2 mirror = L.n.xy * (2.0 * L.n.z);
   vec3 room = mix(ambient, vec3(1.0), 0.55) * (0.35 + 0.65 * smoothstep(-0.3, 0.9, dot(mirror, uLight)));
   float k = clamp(fresnel * reflectivity, 0.0, 0.9) * uLens;
-  float shade = 1.0 - 0.22 * exp(-max(L.d, 0.0) / (L.edge * 0.7 + 0.5)) * max(-facing, 0.0) * uLens;
+  float shade = 1.0 - 0.22 * exp(-max(L.d, 0.0) / (L.edge * 0.7 + 0.5)) * max(-facing, 0.0) * uLens * min(uCurv, 1.0);
 
   vec3 c = base * shade * (1.0 - k) + room * k;
   c += (spec * 0.55 + rim * (0.75 + 1.5 * glow) + glow * 0.3) * uLens;
