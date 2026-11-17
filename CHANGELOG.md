@@ -4,6 +4,11 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Added
+- `profile: 'dome'`: a ball of glass, traced through both of its surfaces. It magnifies, and with `depth` from about 0.3 shows the page upside down. Best on a round tile.
+- Marks on a tile are glass too: they lens the plate behind them under a white, frosted body.
+- Playground preset "Lens".
+
 ## [0.2.0] - 2026-11-17
 
 ### Added

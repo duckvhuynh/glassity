@@ -246,6 +246,16 @@ const scenes = {
     encode('tour', { dir, fps }, 1100);
   },
 
+  // A ball of glass: the same round dome lens at three depths, the last one past its focal length.
+  async lens() {
+    const panel = { width: 600, height: 380, scale: 2 };
+    const common = 'bg=meadow&layout=single&icon=heart&set=phosphor&size=230&tile=true&tileRadius=0.5&profile=dome&variant=clear';
+    const files = [];
+    for (const [caption, depth] of [['depth 0.15: magnified', '0.15'], ['depth 0.6: upside down', '0.6'], ['depth 1.2', '1.2']])
+      files.push(await still(`lens-${depth}`, `${common}&depth=${depth}&caption=${encodeURIComponent(caption)}`, panel));
+    grid('lens', files, 3, 1800);
+  },
+
   // Your own SVG: logos of tools glassity works with, as glass.
   async logos() {
     const file = await still('logos', 'bg=aurora&layout=grid&set=logos&size=96', { width: 1200, height: 560, scale: 2 });

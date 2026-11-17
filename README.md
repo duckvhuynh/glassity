@@ -39,6 +39,10 @@ The original `<svg>` stays in the page, so screen readers, focus and clicks see 
 </tr>
 </table>
 
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/lens.webp" alt="A round glass lens with a heart, over a meadow, at three depths: magnified, then upside down with the sky at the bottom." width="100%">
+
+`profile: 'dome'` on a round tile is a ball of glass. Light is traced through both of its surfaces, so it magnifies what is behind it, and from a `depth` of about 0.3 the meadow shows upside down, as it would through a real glass sphere. The heart on it is glass too: marks on a tile lens the plate behind them.
+
 <img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/looks.webp" alt="One camera icon in six looks: default, clear, frosted, crystal, on a round glass button, and on a glass tile." width="100%">
 
 Each look above is a handful of options on the same icon. Thin strokes turn into round tubes, wide shapes get a flat top and a bevelled rim, and `tile` puts the icon on a plate (`tileRadius: 0.5` makes it round). `weight` makes any icon bolder, stroked or filled. There are 36 options, all with defaults.
@@ -243,7 +247,7 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | Option | Default | What it does |
 |---|---|---|
 | `variant` | `'regular'` | `regular` keeps content legible; `clear` is see-through; `identity` leaves the SVG untouched |
-| `profile` | `'squircle'` | Cross-section of the edge: `squircle`, `circle`, `lip` |
+| `profile` | `'squircle'` | Cross-section of the edge: `squircle`, `circle`, `lip`, or `dome`, a ball of glass that magnifies and, with `depth` from about 0.3, shows the page upside down. Best on a round tile |
 | `tile` | `false` | Put the icon on a rounded glass plate that fills the SVG's box |
 | `tileRadius` | `0.26` | Plate corner radius, 0 to 0.5. `0.5` makes a round button |
 | `glyphOpacity` | `0.9` | How solid the icon is on a plate |

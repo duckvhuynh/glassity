@@ -48,6 +48,8 @@ Last updated: 2026-11-17.
 - [x] Angular: `provideGlassity`, `injectGlass`, `injectGlassProvider`; Remix 3: `glass` and `glassProvider` mixins; Preact through `glassity/react`
 - [x] Script-tag build with auto mode
 - [x] 36 options, all with defaults, including `weight` (bolder icons, stroked or filled) and round buttons (`tileRadius: 0.5`)
+- [x] `dome` profile: a glass ball traced through both surfaces (magnifies, turns the page upside down past its focal length)
+- [x] Marks on a tile are glass that lenses the plate
 - [x] Light glass on light pages, as Apple's: outlined by its own refracted shadow and a thin contour instead of turning grey
 
 ### Living in other people's DOM
