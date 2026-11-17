@@ -9,7 +9,8 @@ Last updated: 2026-11-17.
 | Area | State |
 |---|---|
 | Core rendering (WebGL2) | Working |
-| React adapter, plain JS, script tag | Working |
+| Adapters: React, Vue, Svelte, Solid, Preact; plain JS, script tag | Working, checked from the packed package |
+| ESM + CommonJS, types for every resolver | Working |
 | Automatic backdrop | Working, with documented limits |
 | Accessibility behaviour | Working |
 | Browser coverage | Chromium, Firefox and WebKit pass the browser tests. Real Safari on macOS and iOS not checked yet |
@@ -42,8 +43,19 @@ Last updated: 2026-11-17.
 - [x] `glassify()`, `auto()`, `isSupported()`
 - [x] `data-glass`, `data-glass="off"`, `data-glass-*` attributes
 - [x] React: `GlassProvider` (nesting, inheritance), `Glass` (morphs on child swap), `useGlass`
+- [x] Vue: `v-glass`, `useGlass`, `GlassProvider`; Svelte: `use:glass`, `use:glassProvider`; Solid: `use:glass`, `use:glassProvider`
 - [x] Script-tag build with auto mode
 - [x] 35 options, all with defaults
+
+### Living in other people's DOM
+- [x] Hiding by attribute and stylesheet: survives frameworks rewriting `style` and animation libraries (browser test)
+- [x] Opacity set on the icon applies to the glass; print shows the original icons
+- [x] Deferred canvas removal: no crash when Vue unmounts an icon with the directive
+- [x] Sprite `<use>` and outside `url(#…)` references are copied in; an icon that draws nothing stays visible
+- [x] `auto()` waits for load and idle: no hydration errors on server-rendered pages (checked with React)
+- [x] Cloned pages (Turbo, swup, Barba) are cleaned up; open shadow roots are supported
+- [x] Trusted Types-safe fallback; one engine per package version
+- [x] Compatibility suite: packed package in Vue, Svelte, Solid and Preact apps, in CI
 
 ### Accessibility and fallback
 - [x] Original SVG stays in the DOM: name, role, focus and clicks unchanged
@@ -65,6 +77,12 @@ Ordered by what unlocks the most.
 - [ ] **Real Safari check** on macOS and iOS, and on high-DPR screens. The WebKit build used in tests is not the shipping browser.
 - [ ] **Performance budget**: measure with 100+ icons, at DPR 2 and 3, and on a phone. Set limits and cull accordingly.
 - [ ] **Snapshot quality**: embed web fonts, capture pseudo-elements, and avoid re-reading the whole subtree after small changes.
+
+## Compatibility follow-ups
+- [ ] Angular: an official directive package, and a check in the compatibility suite
+- [ ] Next.js, Nuxt, SvelteKit apps in the compatibility suite (server rendering + hydration end to end)
+- [ ] Icon fonts: draw the glyph from the font instead of an SVG
+- [ ] Follow rotation and skew of the icon
 
 ## Later
 

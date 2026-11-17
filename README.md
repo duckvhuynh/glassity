@@ -9,7 +9,8 @@ Liquid-glass material for the SVG icons you already use. No redrawn icon set: gl
 - Real refraction of what is behind the icon, with dispersion, frost, highlights and a drop shadow.
 - Works with Lucide, Feather, Tabler, Heroicons, or your own SVG. Outline and filled.
 - The original `<svg>` stays in the DOM, so labels, focus and clicks keep working.
-- React adapter and plain JavaScript. No runtime dependencies.
+- Adapters for React, Vue, Svelte, Solid and Preact; plain JavaScript and a script tag for everything else. No runtime dependencies.
+- Ships ESM and CommonJS with types; safe to import during server rendering.
 
 > Status: 0.1, early. Not on npm yet: until it is, clone the repo and run `npm install && npm run build` (see [Develop](#develop)). See also [Limits](#limits).
 
@@ -59,6 +60,72 @@ Already have a ref to an `<svg>`? Use the hook.
 ```tsx
 const ref = useRef<SVGSVGElement>(null);
 useGlass(ref, { variant: 'clear' });
+```
+
+### Vue
+
+```vue
+<script setup>
+import { GlassProvider, vGlass } from 'glassity/vue';
+import { Calendar, House } from '@lucide/vue';
+</script>
+
+<template>
+  <GlassProvider tile>                    <!-- every [data-glass] inside -->
+    <House data-glass />
+  </GlassProvider>
+
+  <Calendar v-glass="{ depth: 0.3 }" />   <!-- one icon -->
+</template>
+```
+
+Options go on `GlassProvider` as attributes (`tile`, `depth="0.3"`, `:interactive="on"`) or together as `:options`. There is also `useGlass(templateRef, options)`.
+
+### Svelte
+
+```svelte
+<script>
+  import { glass, glassProvider } from 'glassity/svelte';
+  import { Calendar, House } from '@lucide/svelte';
+</script>
+
+<nav use:glassProvider={{ tile: true }}>
+  <House data-glass />
+</nav>
+
+<span use:glass={{ depth: 0.3 }}><Calendar /></span>
+```
+
+Actions work on elements, so put `use:glass` on the `<svg>` itself or on a wrapper around an icon component.
+
+### Solid
+
+```tsx
+import { glass, glassProvider } from 'glassity/solid';
+import { Calendar, House } from 'lucide-solid';
+void glass, glassProvider; // directives are referenced by name only
+
+<nav use:glassProvider={{ tile: true }}>
+  <House data-glass />
+</nav>
+<span use:glass={{ depth: 0.3 }}><Calendar /></span>
+```
+
+### Preact
+
+`glassity/react` works through `preact/compat` (the Vite preset aliases it for you).
+
+### Angular and anything else
+
+Use the core: call `glassify(element, options)` after the view is created and `destroy()` when it goes, or `auto({ root })` for a container. In Angular, run it outside the zone so glassity's animation frames do not trigger change detection:
+
+```ts
+ngAfterViewInit() {
+  this.zone.runOutsideAngular(() => (this.glass = glassify(this.icon.nativeElement, { tile: true })));
+}
+ngOnDestroy() {
+  this.glass?.destroy();
+}
 ```
 
 ### Plain JavaScript
@@ -152,6 +219,42 @@ Or say what to refract:
 <GlassProvider backdrop="none" />              // only the page colour
 ```
 
+## Compatibility
+
+What has been run, and what is known not to work. The [compatibility suite](compat/README.md) installs the packed package into Vue, Svelte, Solid and Preact apps and checks them in Chromium, Firefox and WebKit; the [browser tests](e2e) cover the cases below.
+
+**Frameworks**
+
+| | |
+|---|---|
+| React 18/19, Vue 3, Svelte 5, Solid, Preact | Adapters, checked from the packed package |
+| Next.js, Nuxt, SvelteKit, Astro, Remix (server rendering) | Importing glassity on the server is safe. `auto()` and `glassity/auto` wait until the page has loaded and gone idle, so hydration is not disturbed (checked with React `hydrateRoot`). Adapters run after hydration anyway |
+| Angular | Core API; run it outside the zone (see above). Not covered by the suite |
+| htmx, Alpine, Turbo, swup, Barba | `auto()` follows DOM changes; pages restored from a clone are cleaned up |
+| Jest, CommonJS | `require('glassity')` works (checked in Node). Under jsdom there is no WebGL, so icons should stay plain SVG; not run in Jest yet |
+| TypeScript | Types for every `moduleResolution` mode, including `node` |
+
+**Icons**
+
+| | |
+|---|---|
+| Lucide, Heroicons, Tabler, Feather, Phosphor, Radix, MUI, Ant Design, react-icons, Font Awesome (SVG) | Inline `<svg>`: works. Lucide is checked in every framework; the others are expected to work the same way |
+| Sprite sheets: `<use href="#id">`, `<use href="icons.svg#id">` | Works: the referenced symbol is copied in. An external sheet must be same-origin or allow CORS |
+| Gradients, masks, clip paths defined in another SVG | Works: copied in |
+| Web components with an open shadow root (Ionicons, `<iconify-icon>`, Shoelace) | Works: put `data-glass` on the element. A closed shadow root cannot be read |
+| Icon fonts (Material Symbols, Font Awesome webfont) | Not supported: there is no SVG to read |
+
+**Living with other libraries**
+
+- The original icon is hidden with a `data-glassity-hidden` attribute and one stylesheet, never with its `style`, so frameworks that rewrite `style` (Vue string styles, Svelte `style="…"`) and animation libraries cannot make it reappear.
+- An `opacity` set on the icon itself (GSAP, Motion, the Web Animations API) applies to the glass. Rotation and skew of the icon are not followed.
+- glassity adds a `<canvas data-glassity-canvas>` right after each icon. It removes it a moment after `destroy()`, because a framework may still be using it as a position reference during the same update.
+- Printing shows the original icons.
+
+**Content Security Policy**
+
+glassity draws the icon and the page snapshot as images, so `img-src` must allow `blob:` and `data:`. Its stylesheet is a constructed sheet, so `style-src` needs no `'unsafe-inline'`. Pages that enforce Trusted Types are fine. If images are blocked the icons simply stay as they are.
+
 ## Accessibility
 
 The original SVG is kept (invisible) under the glass, so its accessible name, role, focus and pointer events are unchanged. The canvas is `aria-hidden` and ignores the pointer.
@@ -171,7 +274,7 @@ Without WebGL2 the icon stays a plain SVG with a soft highlight.
 
 - **Snapshots are pictures, not live content.** In the HTML-snapshot case, web fonts, cross-origin images without CORS, pseudo-elements and iframes may be missing or differ. A snapshot copies at most 1500 nodes; beyond that only the CSS background is used. Use `backdrop` to choose something smaller.
 - **A canvas positioned by CSS transforms with rotation or skew** is not handled.
-- **Icons do not merge with each other yet**, and multi-layer icons are treated as one shape.
+- **Icons do not merge with each other**, and multi-layer icons are treated as one shape.
 - **Multicolour SVGs** are used for their outline only.
 - Browser tests pass on Chromium, Firefox and WebKit (Playwright builds). Real Safari on macOS and iOS has not been checked yet.
 - "Liquid glass" here is a simulation of the look. It is not Apple's shader.
@@ -184,6 +287,7 @@ npm run build      # dist/
 npm test           # geometry and options unit tests
 npx playwright install chromium firefox webkit   # once
 npm run test:e2e   # browser tests on Chromium, Firefox and WebKit (after a build)
+npm run test:compat # packed package in Vue, Svelte, Solid and Preact apps (after a build)
 npm run demo:build # bundles the React demo
 npm run demo       # http://localhost:4173/  and  /demo/react.html
 ```
@@ -192,7 +296,7 @@ What is done and what comes next is in [ROADMAP.md](ROADMAP.md). The design deci
 
 ## Contributing
 
-Issues and pull requests are welcome. Before opening a pull request, run `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e`, and check the change in both demo pages.
+Issues and pull requests are welcome. Before opening a pull request, run `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e` and `npm run test:compat`, and check the change in both demo pages.
 
 ## License
 
