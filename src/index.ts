@@ -170,7 +170,10 @@ function startAuto(options: AutoOptions): GlassController {
       retryDelay = Math.min(retryDelay * 2, 2000);
     } else retryDelay = 100;
     for (const instance of engine.inScope(scope)) if (!wanted.has(instance.element) || !instance.element.isConnected) instance.destroy();
-    for (const svg of wanted) if (!engine.get(svg)) engine.mount(svg, {}, scope);
+    for (const svg of wanted) {
+      if (!engine.get(svg)) engine.mount(svg, {}, scope);
+      else engine.claim(svg, scope); // picked up earlier by an outer scope: this one owns it now
+    }
   };
 
   const ownCanvas = (node: Node) => node instanceof Element && node.hasAttribute(OWN);

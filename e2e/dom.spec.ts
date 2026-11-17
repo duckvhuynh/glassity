@@ -231,6 +231,25 @@ test.describe('server-rendered pages, islands', () => {
   });
 });
 
+test.describe('nested scopes', () => {
+  test('a provider that starts after the page-wide auto mode takes over its icons and keeps them', async ({ page }) => {
+    // Page-wide auto mode first (glassity/auto), then a provider inside the page, as when a
+    // framework component mounts after the page has loaded.
+    await serve(page, `<div style="${WALL}"><div id="inner">${icon('id="a"')}</div></div>${START}`);
+    await drawn(page, 1);
+    await page.evaluate(() => {
+      window.handle = window.glassity.auto({ root: document.getElementById('inner')!, accessibility: false, duration: 0, tile: true }) as never;
+    });
+    await settle(page);
+    // Something changes on the page: the page-wide scan runs again.
+    await page.evaluate(() => document.body.append(document.createElement('p')));
+    await settle(page, 700);
+    await drawn(page, 1);
+    // The provider's options apply: a tile covers most of the icon's box.
+    expect(await coverage(page, '#a')).toBeGreaterThan(0.4);
+  });
+});
+
 test.describe('web components', () => {
   test('an icon inside an open shadow root becomes glass, also when it arrives late', async ({ page }) => {
     const define = `<script>

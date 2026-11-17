@@ -692,6 +692,18 @@ export class Engine {
     return this.instances.get(svg) ?? this.plain.get(svg);
   }
 
+  /**
+   * Give an icon that is already glass to `scope`. A provider that starts after the
+   * page-wide auto mode has picked up its icons must own them: otherwise the page-wide
+   * scan later drops them (they now sit inside the provider) and nobody puts them back.
+   */
+  claim(svg: SVGSVGElement, scope: Scope): void {
+    const instance = this.instances.get(svg);
+    if (!instance || instance.scope === scope) return;
+    instance.scope = scope;
+    instance.configure();
+  }
+
   /** Every glass that belongs to `scope`. */
   inScope(scope: Scope): Instance[] {
     return [...this.instances.values()].filter((instance) => instance.scope === scope);
