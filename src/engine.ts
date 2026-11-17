@@ -135,6 +135,16 @@ class Instance implements GlassHandle {
   private revealed = false;
   private drawnVersion = -1;
   private relation = '';
+  /**
+   * Keep the canvas next to the icon. Some frameworks hand over an element before it
+   * is in the page (Solid directives, ref callbacks), and an icon can be moved to
+   * another parent; the canvas follows once there is a parent to follow into.
+   */
+  place(): void {
+    const parent = this.element.parentNode;
+    if (parent && this.canvas.parentNode !== parent) this.element.after(this.canvas);
+  }
+
   /** True while the stylesheet hides the original SVG. */
   private hidden = false;
   /** The icon rasterized to nothing (an unresolved reference, say): leave the SVG alone. */
@@ -165,7 +175,7 @@ class Instance implements GlassHandle {
   }
 
   private attach(svg: SVGSVGElement): void {
-    svg.after(this.canvas);
+    this.place();
     this.observer.observe(svg, { subtree: true, childList: true, attributes: true });
     this.engine.observe(svg);
   }
@@ -304,6 +314,7 @@ class Instance implements GlassHandle {
   /** Rasterize the icon and build its distance field. Cheap when nothing changed. */
   private async prepare(): Promise<void> {
     if (this.destroyed || this.inert) return;
+    this.place();
     const rect = this.element.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return; // not laid out yet; the resize observer calls again
     const plan = planRaster(rect.width, rect.height, this.engine.dpr(this.r.maxDpr));
@@ -381,6 +392,7 @@ class Instance implements GlassHandle {
     const { engine, r } = this;
     const plan = geometry.plan;
     const calm = this.system.reducedMotion;
+    this.place();
     let animating = false;
 
     // Keep the canvas centred on the SVG by measuring, so any containing block works.
