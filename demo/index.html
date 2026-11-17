@@ -48,16 +48,6 @@
   button.icon { all: unset; cursor: pointer; display: inline-flex; border-radius: 22px; }
   button.icon:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 
-  .groups { display: flex; flex-wrap: wrap; gap: 34px 44px; align-items: center; }
-  .cluster { display: inline-flex; align-items: center; gap: var(--gap, 10px); }
-  .cluster svg { width: 64px; height: 64px; }
-  .cluster.slim { gap: 26px; }
-  .cluster.slim svg { width: 30px; height: 30px; }
-  .cluster.strokes svg { width: 72px; height: 72px; }
-  .stage .knobs { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 22px; font-size: 13px; color: #ffffffd0; }
-  .stage .knobs label { display: inline-flex; gap: 8px; align-items: center; }
-  .stage .knobs input { accent-color: #fff; }
-
   .prose { position: relative; background: #f4f1ea; color: #23252b; }
   .prose h2 { color: #23252b99; text-shadow: none; }
   .prose article { columns: 2; column-gap: 28px; font: 17px/1.55 Georgia, "Times New Roman", serif; }
@@ -116,20 +106,6 @@
   <section class="stage ocean">
     <h2>On a glass tile — press them</h2>
     <div class="row tiles" id="tiles"></div>
-  </section>
-
-  <section class="stage dusk">
-    <h2>Groups — icons that come close join into one piece of glass</h2>
-    <div class="groups">
-      <div class="cluster" id="merge" data-glass-group data-glass-tile data-glass-interactive></div>
-      <div class="cluster slim" id="bar" data-glass-group data-glass-bar data-glass-interactive></div>
-      <div class="cluster strokes" id="strokes" data-glass-group></div>
-    </div>
-    <div class="knobs">
-      <label>Gap <input type="range" id="gap" min="-6" max="60" value="10"></label>
-      <label>Spacing <input type="range" id="spacing" min="0" max="1" step="0.05" value="0.35"></label>
-      <label><input type="checkbox" id="hide"> Hide the middle icon</label>
-    </div>
   </section>
 
   <section class="stage paper">
@@ -194,22 +170,6 @@
 
   await fill('glyphs', names.slice(0, 8));
   await fill('tiles', names, { 'data-glass-tile': '', 'data-glass-interactive': '' }, true);
-  // Groups: no data-glass on the icons, the container's data-glass-group covers them.
-  await fill('merge', ['house', 'mail', 'camera', 'search'], {}, true);
-  await fill('bar', ['house', 'search', 'bell', 'settings'], {}, true);
-  await fill('strokes', ['heart', 'sun', 'sparkles']);
-  for (const svg of document.querySelectorAll('.cluster svg')) svg.removeAttribute('data-glass');
-  const clusters = [...document.querySelectorAll('.cluster')];
-  document.getElementById('gap').addEventListener('input', (event) => {
-    for (const id of ['merge', 'strokes']) document.getElementById(id).style.setProperty('--gap', event.target.value + 'px');
-  });
-  document.getElementById('spacing').addEventListener('input', (event) => {
-    for (const cluster of clusters) cluster.setAttribute('data-glass-spacing', event.target.value);
-  });
-  document.getElementById('hide').addEventListener('change', (event) => {
-    for (const cluster of clusters) cluster.querySelectorAll('svg')[1].setAttribute('data-glass-visible', String(!event.target.checked));
-  });
-
   await fill('light-glyphs', ['calendar', 'heart', 'sun']);
   await fill('light-tiles', ['house', 'mail', 'camera'], { 'data-glass-tile': '' });
   await fill('light-small', ['search', 'bell', 'settings', 'menu']);

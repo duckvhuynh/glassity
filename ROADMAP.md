@@ -10,7 +10,6 @@ Last updated: 2026-11-17.
 |---|---|
 | Core rendering (WebGL2) | Working |
 | React adapter, plain JS, script tag | Working |
-| Groups: icons that join, glass bar | Working |
 | Automatic backdrop | Working, with documented limits |
 | Accessibility behaviour | Working |
 | Browser coverage | Chromium, Firefox and WebKit pass the browser tests. Real Safari on macOS and iOS not checked yet |
@@ -32,13 +31,6 @@ Last updated: 2026-11-17.
 - [x] Shape morph when the icon's outline changes
 - [x] Press: swell, bounce and glow (`interactive`); highlight follows the pointer
 - [x] One shared WebGL context; about 1.7 ms to redraw 33 icons on integrated graphics at DPR 1
-- [x] Follows icons moved by layout or CSS transitions without being told
-
-### Groups
-- [x] Icons in a group are composed on the GPU into one smooth union: neighbours join when closer than `spacing`
-- [x] `bar`: one glass bar around all icons of a group, resizing as icons come and go
-- [x] Live: joining follows layout changes; a pressed icon swells into its neighbour; a hidden one is absorbed
-- [x] Falls back to separate icons where float render targets are missing or the group is too large (browser test)
 
 ### Backdrop
 - [x] CSS background image or gradient of the surface the icon sits on
@@ -47,11 +39,11 @@ Last updated: 2026-11-17.
 - [x] With every effect off the glass matches the page pixel for pixel (browser test, three engines)
 
 ### API
-- [x] `glassify()`, `auto()`, `group()`, `isSupported()`, `canMerge()`
-- [x] `data-glass`, `data-glass="off"`, `data-glass-*` attributes, `data-glass-group` on a container
-- [x] React: `GlassProvider` (nesting, inheritance), `GlassGroup`, `Glass` (morphs on child swap), `useGlass`
+- [x] `glassify()`, `auto()`, `isSupported()`
+- [x] `data-glass`, `data-glass="off"`, `data-glass-*` attributes
+- [x] React: `GlassProvider` (nesting, inheritance), `Glass` (morphs on child swap), `useGlass`
 - [x] Script-tag build with auto mode
-- [x] 38 options, all with defaults
+- [x] 35 options, all with defaults
 
 ### Accessibility and fallback
 - [x] Original SVG stays in the DOM: name, role, focus and clicks unchanged
@@ -61,17 +53,17 @@ Last updated: 2026-11-17.
 ### Project
 - [x] Public repository, MIT licence
 - [x] CI: typecheck, unit tests, build, demo build
-- [x] Browser tests with Playwright on Chromium, Firefox and WebKit, in CI (42 tests)
+- [x] Browser tests with Playwright on Chromium, Firefox and WebKit, in CI
 - [x] Vanilla and React demo pages
 
 ## Next
 
 Ordered by what unlocks the most.
 
+- [ ] **Icons that merge.** Neighbouring glass shapes blend into one body when they come close, and split apart again, like Apple's `GlassEffectContainer`. Needs one canvas per group and a smooth union of the distance fields.
 - [ ] **Multi-layer icons.** Treat an SVG's groups as separate glass layers (background plate, foreground shapes), following the layer model of Apple's Icon Composer. Keep original colours as an option.
 - [ ] **Real Safari check** on macOS and iOS, and on high-DPR screens. The WebKit build used in tests is not the shipping browser.
-- [ ] **Performance budget**: measure with 100+ icons and with large groups, at DPR 2 and 3, and on a phone. Set limits and cull accordingly.
-- [ ] **Per-icon material inside a group** (a tinted icon in a shared bar), and groups that span more than one cluster cheaply.
+- [ ] **Performance budget**: measure with 100+ icons, at DPR 2 and 3, and on a phone. Set limits and cull accordingly.
 - [ ] **Snapshot quality**: embed web fonts, capture pseudo-elements, and avoid re-reading the whole subtree after small changes.
 
 ## Later
@@ -101,4 +93,3 @@ Kept here so nothing is forgotten; none of it blocks development.
 - Firefox logs one harmless "Layout was forced" warning the first time a snapshot is taken.
 - The pointer light and press effects need `requestAnimationFrame`; in a background tab they pause.
 - Multicolour SVGs are used for their outline only.
-- A group shares one material and is one canvas; a very large group falls back to separate icons.

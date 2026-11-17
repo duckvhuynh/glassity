@@ -40,21 +40,6 @@ describe('resolveOptions', () => {
     expect(resolveOptions().padding).toBe(0);
   });
 
-  it('a bar wins over the per-icon tile and defaults to a capsule', () => {
-    const o = resolveOptions({ tile: true, bar: true });
-    expect(o.bar).toBe(true);
-    expect(o.tile).toBe(false);
-    expect(o.padding).toBe(0);
-    expect(o.tileRadius).toBe(0.5);
-    expect(resolveOptions({ bar: true, tileRadius: 0.2 }).tileRadius).toBe(0.2);
-  });
-
-  it('has group defaults and clamps spacing', () => {
-    expect(resolveOptions().spacing).toBeCloseTo(0.35);
-    expect(resolveOptions({ spacing: -1 }).spacing).toBe(0);
-    expect(resolveOptions({ spacing: 9 }).spacing).toBe(2);
-  });
-
   it('clamps out-of-range and garbage values', () => {
     const o = resolveOptions({ bands: 99, frost: -3, ior: 0.2, variant: 'nope' as never, profile: 'x' as never });
     expect(o.bands).toBe(8);
@@ -80,9 +65,9 @@ describe('readAttributes', () => {
 
   it('reads numbers, booleans and strings from data-glass-* in kebab case', () => {
     const o = readAttributes(
-      el({ 'data-glass': '', 'data-glass-depth': '0.3', 'data-glass-tile': '', 'data-glass-interactive': 'false', 'data-glass-tint': '#f80', 'data-glass-light-angle': '-90', 'data-glass-tile-radius': '.3', 'data-glass-bar': '', 'data-glass-spacing': '0.5' }),
+      el({ 'data-glass': '', 'data-glass-depth': '0.3', 'data-glass-tile': '', 'data-glass-interactive': 'false', 'data-glass-tint': '#f80', 'data-glass-light-angle': '-90', 'data-glass-tile-radius': '.3' }),
     );
-    expect(o).toEqual({ depth: 0.3, tile: true, interactive: false, tint: '#f80', lightAngle: -90, tileRadius: 0.3, bar: true, spacing: 0.5 });
+    expect(o).toEqual({ depth: 0.3, tile: true, interactive: false, tint: '#f80', lightAngle: -90, tileRadius: 0.3 });
   });
 
   it('ignores unknown attributes', () => {

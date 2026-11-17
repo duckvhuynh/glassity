@@ -29,16 +29,6 @@ export interface GlassOptions {
   /** Override the SVG's stroke width, in viewBox units. */
   strokeWidth?: number;
 
-  /**
-   * In a group: how far apart shapes still reach for each other and join, as a fraction of the icon size.
-   * `0` keeps them separate. Default `0.35`.
-   */
-  spacing?: number;
-  /** In a group: one glass bar around all icons instead of a plate per icon. Default `false`. */
-  bar?: boolean;
-  /** In a group with `bar`: space between the icons and the edge of the bar, as a fraction of the icon size. Default `0.28`. */
-  barPadding?: number;
-
   /** Width of the curved edge as a fraction of the box. Thin strokes use their own half-width. Default `0.09`. */
   bevel?: number;
   /** How steep the curved edge is. `0` is flat glass. Default `1`. */
@@ -113,9 +103,6 @@ export interface ResolvedOptions {
   glyphOpacity: number;
   padding: number;
   strokeWidth: number | null;
-  spacing: number;
-  bar: boolean;
-  barPadding: number;
   bevel: number;
   curvature: number;
   depth: number;
@@ -154,9 +141,6 @@ const BASE: ResolvedOptions = {
   glyphOpacity: 0.9,
   padding: 0,
   strokeWidth: null,
-  spacing: 0.35,
-  bar: false,
-  barPadding: 0.28,
   bevel: 0.09,
   curvature: 1,
   depth: 0.16,
@@ -208,11 +192,8 @@ export function resolveOptions(...layers: (GlassOptions | undefined | null)[]): 
     }
   }
   const variant: GlassVariant = merged.variant === 'clear' || merged.variant === 'identity' ? merged.variant : 'regular';
-  const bar = merged.bar === true;
-  // A bar wraps the icons at their own size, so it wins over the per-icon plate.
-  const tile = merged.tile === true && !bar;
-  const shape = bar ? { tileRadius: 0.5 } : tile ? { padding: 0.22 } : null;
-  const o = { ...BASE, ...VARIANTS[variant], ...shape, ...merged, variant, tile, bar } as ResolvedOptions;
+  const tile = merged.tile === true;
+  const o = { ...BASE, ...VARIANTS[variant], ...(tile ? { padding: 0.22 } : null), ...merged, variant, tile } as ResolvedOptions;
 
   o.profile = o.profile === 'circle' || o.profile === 'lip' ? o.profile : 'squircle';
   o.scheme = o.scheme === 'light' || o.scheme === 'dark' ? o.scheme : 'auto';
@@ -220,8 +201,6 @@ export function resolveOptions(...layers: (GlassOptions | undefined | null)[]): 
   o.glyphOpacity = clamp(+o.glyphOpacity, 0, 1);
   o.padding = clamp(+o.padding || 0, 0, 0.45);
   o.strokeWidth = o.strokeWidth == null || !(+o.strokeWidth > 0) ? null : +o.strokeWidth;
-  o.spacing = clamp(+o.spacing || 0, 0, 2);
-  o.barPadding = clamp(+o.barPadding || 0, 0, 2);
   o.bevel = clamp(+o.bevel, 0.005, 0.5);
   o.curvature = clamp(+o.curvature, 0, 4);
   o.depth = clamp(+o.depth, 0, 2);
