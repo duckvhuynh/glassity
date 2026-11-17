@@ -1,7 +1,7 @@
 import { StrictMode, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Bell, Calendar, Camera, Heart, House, Mail, Search, Settings, Sparkles } from 'lucide-react';
-import { Glass, GlassProvider, useGlass } from 'glassity/react';
+import { Glass, GlassGroup, GlassProvider, useGlass } from 'glassity/react';
 
 const cycle = [Calendar, Heart, Sparkles, Bell];
 
@@ -19,6 +19,8 @@ function App() {
   const [index, setIndex] = useState(0);
   const [interactive, setInteractive] = useState(true);
   const [mounted, setMounted] = useState(true);
+  const [gap, setGap] = useState(8);
+  const [extra, setExtra] = useState(false);
   const Current = cycle[index % cycle.length];
 
   return (
@@ -45,6 +47,35 @@ function App() {
             </GlassProvider>
           </div>
         </GlassProvider>
+      </section>
+
+      <section className="stage dusk">
+        <h2>GlassGroup — icons that join</h2>
+        <div className="row">
+          <GlassGroup tile interactive spacing={0.4} accessibility={false}>
+            <div className="row" style={{ gap }}>
+              {[House, Mail, Camera].map((Icon, i) => (
+                <button key={i} className="icon" aria-label={Icon.displayName}>
+                  <Icon size={64} aria-hidden />
+                </button>
+              ))}
+            </div>
+          </GlassGroup>
+          <GlassGroup bar interactive accessibility={false}>
+            <div className="row" style={{ gap: 26 }}>
+              <House size={30} aria-label="Home" />
+              <Search size={30} aria-label="Search" />
+              {extra && <Bell size={30} aria-label="Alerts" />}
+              <Settings size={30} aria-label="Settings" />
+            </div>
+          </GlassGroup>
+          <div className="buttons">
+            <label>
+              Gap <input type="range" min={-6} max={60} value={gap} onChange={(event) => setGap(Number(event.target.value))} />
+            </label>
+            <button onClick={() => setExtra((v) => !v)}>{extra ? 'Remove' : 'Add'} an icon in the bar</button>
+          </div>
+        </div>
       </section>
 
       <section className="stage ocean">
