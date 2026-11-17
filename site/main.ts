@@ -88,7 +88,7 @@ const GROUPS: { title: string; open?: boolean; controls: Control[] }[] = [
     open: true,
     controls: [
       { key: 'variant', kind: 'select', choices: ['regular', 'clear', 'identity'] },
-      { key: 'profile', kind: 'select', choices: ['squircle', 'circle', 'lip'] },
+      { key: 'profile', kind: 'select', choices: ['squircle', 'circle', 'lip', 'dome'] },
       { key: 'scheme', kind: 'select', choices: ['auto', 'light', 'dark'] },
       { key: 'tile', kind: 'toggle', help: 'A rounded glass plate behind the icon' },
       { key: 'interactive', kind: 'toggle', help: 'Swell and glow when pressed' },
@@ -160,6 +160,7 @@ const PRESETS: [string, GlassOptions][] = [
   ['Chunky', { bevel: 0.2, depth: 0.42, curvature: 2.2, strokeWidth: 3.2 }],
   ['Bubble', { profile: 'circle', variant: 'clear', depth: 0.5, dispersion: 0.9, reflection: 1.4, rim: 1.6 }],
   ['Round', { tile: true, tileRadius: 0.5, profile: 'circle', bevel: 0.5, depth: 0.3, weight: 0.02 }],
+  ['Lens', { tile: true, tileRadius: 0.5, profile: 'dome', variant: 'clear', depth: 0.6, weight: 0.02 }],
   ['Bold', { weight: 0.04, depth: 0.22 }],
   ['Tiles', { tile: true, interactive: true }],
 ];
