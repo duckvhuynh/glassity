@@ -63,7 +63,7 @@ Anything drawn as an inline `<svg>` works, filled or stroked: a brand mark, a ha
 
 <a href="https://duckvhuynh.github.io/glassity/"><img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/tour.webp" alt="A quick tour of the playground: presets, photo backdrops, Phosphor icons, a heart morphing into a star and a bell, the compare slider, glass tiles being pressed, and logos." width="100%"></a>
 
-[duckvhuynh.github.io/glassity](https://duckvhuynh.github.io/glassity/) has every option on a slider, presets, 16 backdrops (or your own photo), Lucide, Phosphor, logos or your own SVG, a slider that compares the plain icon with the glass, and the code for React, Vue, Svelte, HTML or plain JavaScript with your settings filled in. The link keeps your settings, so you can share a look.
+[duckvhuynh.github.io/glassity](https://duckvhuynh.github.io/glassity/) has every option on a slider, presets, 16 backdrops (or your own photo), and icons from Lucide, Phosphor, logos, your own SVG or a library of about 75,000 icons from 21 open sets (Tabler, Material Design, Material Symbols, Font Awesome, Bootstrap, Heroicons, Remix, Solar and more), each searchable and shown in full. It also has a slider that compares the plain icon with the glass, and the code for React, Vue, Svelte, HTML or plain JavaScript with your settings filled in. The link keeps your settings, so you can share a look.
 
 ## Install
 
