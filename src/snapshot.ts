@@ -55,27 +55,51 @@ async function inlineUrls(css: string): Promise<string> {
 }
 
 let sandbox: HTMLIFrameElement | null = null;
+let sandboxReady: Promise<boolean> | null = null;
+let sandboxUsable = false;
 const defaults = new Map<string, Map<string, string>>();
+
+/**
+ * A hidden, empty document used to learn each tag's default styles.
+ * It must have finished loading before it is read: Firefox reports styles
+ * without the browser's own stylesheet (a <p> with no margin) on the transient
+ * document an iframe starts with. A standards-mode `srcdoc` loads the same way
+ * in every browser and matches the mode of ordinary pages.
+ */
+function prepareSandbox(): Promise<boolean> {
+  if (sandbox?.isConnected && sandboxReady) return sandboxReady;
+  defaults.clear();
+  sandboxUsable = false;
+  const frame = document.createElement('iframe');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.setAttribute('data-glassity-canvas', '');
+  frame.tabIndex = -1;
+  frame.style.cssText = 'position:fixed;left:-9999px;top:0;width:10px;height:10px;border:0;visibility:hidden;pointer-events:none';
+  sandbox = frame;
+  sandboxReady = new Promise<boolean>((resolve) => {
+    const done = (ok: boolean) => {
+      sandboxUsable = ok && !!frame.contentDocument?.body;
+      resolve(sandboxUsable);
+    };
+    frame.addEventListener('load', () => done(true), { once: true });
+    setTimeout(() => done(false), 1500); // blocked by a content policy: write full styles instead
+    frame.srcdoc = '<!doctype html><html><body></body></html>';
+    document.documentElement.appendChild(frame);
+  });
+  return sandboxReady;
+}
 
 /** Computed style of an untouched element of this tag, used to write only what differs. */
 function defaultStyle(el: Element): Map<string, string> {
   const key = el.namespaceURI + '|' + el.localName;
   let known = defaults.get(key);
   if (known) return known;
-  if (!sandbox || !sandbox.isConnected) {
-    sandbox = document.createElement('iframe');
-    sandbox.setAttribute('aria-hidden', 'true');
-    sandbox.setAttribute('data-glassity-canvas', '');
-    sandbox.tabIndex = -1;
-    sandbox.style.cssText = 'position:fixed;left:-9999px;top:0;width:10px;height:10px;border:0;visibility:hidden;pointer-events:none';
-    document.documentElement.appendChild(sandbox);
-  }
   known = new Map();
-  const doc = sandbox.contentDocument;
-  if (doc && doc.body) {
+  const doc = sandboxUsable ? sandbox?.contentDocument : null;
+  if (doc?.body && sandbox?.contentWindow) {
     const probe = doc.createElementNS(el.namespaceURI, el.localName);
     doc.body.appendChild(probe);
-    const cs = sandbox.contentWindow!.getComputedStyle(probe);
+    const cs = sandbox.contentWindow.getComputedStyle(probe);
     for (let i = 0; i < cs.length; i++) known.set(cs[i], cs.getPropertyValue(cs[i]));
     probe.remove();
   }
@@ -206,6 +230,7 @@ export async function snapshot(el: Element, request: SnapshotRequest): Promise<S
     box.setAttribute('style', await inlineUrls(style));
     markup = new XMLSerializer().serializeToString(box);
   } else {
+    await prepareSandbox();
     const job: CloneJob = { count: 0, limit: request.nodeLimit ?? 1500, pending: [], hide: request.hide };
     const copy = cloneTree(el, job, el !== document.body && el !== document.documentElement);
     if (!copy) throw new Error('glassity: nothing to snapshot');
