@@ -309,3 +309,30 @@ test('without WebGL2 the icon stays a plain SVG with a highlight', async ({ page
   await expect(page.locator(CANVAS)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('glass follows an icon that layout moves without any event', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => {
+    window.controller = window.glassity.auto({ accessibility: false, duration: 0, pointerLight: false });
+  });
+  await drawn(page, 3);
+  await settle(page);
+
+  /** Distance between the centre of the icon and the centre of its glass. */
+  const drift = () =>
+    page.evaluate(() => {
+      const svg = document.querySelector('#a')!.getBoundingClientRect();
+      const canvas = document.querySelector('#a + canvas')!.getBoundingClientRect();
+      return Math.hypot(svg.left + svg.width / 2 - (canvas.left + canvas.width / 2), svg.top + svg.height / 2 - (canvas.top + canvas.height / 2));
+    });
+  expect(await drift()).toBeLessThan(1);
+
+  // A sibling appears and pushes the icon aside: no scroll, no resize, nothing glassity listens to.
+  await page.evaluate(() => {
+    const spacer = document.createElement('div');
+    spacer.style.cssText = 'flex:none;width:57px;height:10px';
+    document.querySelector('#wall')!.prepend(spacer);
+  });
+  await page.waitForTimeout(700);
+  expect(await drift()).toBeLessThan(1);
+});

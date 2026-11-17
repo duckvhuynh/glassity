@@ -558,6 +558,9 @@ export class Engine {
   private colorCtx: CanvasRenderingContext2D | null = null;
   private raf = 0;
   private last = 0;
+  /** Frames left to keep following something that is moving without an event. */
+  private hot = 0;
+  private watch = 0;
   private listening = false;
   private pointer: [number, number] | null = null;
   private intersection: IntersectionObserver | null = null;
@@ -662,9 +665,13 @@ export class Engine {
     const active: Instance[] = [];
     const rects = new Map<Backdrop, Rect>();
     let live = false;
+    let moved = false;
     for (const instance of this.instances.values()) {
       if (!instance.onscreen || instance.inert) continue;
-      instance.rect = instance.element.getBoundingClientRect();
+      const rect = instance.element.getBoundingClientRect();
+      const was = instance.rect;
+      if (was && (Math.abs(was.left - rect.left) > 0.2 || Math.abs(was.top - rect.top) > 0.2 || Math.abs(was.width - rect.width) > 0.2)) moved = true;
+      instance.rect = rect;
       instance.canvasRect = instance.canvas.getBoundingClientRect();
       const backdrop = instance.backdrop;
       if (backdrop && !rects.has(backdrop)) {
@@ -680,8 +687,17 @@ export class Engine {
       const back = instance.backdrop ? rects.get(instance.backdrop) ?? null : null;
       again = instance.step(now, dt, back) || again;
     }
-    if (again) this.requestFrame();
-    else this.last = 0;
+    // Layout can move an icon without any event (a sibling grows, a CSS transition
+    // runs). Once movement is seen it is followed every frame for a moment; when
+    // all is still, a slow check keeps watching.
+    if (moved) this.hot = 20;
+    else if (this.hot > 0) this.hot--;
+    if (again || this.hot > 0) this.requestFrame();
+    else {
+      this.last = 0;
+      clearTimeout(this.watch);
+      if (this.instances.size && !document.hidden) this.watch = window.setTimeout(this.requestFrame, 160);
+    }
   };
 
   private readonly onPointer = (event: PointerEvent): void => {
@@ -714,6 +730,7 @@ export class Engine {
     this.listening = true;
     window.addEventListener('scroll', this.requestFrame, { capture: true, passive: true });
     window.addEventListener('resize', this.requestFrame, { passive: true });
+    document.addEventListener('visibilitychange', this.requestFrame);
     window.addEventListener('pointermove', this.onPointer, { passive: true });
     document.documentElement.addEventListener('pointerleave', this.onPointer, { passive: true });
     if (typeof IntersectionObserver !== 'undefined')
@@ -745,6 +762,8 @@ export class Engine {
     this.raf = 0;
     window.removeEventListener('scroll', this.requestFrame, { capture: true });
     window.removeEventListener('resize', this.requestFrame);
+    document.removeEventListener('visibilitychange', this.requestFrame);
+    clearTimeout(this.watch);
     window.removeEventListener('pointermove', this.onPointer);
     document.documentElement.removeEventListener('pointerleave', this.onPointer);
     this.intersection?.disconnect();
