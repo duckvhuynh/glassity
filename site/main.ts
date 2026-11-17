@@ -137,6 +137,7 @@ const GROUPS: { title: string; open?: boolean; controls: Control[] }[] = [
       { key: 'tileRadius', kind: 'range', min: 0, max: 0.5, step: 0.01 },
       { key: 'glyphOpacity', kind: 'range', min: 0, max: 1, step: 0.01 },
       { key: 'padding', kind: 'range', min: 0, max: 0.45, step: 0.01 },
+      { key: 'weight', kind: 'range', min: -0.03, max: 0.08, step: 0.005, help: 'Bolder shapes, stroked or filled' },
       { key: 'strokeWidth', kind: 'range', min: 0, max: 4, step: 0.1, zero: 'from SVG' },
     ],
   },
@@ -158,6 +159,8 @@ const PRESETS: [string, GlassOptions][] = [
   ['Crystal', { variant: 'clear', depth: 0.34, curvature: 1.7, dispersion: 1.3, shine: 1.6 }],
   ['Chunky', { bevel: 0.2, depth: 0.42, curvature: 2.2, strokeWidth: 3.2 }],
   ['Bubble', { profile: 'circle', variant: 'clear', depth: 0.5, dispersion: 0.9, reflection: 1.4, rim: 1.6 }],
+  ['Round', { tile: true, tileRadius: 0.5, profile: 'circle', bevel: 0.5, depth: 0.3, weight: 0.02 }],
+  ['Bold', { weight: 0.04, depth: 0.22 }],
   ['Tiles', { tile: true, interactive: true }],
 ];
 
@@ -459,7 +462,7 @@ function control(ctl: Control): HTMLElement {
   } else if (ctl.kind === 'color') {
     const autoBox = document.createElement('input');
     autoBox.type = 'checkbox';
-    autoBox.title = 'auto: white or near-black from the backdrop';
+    autoBox.title = 'auto: white; small icons turn dark on a light page';
     autoBox.setAttribute('aria-label', 'Automatic tint');
     const color = document.createElement('input');
     color.type = 'color';
