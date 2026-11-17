@@ -1,19 +1,51 @@
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/hero.webp" alt="A row of app icons made of liquid glass over a green meadow. The highlight follows the pointer and one icon swells when pressed." width="100%">
+
 # glassity
+
+Liquid glass for the SVG icons you already use.
 
 [![npm](https://img.shields.io/npm/v/glassity.svg)](https://www.npmjs.com/package/glassity)
 [![CI](https://github.com/duckvhuynh/glassity/actions/workflows/ci.yml/badge.svg)](https://github.com/duckvhuynh/glassity/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Liquid-glass material for the SVG icons you already use. No redrawn icon set: glassity reads the outline of any `<svg>` and renders it as refracting glass with WebGL2.
+[**Open the playground**](https://duckvhuynh.github.io/glassity/) · [Install](#install) · [Use](#use) · [Options](#options)
 
-- One provider (or one import) turns icons into glass. No canvas, no coordinates, no background set-up.
-- Real refraction of what is behind the icon, with dispersion, frost, highlights and a drop shadow.
-- Works with Lucide, Feather, Tabler, Heroicons, or your own SVG. Outline and filled.
-- The original `<svg>` stays in the DOM, so labels, focus and clicks keep working.
-- Adapters for React, Vue, Svelte, Solid, Preact, Angular and Remix 3; plain JavaScript and a script tag for everything else. No runtime dependencies.
-- Ships ESM and CommonJS with types. Checked end to end with Next.js, Nuxt, SvelteKit, Astro, React Router and Remix 3 server rendering.
+</div>
 
-> Status: 0.1, early. The API may still change before 1.0; changes are listed in the [changelog](CHANGELOG.md). See also [Limits](#limits).
+Put `data-glass` on an `<svg>` and it becomes a small lens. The page behind it bends at the edges, splits into colour at the rim, and picks up a highlight that follows the pointer. You keep your icon set: Lucide, Phosphor, Heroicons, Tabler or a logo you drew yourself. glassity reads the outline and does the rest with WebGL2.
+
+```tsx
+<GlassProvider>
+  <Calendar data-glass />
+</GlassProvider>
+```
+
+The original `<svg>` stays in the page, so screen readers, focus and clicks see exactly what they saw before. Browsers without WebGL2 show the plain icon.
+
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/compare.webp" alt="The same six Lucide icons over a fern photo. Left of the divider they are flat white SVG; right of it they are glass that bends the leaves behind them." width="100%">
+
+## What it does
+
+<table>
+<tr>
+<td width="50%"><img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/morph.webp" alt="A glass heart flowing into a star, a bell and sparkles." width="100%"></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/live.webp" alt="Glass icons over a moving canvas; the colours behind them bend as they pass." width="100%"></td>
+</tr>
+<tr>
+<td><b>Shapes morph.</b> Swap the paths inside an icon and the glass flows from the old outline to the new one.</td>
+<td><b>Live backdrops.</b> A <code>&lt;video&gt;</code> or <code>&lt;canvas&gt;</code> behind the glass is refracted every frame.</td>
+</tr>
+</table>
+
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/looks.webp" alt="One camera icon in six looks: default, clear, frosted, crystal, chunky, and on a glass tile." width="100%">
+
+Each look above is a handful of options on the same icon. Thin strokes turn into round tubes, wide shapes get a flat top and a bevelled rim, and `tile` puts the icon on a plate. There are 35 options, all with defaults.
+
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/backdrops.webp" alt="Glass icons over leaves, silk, an ocean, an aurora, light streaks and a page of plain HTML text." width="100%">
+
+It refracts whatever sits behind it: a photo, a CSS gradient, a canvas, or ordinary HTML text, which it photographs and looks through. Over a light background the glass turns dark by itself.
 
 ## Install
 
@@ -21,9 +53,9 @@ Liquid-glass material for the SVG icons you already use. No redrawn icon set: gl
 npm install glassity
 ```
 
-No other package is needed. Framework adapters (`glassity/react`, `glassity/vue`, …) use the framework your app already has.
+No other package is needed. The framework adapters (`glassity/react`, `glassity/vue`, …) use the framework your app already has. No build step? See [Script tag](#script-tag).
 
-No build step? See [Script tag](#script-tag).
+> glassity is at 0.1. The API may change before 1.0; the [changelog](CHANGELOG.md) lists every change, and [Limits](#limits) lists what it does not do yet.
 
 ## Use
 
@@ -201,7 +233,7 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `variant` | `'regular'` | `regular` keeps content legible; `clear` is see-through; `identity` leaves the SVG untouched |
 | `profile` | `'squircle'` | Cross-section of the edge: `squircle`, `circle`, `lip` |
 | `tile` | `false` | Put the icon on a rounded glass plate that fills the SVG's box |
-| `tileRadius` | `0.26` | Plate corner radius, 0–0.5 |
+| `tileRadius` | `0.26` | Plate corner radius, 0 to 0.5 |
 | `glyphOpacity` | `0.9` | How solid the icon is on a plate |
 | `padding` | `0` (`0.22` with `tile`) | Inset of the icon inside its box, per side |
 | `strokeWidth` | from the SVG | Override the stroke width, in viewBox units |
@@ -211,7 +243,7 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `ior` | `1.5` | Index of refraction |
 | `refraction` | `1` | Overall strength of the bending |
 | `dispersion` | `0.35` (`0.5` clear) | Colour separation at the edges |
-| `bands` | `6` | Wavelength bands sampled for dispersion, 1–8 |
+| `bands` | `6` | Wavelength bands sampled for dispersion, 1 to 8 |
 | `frost` | `0.3` (`0` clear) | Blur of what is seen through the glass |
 | `saturation` | `1.35` | Saturation of what is seen through the glass |
 | `brightness` | `1` | Brightness of what is seen through the glass |
@@ -325,7 +357,9 @@ npx playwright install chromium firefox webkit   # once
 npm run test:e2e   # browser tests on Chromium, Firefox and WebKit (after a build)
 npm run test:compat # the packed package in 12 framework apps (after a build)
 npm run demo:build # bundles the React demo
-npm run demo       # http://localhost:4173/  and  /demo/react.html
+npm run demo       # test pages: http://localhost:4173/  and  /demo/react.html
+npm run site       # the playground: http://localhost:4173/site/dist/
+node site/capture.mjs  # re-renders the images in docs/media (needs the server above and ffmpeg)
 ```
 
 What is done and what comes next is in [ROADMAP.md](ROADMAP.md); releases are in [CHANGELOG.md](CHANGELOG.md). The design decisions behind 0.1 are in [docs/design.md](docs/design.md) (Vietnamese).
@@ -343,10 +377,10 @@ The workflow uses [npm Trusted Publishing](https://docs.npmjs.com/trusted-publis
 
 ## Contributing
 
-Issues and pull requests are welcome. Before opening a pull request, run `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e` and `npm run test:compat`, and check the change in both demo pages.
+Issues and pull requests are welcome. Before opening a pull request, run `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e` and `npm run test:compat`, and try the change in the playground and the demo pages.
 
 ## License
 
 [MIT](LICENSE) © Duc Huynh
 
-The demo icons are from [Lucide](https://lucide.dev) (ISC licence, see `demo/icons/LICENSE-LUCIDE`).
+The demo and playground icons are from [Lucide](https://lucide.dev) (ISC licence, see `demo/icons/LICENSE-LUCIDE`) and [Phosphor](https://phosphoricons.com) (MIT). The backdrop photos in `site/backdrops` were generated for this project and are covered by the same MIT licence.

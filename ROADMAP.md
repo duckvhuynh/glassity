@@ -16,7 +16,7 @@ Last updated: 2026-11-17.
 | Accessibility behaviour | Working |
 | Browser coverage | Chromium, Firefox and WebKit pass the browser tests. Real Safari on macOS and iOS not checked yet |
 | Published on npm | Yes, 0.1.0 |
-| Live demo, visuals in the README | No |
+| Live demo, visuals in the README | Playground on GitHub Pages; images and animations in the README |
 
 ## Done in 0.1
 
@@ -70,6 +70,8 @@ Last updated: 2026-11-17.
 - [x] CI on Node 24: typecheck, unit tests, build, demo build, browser tests, compatibility suite
 - [x] Browser tests with Playwright on Chromium, Firefox and WebKit, in CI
 - [x] Vanilla and React demo pages
+- [x] Playground site with every option, presets, compare view, code export and shareable links (GitHub Pages)
+- [x] README images and animations rendered from the playground by a script (`site/capture.mjs`)
 
 ## Next
 
@@ -106,8 +108,8 @@ Ordered by what unlocks the most.
 
 Kept here so nothing is forgotten; none of it blocks development.
 
-- [ ] Hero image or GIF at the top of the README
-- [ ] Live demo on GitHub Pages
+- [x] Hero animation at the top of the README
+- [x] Live demo on GitHub Pages
 - [x] Publish 0.1.0 on npm
 - [x] CHANGELOG and tagged GitHub releases (v0.1.0)
 - [ ] CONTRIBUTING guide, issue and pull-request templates, code of conduct
