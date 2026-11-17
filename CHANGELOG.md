@@ -4,6 +4,14 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-17
+
+### Fixed
+- Glass icons no longer look chiselled: the creases along the middle of strokes and the corners of filled shapes are rounded over, so the surface flows like liquid glass. Marks on a tile get a wider, softer bevel.
+
+### Documentation
+- The README opens with the glassity icon, rendered with glassity itself.
+
 ## [0.3.0] - 2026-11-17
 
 ### Added
@@ -77,7 +85,8 @@ First release.
 - Follows reduced motion, reduced transparency, increased contrast and forced colours.
 - Without WebGL2, icons stay plain SVG with a soft highlight.
 
-[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/duckvhuynh/glassity/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/duckvhuynh/glassity/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/duckvhuynh/glassity/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/duckvhuynh/glassity/compare/v0.1.1...v0.1.2
