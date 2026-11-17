@@ -5,7 +5,7 @@ const version = JSON.parse(readFileSync(new URL('./package.json', import.meta.ur
 const define = { __VERSION__: JSON.stringify(version) };
 
 /** Frameworks are peers: the app brings its own copy. */
-const peers = ['react', 'react/jsx-runtime', 'vue', 'solid-js', 'solid-js/web'];
+const peers = ['react', 'react/jsx-runtime', 'vue', 'solid-js', 'solid-js/web', '@angular/core'];
 
 // Adapters must share ONE engine with the core entry (one WebGL context per
 // page), so they import the built core instead of bundling a second copy.
@@ -38,6 +38,7 @@ export default defineConfig([
   entry('vue', 'src/vue.ts'),
   entry('svelte', 'src/svelte.ts'),
   entry('solid', 'src/solid.ts'),
+  entry('angular', 'src/angular.ts'),
   {
     // <script src="https://unpkg.com/glassity"></script> → window.glassity, auto mode on.
     entry: { glassity: 'src/global.ts' },
