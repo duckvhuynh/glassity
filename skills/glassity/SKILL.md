@@ -253,6 +253,7 @@ Playground links carry settings after `#`: keys that are option names are option
 | No `canvas[data-glassity-canvas]` | Setup did not run in the browser, or no `data-glass`. Check the import is client-side |
 | `data-glass` not on the `<svg>` | The component drops props (lucide-react in a Server Component). Client component or provider `selector` |
 | Flat, invisible glass | Nothing behind it: use a gradient or image background, `tile: true`, or a bigger icon |
+| Small icons on a white bar turned pale grey | Expected: glass under about 40 px on plain light backgrounds has little to show. Leave them plain (`data-glass="off"`), make them bigger, or use `tile: true` |
 | Very frosted and tinted | The OS asks for reduced transparency. Intended; `accessibility: false` only for testing |
 | Plain icon | No WebGL2: `isSupported()` is false; the fallback is the plain SVG |
 | Part of the icon missing | External `<use>` sprite without CORS, or a reference that does not resolve |
