@@ -1,6 +1,6 @@
 {
   "name": "glassity",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Liquid-glass material for any SVG icon. One provider, real refraction, WebGL2.",
   "type": "module",
   "license": "MIT",
@@ -9,7 +9,7 @@
     "type": "git",
     "url": "git+https://github.com/duckvhuynh/glassity.git"
   },
-  "homepage": "https://github.com/duckvhuynh/glassity#readme",
+  "homepage": "https://duckvhuynh.github.io/glassity/",
   "bugs": {
     "url": "https://github.com/duckvhuynh/glassity/issues"
   },
