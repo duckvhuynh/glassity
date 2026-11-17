@@ -1,5 +1,6 @@
 # glassity
 
+[![npm](https://img.shields.io/npm/v/glassity.svg)](https://www.npmjs.com/package/glassity)
 [![CI](https://github.com/duckvhuynh/glassity/actions/workflows/ci.yml/badge.svg)](https://github.com/duckvhuynh/glassity/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -12,13 +13,17 @@ Liquid-glass material for the SVG icons you already use. No redrawn icon set: gl
 - Adapters for React, Vue, Svelte, Solid, Preact, Angular and Remix 3; plain JavaScript and a script tag for everything else. No runtime dependencies.
 - Ships ESM and CommonJS with types. Checked end to end with Next.js, Nuxt, SvelteKit, Astro, React Router and Remix 3 server rendering.
 
-> Status: 0.1, early. Not on npm yet: until it is, clone the repo and run `npm install && npm run build` (see [Develop](#develop)). See also [Limits](#limits).
+> Status: 0.1, early. The API may still change before 1.0; changes are listed in the [changelog](CHANGELOG.md). See also [Limits](#limits).
 
 ## Install
 
 ```bash
 npm install glassity
 ```
+
+No other package is needed. Framework adapters (`glassity/react`, `glassity/vue`, …) use the framework your app already has.
+
+No build step? See [Script tag](#script-tag).
 
 ## Use
 
@@ -318,12 +323,20 @@ npm run build      # dist/
 npm test           # geometry and options unit tests
 npx playwright install chromium firefox webkit   # once
 npm run test:e2e   # browser tests on Chromium, Firefox and WebKit (after a build)
-npm run test:compat # packed package in Vue, Svelte, Solid and Preact apps (after a build)
+npm run test:compat # the packed package in 12 framework apps (after a build)
 npm run demo:build # bundles the React demo
 npm run demo       # http://localhost:4173/  and  /demo/react.html
 ```
 
-What is done and what comes next is in [ROADMAP.md](ROADMAP.md). The design decisions behind 0.1 are in [docs/design.md](docs/design.md) (Vietnamese).
+What is done and what comes next is in [ROADMAP.md](ROADMAP.md); releases are in [CHANGELOG.md](CHANGELOG.md). The design decisions behind 0.1 are in [docs/design.md](docs/design.md) (Vietnamese).
+
+### Releasing
+
+1. Move the `Unreleased` notes in [CHANGELOG.md](CHANGELOG.md) under the new version and bump `version` in `package.json`.
+2. Commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
+3. The release workflow publishes to npm with provenance and creates the GitHub release from the changelog. It needs an `NPM_TOKEN` repository secret, and skips publishing if that version is already on npm.
+
+`npm publish` by hand also works: `prepublishOnly` runs the typecheck, the unit tests and the build first.
 
 ## Contributing
 
