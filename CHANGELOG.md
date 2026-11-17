@@ -4,6 +4,14 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-17
+
+No change to the library code.
+
+### Documentation
+- README opens with the default glass on large icons, and shows a quick tour of the playground and logos as glass.
+- The playground has a Logos set and larger icons by default.
+
 ## [0.1.1] - 2026-11-17
 
 No change to the library code.
@@ -50,6 +58,7 @@ First release.
 - Follows reduced motion, reduced transparency, increased contrast and forced colours.
 - Without WebGL2, icons stay plain SVG with a soft highlight.
 
-[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/duckvhuynh/glassity/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/duckvhuynh/glassity/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/duckvhuynh/glassity/releases/tag/v0.1.0
