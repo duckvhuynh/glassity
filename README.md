@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/hero.webp" alt="A row of app icons made of liquid glass over a green meadow. The highlight follows the pointer and one icon swells when pressed." width="100%">
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/hero.webp" alt="Six large Lucide icons in the default glass over a green meadow. They appear by bending light in, the highlight follows the pointer, then they fade out." width="100%">
 
 # glassity
 
@@ -46,6 +46,18 @@ Each look above is a handful of options on the same icon. Thin strokes turn into
 <img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/backdrops.webp" alt="Glass icons over leaves, silk, an ocean, an aurora, light streaks and a page of plain HTML text." width="100%">
 
 It refracts whatever sits behind it: a photo, a CSS gradient, a canvas, or ordinary HTML text, which it photographs and looks through. Over a light background the glass turns dark by itself.
+
+### Your own icons and logos
+
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/logos.webp" alt="Twelve logos as glass over an aurora: React, Vue, Svelte, Angular, Astro, Solid, Nuxt, Next.js, Remix, Node.js, TypeScript and GitHub." width="100%">
+
+Anything drawn as an inline `<svg>` works, filled or stroked: a brand mark, a hand-drawn icon, a logo exported from Figma. The logos above are plain paths from [Simple Icons](https://simpleicons.org), each with `data-glass` and nothing else. In the playground, paste your own SVG under "Your SVG" and see it as glass before you write any code.
+
+### Try the playground
+
+<a href="https://duckvhuynh.github.io/glassity/"><img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/tour.webp" alt="A quick tour of the playground: presets, photo backdrops, Phosphor icons, a heart morphing into a star and a bell, the compare slider, glass tiles being pressed, and logos." width="100%"></a>
+
+[duckvhuynh.github.io/glassity](https://duckvhuynh.github.io/glassity/) has every option on a slider, presets, 16 backdrops (or your own photo), Lucide, Phosphor, logos or your own SVG, a slider that compares the plain icon with the glass, and the code for React, Vue, Svelte, HTML or plain JavaScript with your settings filled in. The link keeps your settings, so you can share a look.
 
 ## Install
 
@@ -383,4 +395,4 @@ Issues and pull requests are welcome. Before opening a pull request, run `npm ru
 
 [MIT](LICENSE) © Duc Huynh
 
-The demo and playground icons are from [Lucide](https://lucide.dev) (ISC licence, see `demo/icons/LICENSE-LUCIDE`) and [Phosphor](https://phosphoricons.com) (MIT). The backdrop photos in `site/backdrops` were generated for this project and are covered by the same MIT licence.
+The demo and playground icons are from [Lucide](https://lucide.dev) (ISC licence, see `demo/icons/LICENSE-LUCIDE`) and [Phosphor](https://phosphoricons.com) (MIT). The logos come from [Simple Icons](https://simpleicons.org) (CC0); the marks belong to their owners and are shown only to name the tools glassity works with. The backdrop photos in `site/backdrops` were generated for this project and are covered by the same MIT licence.
