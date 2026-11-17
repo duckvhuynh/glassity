@@ -116,8 +116,14 @@ export function auto(options: AutoOptions = {}): GlassController {
     for (const svg of wanted) if (!engine.get(svg)) engine.mount(svg, {}, scope);
   };
 
+  const ownCanvas = (node: Node) => node instanceof Element && node.hasAttribute('data-glassity-canvas');
   const observer = new MutationObserver((records) => {
-    if (queued || records.every((record) => engine.isOwn(record.target))) return;
+    // Only the canvases glassity inserts itself are not a reason to look again. An
+    // attribute change always is, also on an icon that is already glass (data-glass="off").
+    const relevant = records.some(
+      (record) => record.type === 'attributes' || [...record.addedNodes, ...record.removedNodes].some((node) => !ownCanvas(node)),
+    );
+    if (queued || !relevant) return;
     queued = true;
     queueMicrotask(scan);
   });
