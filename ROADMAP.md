@@ -41,10 +41,11 @@ Last updated: 2026-11-17.
 - [x] With every effect off the glass matches the page pixel for pixel (browser test, three engines)
 
 ### API
-- [x] `glassify()`, `auto()`, `isSupported()`
+- [x] `glassify()`, `auto()`, `isSupported()`; ESM and CommonJS builds, types for every `moduleResolution`
 - [x] `data-glass`, `data-glass="off"`, `data-glass-*` attributes
 - [x] React: `GlassProvider` (nesting, inheritance), `Glass` (morphs on child swap), `useGlass`
 - [x] Vue: `v-glass`, `useGlass`, `GlassProvider`; Svelte: `use:glass`, `use:glassProvider`; Solid: `use:glass`, `use:glassProvider`
+- [x] Angular: `provideGlassity`, `injectGlass`, `injectGlassProvider`; Remix 3: `glass` and `glassProvider` mixins; Preact through `glassity/react`
 - [x] Script-tag build with auto mode
 - [x] 35 options, all with defaults
 
@@ -56,7 +57,7 @@ Last updated: 2026-11-17.
 - [x] `auto()` waits for load and idle: no hydration errors on server-rendered pages (checked with React)
 - [x] Cloned pages (Turbo, swup, Barba) are cleaned up; open shadow roots are supported
 - [x] Trusted Types-safe fallback; one engine per package version
-- [x] Compatibility suite: packed package in Vue, Svelte, Solid and Preact apps, in CI
+- [x] Compatibility suite: the packed package in 12 apps (Vue, Svelte, Solid, Preact, Angular 21 and 22, Next.js, Nuxt, SvelteKit, Astro, React Router, Remix 3), in CI
 
 ### Accessibility and fallback
 - [x] Original SVG stays in the DOM: name, role, focus and clicks unchanged
@@ -65,7 +66,7 @@ Last updated: 2026-11-17.
 
 ### Project
 - [x] Public repository, MIT licence
-- [x] CI: typecheck, unit tests, build, demo build
+- [x] CI on Node 24: typecheck, unit tests, build, demo build, browser tests, compatibility suite
 - [x] Browser tests with Playwright on Chromium, Firefox and WebKit, in CI
 - [x] Vanilla and React demo pages
 
@@ -97,7 +98,6 @@ Ordered by what unlocks the most.
 - [ ] Device-motion highlights on phones (with permission, and off under reduced motion)
 - [ ] Caustics and an environment image for reflections
 - [ ] Glass for non-icon surfaces (bars, cards) sharing the same material
-- [ ] Vue and Svelte adapters
 - [ ] Canvas placement under rotated or skewed ancestors
 - [ ] Offscreen rendering in a worker
 
