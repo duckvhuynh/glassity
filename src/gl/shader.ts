@@ -63,6 +63,12 @@ uniform float uTileBevel;
 uniform float uGlyphOpacity;
 uniform float uHighContrast;
 uniform float uSeed;
+uniform float uWeight;       // grows the shape, in units of uUnit
+
+// Set in main(): the drop shadow, so the glass can show its own shadow through its edge.
+vec2 gShadowShift;
+float gShadowBlur;
+float gSelfShadow;   // strength of the shadow seen through the glass
 
 struct Layer {
   float d;      // distance inside the edge
@@ -101,7 +107,8 @@ vec2 fieldAt(vec2 uv) {
     a.r -= 0.035 * swell;
     a.g += 0.035 * swell;
   }
-  return a;
+  // Offsetting a distance field grows or shrinks the shape evenly, strokes and fills alike.
+  return vec2(a.r - uWeight, max(a.g + uWeight, 0.002));
 }
 
 Layer makeLayer(float sd, vec2 g, float thick, float bevel, float aa) {
@@ -137,6 +144,8 @@ vec3 sampleBack(vec2 p, float blur) {
   return c * 0.25;
 }
 
+float shadowSeen(vec2 q);
+
 // What is seen through the surface. Each wavelength band has its own index of
 // refraction, so colours separate where the surface is steep.
 vec3 refracted(vec2 p, Layer L, float blur) {
@@ -149,7 +158,11 @@ vec3 refracted(vec2 p, Layer L, float blur) {
     float ior = uIor + (s - 0.5) * 0.16 * uDisp; // shorter wavelengths bend more
     vec3 ray = refract(vec3(0.0, 0.0, -1.0), L.n, 1.0 / ior);
     vec2 offset = ray.xy / max(-ray.z, 0.3) * travel;
-    acc += sampleBack(p + offset, blur) * w;
+    // The glass casts a shadow; where the edge bends light outward it shows that shadow,
+    // which is what outlines glass on a white page. Bands see it at slightly different
+    // places, so the dark rim picks up colour fringes.
+    vec2 q = p + offset;
+    acc += sampleBack(q, blur) * (1.0 - gSelfShadow * shadowSeen(q)) * w;
     weights += w;
   }
   return acc / weights;
@@ -163,7 +176,7 @@ vec3 grade(vec3 c, float dim, vec3 tint, float tintOpacity) {
   return clamp(c, 0.0, 1.0);
 }
 
-vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflectivity) {
+vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflectivity, float bright) {
   vec3 toLight = normalize(vec3(uLight, 0.85));
   vec3 halfway = normalize(toLight + vec3(0.0, 0.0, 1.0));
   float spec = pow(max(dot(L.n, halfway), 0.0), 60.0) * uShine;
@@ -176,12 +189,16 @@ vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflec
 
   float fresnel = 0.04 + 0.96 * pow(1.0 - L.n.z, 5.0);
   vec2 mirror = L.n.xy * (2.0 * L.n.z);
-  vec3 room = mix(ambient, vec3(1.0), 0.55) * (0.35 + 0.65 * smoothstep(-0.3, 0.9, dot(mirror, uLight)));
+  // Over a bright page the edge reflects a neutral room, so it darkens a little instead of vanishing.
+  vec3 env = mix(mix(ambient, vec3(1.0), 0.55), mix(vec3(0.55), ambient, 0.4), bright);
+  vec3 room = env * (0.35 + 0.65 * smoothstep(-0.3, 0.9, dot(mirror, uLight)));
   float k = clamp(fresnel * reflectivity, 0.0, 0.9) * uLens;
   float shade = 1.0 - 0.22 * exp(-max(L.d, 0.0) / (L.edge * 0.7 + 0.5)) * max(-facing, 0.0) * uLens * min(uCurv, 1.0);
 
   vec3 c = base * shade * (1.0 - k) + room * k;
-  c += (spec * 0.55 + rim * (0.75 + 1.5 * glow) + glow * 0.3) * uLens;
+  // Highlights take some colour from what is behind them rather than pure white.
+  vec3 hl = mix(vec3(1.0), clamp(base * 1.25, 0.0, 1.0), 0.4);
+  c += hl * (spec * 0.55 + rim * (0.75 + 1.5 * glow) + glow * 0.3) * uLens;
   return c;
 }
 
@@ -194,6 +211,23 @@ float tileDistance(vec2 c, out vec2 g) {
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 
+// The drop shadow at q, without the part hidden under the glass itself: a crescent
+// on the far side from the light.
+float shadowSeen(vec2 q) {
+  vec2 c = q - 0.5 * uCanvas;
+  float body, casted;
+  if (uTile > 0.5) {
+    vec2 g;
+    body = tileDistance(c, g);
+    casted = tileDistance(c - gShadowShift, g);
+  } else {
+    body = fieldAt(q / uCanvas).r * uUnit;
+    casted = fieldAt((q - gShadowShift) / uCanvas).r * uUnit;
+  }
+  float s = 1.0 - smoothstep(-0.3 * gShadowBlur, gShadowBlur, casted);
+  return s * smoothstep(-0.5, 0.06 * uUnit, body);
+}
+
 void main() {
   vec2 p = vUv * uCanvas;
   vec2 c = p - 0.5 * uCanvas;
@@ -203,7 +237,16 @@ void main() {
   float localLod = min(log2(max(uUnit * uBackDensity, 1.0)), uBackMaxLod);
   vec3 ambient = textureLod(uBack, backUv(0.5 * uCanvas), localLod).rgb;
   float bright = uScheme < 0.0 ? smoothstep(0.76, 0.9, luma(ambient)) : uScheme;
-  float dim = uDim < 0.0 ? 0.35 * smoothstep(0.5, 0.85, luma(ambient)) : uDim;
+  // Detail under the icon: the difference between a sharp and a blurred look at it.
+  float busy = 0.0;
+  for (int i = 0; i < 5; i++) {
+    vec2 o = i == 0 ? vec2(0.0) : 0.3 * uUnit * vec2(i == 1 ? 1.0 : i == 2 ? -1.0 : 0.0, i == 3 ? 1.0 : i == 4 ? -1.0 : 0.0);
+    vec2 uv = backUv(0.5 * uCanvas + o);
+    busy += abs(luma(textureLod(uBack, uv, max(localLod - 1.5, 0.0)).rgb) - luma(textureLod(uBack, uv, min(localLod + 1.0, uBackMaxLod)).rgb));
+  }
+  busy = clamp(busy * 0.8, 0.0, 1.0);
+  // The 35% dimming is for busy bright content behind clear glass, not for a plain light page.
+  float dim = uDim < 0.0 ? 0.35 * smoothstep(0.5, 0.85, luma(ambient)) * smoothstep(0.02, 0.25, busy) : uDim;
   vec3 ink = mix(vec3(1.0), vec3(0.05, 0.06, 0.08), bright);
 
   float grain = 0.86 + 0.14 * vnoise(p * 0.09 + uSeed);
@@ -222,6 +265,11 @@ void main() {
 
   vec2 shadowShift = (vec2(0.0, 0.035) - uLight * 0.02) * uUnit;
   float shadowBlur = 0.07 * uUnit;
+  gShadowShift = shadowShift;
+  gShadowBlur = shadowBlur;
+  gSelfShadow = clamp(uShadow * 1.4, 0.0, 0.7) * uLens;
+  // Only small glyphs flip to dark ink on a bright page, as small system symbols do.
+  float small = 1.0 - smoothstep(22.0, 34.0, uUnit);
 
   vec3 color;
   float cover;
@@ -236,10 +284,11 @@ void main() {
     body = grade(body, dim, mix(uTint, vec3(1.0), uTintAuto), uTintOpacity);
     // The icon rests on the plate and casts a soft contact shadow onto it.
     float contact = fieldAt(vUv - shadowShift * 0.5 / uCanvas).r * uUnit;
-    body *= 1.0 - 0.22 * uShadow * uGlyphOpacity * (1.0 - smoothstep(-0.01 * uUnit, 0.05 * uUnit, contact)) * uLens;
-    body = lit(body, tile, ambient, grain, glow, uRefl);
+    body *= 1.0 - (0.22 + 0.2 * bright) * min(uShadow / 0.3, 1.5) * uGlyphOpacity * (1.0 - smoothstep(-0.01 * uUnit, 0.05 * uUnit, contact)) * uLens;
+    body = lit(body, tile, ambient, grain, glow, uRefl, bright);
 
-    vec3 mark = lit(ink, glyph, ambient, 1.0, glow, uRefl * 0.35);
+    // The mark stays white, like a glyph on an app icon; only tiny ones turn dark.
+    vec3 mark = lit(mix(vec3(1.0), ink, small), glyph, ambient, 1.0, glow, uRefl * 0.35, bright);
     color = mix(body, mark, glyph.cover * uGlyphOpacity * uLens);
     cover = tile.cover;
 
@@ -254,14 +303,11 @@ void main() {
     }
   } else {
     vec3 body = refracted(p, glyph, uFrost * uLens);
-    // Clear glass vanishes on a bright page and in small sizes. With an automatic
-    // tint the body takes on more ink there, the way small system glyphs flip to dark.
-    float small = 1.0 - smoothstep(22.0, 56.0, uUnit);
-    float inkiness = min(uTintOpacity + uTintAuto * (0.42 * bright + 0.3 * small), 1.0);
-    body = grade(body, dim, mix(uTint, ink, uTintAuto), inkiness);
-    color = lit(body, glyph, ambient, grain, glow, uRefl);
-    // A darker line right at the edge keeps the outline readable on light backdrops.
-    color *= 1.0 - 0.32 * bright * exp(-max(glyph.d, 0.0) / 1.4) * uLens;
+    // Glass stays light on a light page. Small glyphs take on ink there, the way
+    // small system symbols flip to dark.
+    float inkiness = min(uTintOpacity + uTintAuto * small * (0.3 + 0.42 * bright), 1.0);
+    body = grade(body, dim, mix(uTint, mix(vec3(1.0), ink, small), uTintAuto), inkiness);
+    color = lit(body, glyph, ambient, grain, glow, uRefl, bright);
     cover = glyph.cover;
 
     float ssd = fieldAt(vUv - shadowShift / uCanvas).r * uUnit;
@@ -270,7 +316,18 @@ void main() {
     if (uHighContrast > 0.5) color = ink;
   }
 
-  shadow *= uShadow * 0.55 * uLens * (1.0 - cover);
+  // Shadows are lighter over a plain light page.
+  shadow *= uShadow * 0.55 * mix(1.0, 0.6, bright * (1.0 - busy)) * uLens * (1.0 - cover);
+  // A thin dark contour just outside the edge, strongest where the highlight fades:
+  // on a white page it is what draws the silhouette.
+  {
+    float sdOut = -(uTile > 0.5 ? -tileDistance(c, g) : glyph.d);
+    vec2 og = uTile > 0.5 ? vec2(0.0) : glyph.g;
+    if (uTile > 0.5) tileDistance(c, og);
+    float facing = dot(og, uLight);
+    float contour = 0.2 * min(uShadow / 0.3, 1.0) * bright * exp(-max(sdOut, 0.0) / (0.75 / uDpr + 0.4)) * (1.0 - cover) * (0.5 + 0.5 * (1.0 - facing)) * step(0.0, sdOut);
+    shadow = max(shadow, contour * uLens);
+  }
   // Mostly the bending of light brings the glass in; alpha only covers the last moment.
   float presence = clamp(uLens * 4.0, 0.0, 1.0) * uOpacity;
   outColor = vec4(clamp(color, 0.0, 1.0) * cover, cover + shadow) * presence;

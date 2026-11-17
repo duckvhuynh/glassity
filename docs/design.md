@@ -72,7 +72,7 @@ Khai báo tay: URL ảnh, `<img>`, `<video>`, `<canvas>`, hoặc một element b
 ## Biến thể
 
 - `regular`: frost, tăng bão hoà, giảm tương phản nền, tint nhẹ.
-- `clear`: không frost; `dim: 'auto'` phủ tối tới 35% khi nền sáng.
+- `clear`: không frost; `dim: 'auto'` phủ tối tới 35% khi nền sáng và nhiều chi tiết (ảnh), không phủ trên nền trắng trơn.
 - `identity`: không áp kính.
 
 ## Accessibility
