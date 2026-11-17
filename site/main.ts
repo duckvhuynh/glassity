@@ -1,12 +1,13 @@
 import { auto, isSupported, type GlassController, type GlassOptions } from '../src/index';
 import { resolveOptions, type ResolvedOptions } from '../src/options';
 import icons from 'virtual:icons';
+import { ensure, libIcon, mountLibrary, setInfo, showcase } from './library';
 
 // ── state ──────────────────────────────────────────────────────────────────
 
 type Key = keyof ResolvedOptions;
 type Layout = 'single' | 'dock' | 'grid';
-type IconSet = 'lucide' | 'phosphor' | 'logos' | 'custom';
+type IconSet = 'lucide' | 'phosphor' | 'logos' | 'lib' | 'custom';
 type Tab = 'react' | 'vue' | 'svelte' | 'html' | 'js';
 
 interface BackdropInfo {
@@ -41,7 +42,7 @@ const backdropInfo = (id: string) => BACKDROPS.find((b) => b.id === id) ?? BACKD
 let uploadUrl = '';
 
 const LAYOUTS: [Layout, string][] = [['single', 'One'], ['dock', 'Dock'], ['grid', 'Grid']];
-const SETS: [IconSet, string][] = [['lucide', 'Lucide'], ['phosphor', 'Phosphor fill'], ['logos', 'Logos'], ['custom', 'Your SVG']];
+const SETS: [IconSet, string][] = [['lucide', 'Lucide'], ['phosphor', 'Phosphor fill'], ['logos', 'Logos'], ['lib', 'More sets'], ['custom', 'Your SVG']];
 const TABS: [Tab, string][] = [['react', 'React'], ['vue', 'Vue'], ['svelte', 'Svelte'], ['html', 'HTML'], ['js', 'JavaScript']];
 const SIZES: Record<Layout, number> = matchMedia('(max-width: 640px)').matches ? { single: 170, dock: 46, grid: 44 } : { single: 260, dock: 116, grid: 76 };
 const DOCK = ['house', 'search', 'bell', 'heart', 'camera', 'music'];
@@ -59,6 +60,9 @@ interface State {
   split: number;
   tab: Tab;
   custom: string;
+  /** The icon set of the library in use, and the icons it shows in a dock or grid. */
+  lib: string;
+  libNames: string[];
 }
 
 const state: State = {
@@ -72,6 +76,8 @@ const state: State = {
   split: 50,
   tab: 'react',
   custom: '',
+  lib: 'tabler',
+  libNames: [],
 };
 
 // ── controls ───────────────────────────────────────────────────────────────
@@ -209,11 +215,13 @@ function parseCustom(text: string): IconData | null {
 function iconLabel(name: string): string {
   if (state.set === 'custom') return 'Your SVG';
   if (state.set === 'logos') return icons.logos[name]?.title ?? name;
+  if (state.set === 'lib') return name.replace(/-/g, ' ');
   return name;
 }
 
 function iconFor(name: string): IconData {
   if (state.set === 'custom') return customIcon ?? icons.lucide.sparkles;
+  if (state.set === 'lib') return libIcon(state.lib, name) ?? icons.lucide.sparkles;
   const set = icons[state.set];
   return set[name] ?? Object.values(set)[0];
 }
@@ -242,6 +250,7 @@ function makeIcon(name: string, glass: boolean): SVGSVGElement {
 function names(): string[] {
   if (state.layout === 'single' || state.set === 'custom') return [state.icon];
   if (state.set === 'logos') return state.layout === 'dock' ? LOGO_DOCK : Object.keys(icons.logos);
+  if (state.set === 'lib') return state.layout === 'dock' ? state.libNames.slice(0, 6) : state.libNames;
   return state.layout === 'dock' ? DOCK : GRID;
 }
 
@@ -250,7 +259,7 @@ function renderIcons(): void {
   stage.dataset.layout = state.set === 'custom' ? 'single' : state.layout;
   stage.style.setProperty('--icon', `${state.size[state.layout]}px`);
   const list = names();
-  const key = `${state.set}|${state.layout}|${list.join(',')}`;
+  const key = `${state.set}${state.set === 'lib' ? ':' + state.lib : ''}|${state.layout}|${list.join(',')}`;
   if (key === shown) return;
   const single = list.length === 1 && glassIcons.querySelectorAll(':scope > svg').length === 1 && shown.split('|')[1] === state.layout;
   shown = key;
@@ -270,8 +279,9 @@ function renderIcons(): void {
 function renderPicker(): void {
   const picker = $('#picker');
   $('#custom').classList.toggle('open', state.set === 'custom');
-  picker.hidden = state.set === 'custom';
-  if (state.set === 'custom') return;
+  // Library icons are picked in the library panel below.
+  picker.hidden = state.set === 'custom' || state.set === 'lib';
+  if (picker.hidden) return;
   picker.replaceChildren(
     ...Object.keys(icons[state.set as 'lucide' | 'phosphor' | 'logos']).map((name) => {
       const button = document.createElement('button');
@@ -538,10 +548,12 @@ function component(name: string): { name: string; from: string; extra: string } 
 
 function code(): string {
   const o = overrides();
-  const own = state.set === 'custom' || state.set === 'logos';
+  const own = state.set === 'custom' || state.set === 'logos' || state.set === 'lib';
   const list = own ? ['custom'] : names().slice(0, state.layout === 'single' ? 1 : 3);
   const more = !own && names().length > list.length;
-  const customSvg = state.set === 'logos' ? '<svg data-glass viewBox="0 0 24 24"><path d="…" /></svg>  {/* your logo */}' : '<svg data-glass viewBox="…">…</svg>';
+  const libSvg = () => `<svg data-glass viewBox="${iconFor(state.icon).viewBox}">…</svg>  {/* ${state.lib}:${state.layout === 'single' ? state.icon : '…'} */}`;
+  const customSvg =
+    state.set === 'logos' ? '<svg data-glass viewBox="0 0 24 24"><path d="…" /></svg>  {/* your logo */}' : state.set === 'lib' ? libSvg() : '<svg data-glass viewBox="…">…</svg>';
   switch (state.tab) {
     case 'react': {
       const props = o.map(([k, v]) => (v === true ? ` ${k}` : typeof v === 'string' ? ` ${k}="${v}"` : ` ${k}={${num(v)}}`)).join('');
@@ -605,6 +617,7 @@ function toHash(): string {
   if (state.bg !== 'meadow' && state.bg !== 'upload') p.set('bg', state.bg);
   if (state.layout !== 'dock') p.set('layout', state.layout);
   if (state.set !== 'lucide' && state.set !== 'custom') p.set('set', state.set);
+  if (state.set === 'lib') p.set('lib', state.lib);
   if (state.layout === 'single') p.set('icon', state.icon);
   if (state.size[state.layout] !== SIZES[state.layout]) p.set('size', String(state.size[state.layout]));
   if (state.compare) p.set('compare', String(state.split));
@@ -620,9 +633,12 @@ function fromHash(): void {
   const layout = p.get('layout');
   if (layout && LAYOUTS.some(([l]) => l === layout)) state.layout = layout as Layout;
   const set = p.get('set');
-  if (set === 'lucide' || set === 'phosphor' || set === 'logos') state.set = set;
+  if (set === 'lucide' || set === 'phosphor' || set === 'logos' || set === 'lib') state.set = set;
+  const lib = p.get('lib');
+  if (lib && /^[a-z0-9-]+$/.test(lib)) state.lib = lib;
   const icon = p.get('icon');
-  if (icon && (icons.lucide[icon] || icons.logos[icon])) state.icon = icon;
+  // Library names are checked when the set loads.
+  if (icon && (state.set === 'lib' ? /^[a-z0-9-]+$/.test(icon) : icons.lucide[icon] || icons.logos[icon])) state.icon = icon;
   const size = Number(p.get('size'));
   if (size >= 24 && size <= 400) state.size[state.layout] = size;
   if (p.has('compare')) {
@@ -750,6 +766,11 @@ function wire(): void {
     update();
   });
   segmented($('#set'), SETS, () => state.set, (v) => {
+    if (v === 'lib') {
+      void useLibrary(state.lib);
+      library.open(state.lib);
+      return;
+    }
     state.set = v;
     if (v === 'custom') {
       state.layout = 'single';
@@ -819,15 +840,48 @@ function wire(): void {
   for (const b of document.querySelectorAll<HTMLElement>('[data-copy]')) b.addEventListener('click', () => copy(b.dataset.copy!));
   window.addEventListener('hashchange', () => {
     fromHash();
-    update();
+    if (state.set === 'lib') {
+      const wanted = state.layout === 'single' ? state.icon : undefined;
+      state.libNames = [];
+      void useLibrary(state.lib, wanted);
+    } else update();
   });
 }
+
+// ── icon library ───────────────────────────────────────────────────────────
+
+/** Switch the stage to a set of the library; with a name, show that icon alone. */
+async function useLibrary(prefix: string, name?: string): Promise<void> {
+  if (!(await setInfo(prefix))) prefix = 'tabler';
+  const showcaseNames = await showcase(prefix, 18);
+  if (name) await ensure(prefix, [name]);
+  state.set = 'lib';
+  state.lib = prefix;
+  state.libNames = showcaseNames;
+  if (name && libIcon(prefix, name)) {
+    state.icon = name;
+    state.layout = 'single';
+  } else if (!libIcon(prefix, state.icon)) state.icon = showcaseNames[0];
+  update();
+  library.mark();
+}
+
+const library = mountLibrary($('#library'), {
+  pick: (prefix, name) => void useLibrary(prefix, name),
+  current: () => ({ prefix: state.set === 'lib' ? state.lib : null, icon: state.icon }),
+});
 
 fromHash();
 buildPanel();
 wire();
 describeStatus();
-update();
+if (state.set === 'lib') {
+  // Draw the stage once the set's icons are in.
+  const wanted = state.layout === 'single' ? state.icon : undefined;
+  state.set = 'lucide';
+  update();
+  void useLibrary(state.lib, wanted);
+} else update();
 
 // For the media capture script and for poking around in the console.
 Object.assign(window, { glassity: { state, update, get controller() { return controller; } } });
