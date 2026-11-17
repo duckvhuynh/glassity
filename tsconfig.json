@@ -29,6 +29,7 @@
     "test",
     "e2e",
     "demo/*.tsx",
+    "site/*.ts",
     "tsup.config.ts",
     "playwright.config.ts",
     "vitest.config.ts"

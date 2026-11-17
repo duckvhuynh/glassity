@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glassity playground</title>
+<meta name="description" content="Liquid glass for the SVG icons you already use. Real refraction with WebGL2, one attribute per icon. Try every option live.">
+<meta property="og:title" content="glassity: liquid glass for your SVG icons">
+<meta property="og:description" content="Any inline SVG becomes refracting glass. Try every option live.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fbfbfa; --surface: #ffffff; --soft: #f5f4f1; --line: #eaeaea; --line-strong: #dcdbd7;
+    --ink: #1d1f21; --muted: #787774; --faint: #a5a49f; --accent: #1d1f21; --on-accent: #ffffff;
+    --focus: #1f6c9f; --mark: #e1f3fe; --mark-ink: #1f6c9f;
+    --sans: 'Geist', 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
+    --serif: 'Instrument Serif', 'Newsreader', Georgia, serif;
+    --mono: 'Geist Mono', 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121211; --surface: #181817; --soft: #1f1f1d; --line: #2a2a28; --line-strong: #383835;
+      --ink: #ecebe8; --muted: #93928d; --faint: #6b6a66; --accent: #ecebe8; --on-accent: #121211;
+      --focus: #7cc0f0; --mark: #16324a; --mark-ink: #9fd3fa;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121211; --surface: #181817; --soft: #1f1f1d; --line: #2a2a28; --line-strong: #383835;
+    --ink: #ecebe8; --muted: #93928d; --faint: #6b6a66; --accent: #ecebe8; --on-accent: #121211;
+    --focus: #7cc0f0; --mark: #16324a; --mark-ink: #9fd3fa;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 var(--sans); }
+  a { color: inherit; text-underline-offset: 3px; text-decoration-color: var(--line-strong); }
+  a:hover { text-decoration-color: currentColor; }
+  code, kbd, pre, .mono { font-family: var(--mono); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+
+  /* header */
+  .top { display: flex; align-items: center; justify-content: space-between; height: 64px; border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: baseline; gap: 10px; text-decoration: none; }
+  .brand b { font: 400 26px/1 var(--serif); letter-spacing: -0.01em; }
+  .tag { font: 500 11px/1 var(--mono); letter-spacing: 0.04em; color: var(--mark-ink); background: var(--mark); padding: 4px 7px; border-radius: 999px; }
+  .top nav { display: flex; gap: 22px; font-size: 14px; color: var(--muted); }
+  .top nav a { text-decoration: none; }
+  .top nav a:hover { color: var(--ink); }
+
+  /* intro */
+  .intro { padding: 72px 0 40px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end; }
+  .intro h1 { font: 400 clamp(40px, 6vw, 68px)/1.04 var(--serif); letter-spacing: -0.025em; margin: 0 0 18px; max-width: 14ch; }
+  .intro h1 em { font-style: italic; }
+  .intro p { margin: 0; color: var(--muted); max-width: 56ch; font-size: 16px; }
+  .install { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 10px 10px 16px; font: 14px var(--mono); white-space: nowrap; }
+  .install span::before { content: '$ '; color: var(--faint); }
+  .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 6px 11px; font-size: 13px; cursor: pointer; line-height: 1.3; }
+  .btn:hover { border-color: var(--line-strong); }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+  /* playground */
+  .play { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; padding-bottom: 72px; align-items: start; }
+  .main { display: grid; gap: 12px; min-width: 0; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+  .bar .grow { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 2px; gap: 2px; }
+  .seg button { border: 0; background: none; padding: 5px 10px; border-radius: 6px; font-size: 13px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-pressed="true"] { background: var(--soft); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+  .label { font-size: 12px; color: var(--muted); letter-spacing: 0.02em; }
+  .inline { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .inline input[type=range] { width: 120px; }
+  input[type=range] { accent-color: var(--ink); }
+  input[type=checkbox] { accent-color: var(--ink); width: 15px; height: 15px; margin: 0; }
+
+  /* stage */
+  .stage { position: relative; height: 540px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); color: #fff; isolation: isolate; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  .stage .layer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .stage .layer.plain { display: none; }
+  .stage[data-compare] .layer.plain { display: flex; clip-path: inset(0 calc(100% - var(--split)) 0 0); }
+  .stage[data-compare] .layer.glass { clip-path: inset(0 0 0 var(--split)); }
+  .icons svg { width: var(--icon); height: var(--icon); flex: none; overflow: visible; }
+  .icons { display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: calc(var(--icon) * 0.3); }
+  .stage[data-layout="dock"] .icons { gap: calc(var(--icon) * 0.22); }
+  .stage[data-layout="grid"] .icons { max-width: calc(var(--icon) * 6 * 1.32); gap: calc(var(--icon) * 0.32); }
+  .stage .caption { position: absolute; left: 14px; bottom: 14px; z-index: 3; font: 500 12px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: #fff; background: #0000004d; padding: 6px 8px; border-radius: 5px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  .stage .caption:empty { display: none; }
+
+  .divider { position: absolute; top: 0; bottom: 0; left: var(--split); width: 0; z-index: 4; display: none; }
+  .stage[data-compare] .divider { display: block; }
+  .divider::before { content: ''; position: absolute; top: 0; bottom: 0; left: -0.5px; width: 1px; background: #ffffffd0; box-shadow: 0 0 0 0.5px #0003; }
+  .divider button { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; border: 1px solid #0002; background: #fff; color: #1d1f21; cursor: ew-resize; display: grid; place-items: center; padding: 0; touch-action: none; }
+  .divider .side { position: absolute; top: 14px; font: 500 11px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: #fff; background: #0006; padding: 5px 7px; border-radius: 4px; white-space: nowrap; }
+  .divider .side.l { right: 12px; }
+  .divider .side.r { left: 12px; }
+
+  /* backdrops */
+  :is(.stage, .bgs button)[data-bg="sunset"] { background:
+      radial-gradient(55% 75% at 14% 18%, #ffc27a 0%, #ffc27a00 62%),
+      radial-gradient(50% 70% at 86% 22%, #ff6f8e 0%, #ff6f8e00 62%),
+      radial-gradient(75% 85% at 55% 115%, #2e2a8a 0%, #2e2a8a00 66%),
+      linear-gradient(160deg, #f6a15d, #c24b7a 52%, #2d2f72); }
+  :is(.stage, .bgs button)[data-bg="grid"] { background:
+      repeating-linear-gradient(90deg, #ffffff38 0 1px, #fff0 1px 24px),
+      repeating-linear-gradient(0deg, #ffffff24 0 1px, #fff0 1px 24px),
+      radial-gradient(90% 120% at 12% 8%, #ffd08a 0%, #ffd08a00 55%),
+      radial-gradient(80% 110% at 88% 18%, #ff7a59 0%, #ff7a5900 60%),
+      linear-gradient(160deg, #f6a65c, #a8456f 45%, #232a5c); }
+  :is(.stage, .bgs button)[data-bg="stripes"] { background:
+      repeating-linear-gradient(105deg, #0000 0 22px, #ffffff2e 22px 26px),
+      linear-gradient(100deg, #ff5f6d, #ffc371 22%, #47e3a5 46%, #3aa8ff 70%, #8f5bff); }
+  :is(.stage, .bgs button)[data-bg="night"] { background:
+      radial-gradient(circle at 18% 30%, #ff9f5a 0 5%, #ff9f5a00 11%),
+      radial-gradient(circle at 70% 22%, #6fd3ff 0 4%, #6fd3ff00 10%),
+      radial-gradient(circle at 82% 70%, #ff6fb1 0 6%, #ff6fb100 13%),
+      radial-gradient(circle at 34% 78%, #b18bff 0 5%, #b18bff00 12%),
+      radial-gradient(circle at 52% 48%, #ffe27a 0 3%, #ffe27a00 9%),
+      radial-gradient(120% 120% at 50% 0%, #1d2140, #07080f); }
+  :is(.stage, .bgs button)[data-bg="paper"] { color: #22252b; background:
+      repeating-linear-gradient(45deg, #0000000d 0 2px, #0000 2px 16px),
+      linear-gradient(135deg, #fdf3e6, #e8eefc 60%, #f6e3f1); }
+  .stage[data-bg="article"] { color: #22252b; background: #f4f1ea; }
+  .stage[data-bg="live"] { background: #0b1020; }
+  .stage[data-photo], .bgs button[data-photo] { background-color: #444; background-size: cover; background-position: center; }
+  .stage[data-ink="dark"] { color: #22252b; }
+  .bgs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bgs button { width: 52px; height: 34px; border-radius: 6px; border: 1px solid #0000001a; padding: 0; cursor: pointer; position: relative; overflow: hidden; color: var(--muted); background-color: var(--soft); font: 500 9.5px/1.1 var(--mono); letter-spacing: 0.02em; text-transform: uppercase; }
+  .bgs button:hover { transform: translateY(-1px); }
+  .bgs button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .bgs .gap { width: 1px; background: var(--line); margin: 4px 4px; }
+  .stage .live, .stage .article { position: absolute; inset: 0; z-index: -1; display: none; }
+  .stage[data-bg="live"] .live { display: block; width: 100%; height: 100%; }
+  .stage[data-bg="article"] .article { display: block; }
+  .article { padding: 34px 40px; columns: 2; column-gap: 32px; font: 17px/1.6 Georgia, 'Times New Roman', serif; color: #23252b; overflow: hidden; }
+  .article h3 { font: 400 34px/1.1 var(--serif); margin: 0 0 14px; column-span: all; }
+  .article p { margin: 0 0 12px; }
+  .article strong { background: #ffd34d; padding: 0 4px; }
+  .article .swatches { display: flex; gap: 8px; margin: 4px 0 14px; break-inside: avoid; }
+  .article .swatches i { flex: 1; height: 44px; border-radius: 6px; }
+
+  .status { font-size: 13px; color: var(--muted); min-height: 1.6em; }
+  .status b { font-weight: 500; color: var(--ink); }
+
+  /* icon picker */
+  .picker { display: flex; flex-wrap: wrap; gap: 4px; }
+  .picker button { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 8px; background: none; cursor: pointer; color: var(--muted); padding: 0; }
+  .picker button:hover { background: var(--soft); color: var(--ink); }
+  .picker button[aria-pressed="true"] { border-color: var(--line-strong); background: var(--surface); color: var(--ink); }
+  .picker svg { width: 20px; height: 20px; }
+  .custom { display: none; gap: 8px; }
+  .custom.open { display: grid; }
+  .custom textarea { width: 100%; min-height: 96px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 12px; font: 12.5px/1.5 var(--mono); }
+
+  /* code */
+  .code { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+  .code header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--line); }
+  .code pre { margin: 0; padding: 16px 18px; font-size: 13px; line-height: 1.65; overflow-x: auto; white-space: pre; }
+  .code .tabs { border: 0; padding: 0; background: none; }
+  .tok-k { color: #9f2f2d; } .tok-s { color: #346538; } .tok-c { color: var(--faint); } .tok-t { color: #1f6c9f; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tok-k { color: #f0a29f; } :root:not([data-theme="light"]) .tok-s { color: #a7d3a3; } :root:not([data-theme="light"]) .tok-t { color: #8fcaf2; } }
+
+  /* panel */
+  .panel { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); position: sticky; top: 16px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; }
+  .panel > header { padding: 14px 16px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
+  .panel > header .row { display: flex; align-items: center; justify-content: space-between; }
+  .panel h2 { font: 500 13px/1 var(--sans); margin: 0; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .presets button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px; font-size: 12px; cursor: pointer; color: var(--muted); }
+  .presets button:hover { color: var(--ink); border-color: var(--line-strong); }
+  .presets button[aria-pressed="true"] { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
+  .groups { overflow-y: auto; padding: 4px 0 8px; overscroll-behavior: contain; }
+  details { border-bottom: 1px solid var(--line); }
+  details:last-child { border-bottom: 0; }
+  summary { list-style: none; cursor: pointer; padding: 11px 16px; font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; display: flex; justify-content: space-between; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; font: 400 16px/1 var(--mono); color: var(--faint); }
+  details[open] summary::after { content: '\2212'; }
+  .ctl { display: grid; gap: 3px; padding: 5px 16px 7px; }
+  .ctl .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .ctl .head label { display: flex; align-items: center; gap: 6px; }
+  .ctl .head .val { font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ctl.set .head label { font-weight: 500; }
+  .ctl .reset { visibility: hidden; border: 0; background: none; color: var(--faint); cursor: pointer; padding: 0 2px; font: 14px/1 var(--mono); }
+  .ctl.set .reset { visibility: visible; }
+  .ctl .reset:hover { color: var(--ink); }
+  .ctl input[type=range] { width: 100%; margin: 2px 0 0; }
+  .ctl select { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 4px 6px; font-size: 13px; }
+  .ctl .pair { display: flex; align-items: center; gap: 8px; }
+  .ctl .pair input[type=color] { width: 30px; height: 24px; border: 1px solid var(--line); border-radius: 5px; padding: 1px; background: none; }
+  .ctl .hint { font-size: 12px; color: var(--faint); }
+  .panel > footer { border-top: 1px solid var(--line); padding: 10px 16px; display: flex; gap: 8px; justify-content: space-between; }
+
+  /* notes */
+  .notes { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 16px; padding: 0 0 72px; }
+  .notes article { border: 1px solid var(--line); border-radius: 12px; padding: 28px; background: var(--surface); }
+  .notes h3 { font: 400 26px/1.15 var(--serif); margin: 0 0 10px; letter-spacing: -0.01em; }
+  .notes p { margin: 0; color: var(--muted); }
+  footer.site { border-top: 1px solid var(--line); padding: 28px 0 48px; color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 12px); opacity: 0; background: var(--accent); color: var(--on-accent); padding: 8px 14px; border-radius: 6px; font-size: 13px; transition: opacity .2s, transform .2s; pointer-events: none; z-index: 10; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  @media (max-width: 980px) {
+    .play { grid-template-columns: minmax(0, 1fr); }
+    .panel { position: static; max-height: none; }
+    .notes { grid-template-columns: 1fr; }
+    .intro { grid-template-columns: minmax(0, 1fr); padding-top: 48px; }
+    .install { justify-self: start; }
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px; }
+    .top nav { gap: 14px; }
+    .top nav .wide { display: none; }
+    .stage { height: 420px; }
+    .article { columns: 1; padding: 24px; }
+  }
+
+  /* capture mode: just the stage, for README media */
+  html[data-capture] .wrap > :not(.play), html[data-capture] .toast, html[data-capture] .panel, html[data-capture] .main > :not(.stage) { display: none !important; }
+  html[data-capture] .play { display: block; padding: 0; }
+  html[data-capture] .wrap { max-width: none; padding: 0; }
+  html[data-capture] .stage { border: 0; border-radius: 0; height: 100vh; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./"><b>glassity</b><span class="tag">v%VERSION%</span></a>
+    <nav>
+      <a href="#play">Playground</a>
+      <a class="wide" href="https://github.com/duckvhuynh/glassity#use">Docs</a>
+      <a href="https://www.npmjs.com/package/glassity">npm</a>
+      <a href="https://github.com/duckvhuynh/glassity">GitHub</a>
+    </nav>
+  </header>
+
+  <section class="intro">
+    <div>
+      <h1>Liquid glass for the icons you <em>already</em> have.</h1>
+      <p>glassity reads the outline of any inline SVG and draws it as glass that bends the page behind it. Lucide, Phosphor, Heroicons or your own file. Add <code>data-glass</code> and you are done.</p>
+    </div>
+    <div class="install"><span>npm i glassity</span><button class="btn" type="button" data-copy="npm i glassity">Copy</button></div>
+  </section>
+
+  <section class="play" id="play" aria-label="Playground">
+    <div class="main">
+      <div class="bar">
+        <div class="bgs" id="bg" role="group" aria-label="Backdrop"></div>
+        <span class="label" id="bgName"></span>
+        <input type="file" id="photo" accept="image/*" class="sr">
+      </div>
+
+      <div class="stage" id="stage" data-bg="sunset" data-layout="dock" style="--split: 50%">
+        <canvas class="live" aria-hidden="true"></canvas>
+        <div class="article" aria-hidden="true">
+          <h3>Glass bends. It does not blur.</h3>
+          <p>Lines that cross the edge of a lens break and reappear a little to one side, the way a straw seems to snap at the surface of water. <strong>That shift is the whole trick.</strong></p>
+          <div class="swatches"><i style="background:#e4572e"></i><i style="background:#17bebb"></i><i style="background:#ffc914"></i><i style="background:#2e282a"></i><i style="background:#76b041"></i></div>
+          <p>The icons over this text are ordinary SVG. Behind them is ordinary HTML: paragraphs, coloured blocks, a highlighted phrase. glassity takes a picture of it and looks through it.</p>
+          <p>Short strokes become round tubes of glass. Wide shapes get a flat top and a bevelled rim. Both come from the same outline, untouched.</p>
+          <p>When this text changes, the picture is taken again.</p>
+        </div>
+        <div class="layer plain" aria-hidden="true"><div class="icons"></div></div>
+        <div class="layer glass"><div class="icons"></div></div>
+        <div class="divider"><span class="side l">SVG</span><span class="side r">glassity</span><button type="button" aria-label="Drag to compare"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4 2 8l4 4M10 4l4 4-4 4"/></svg></button></div>
+        <div class="caption"></div>
+      </div>
+
+      <div class="bar">
+        <div class="seg" id="layout" role="group" aria-label="Layout"></div>
+        <div class="seg" id="set" role="group" aria-label="Icon set"></div>
+        <label class="inline">Size <input type="range" id="size" min="40" max="260" step="2" value="120"></label>
+        <span class="grow"></span>
+        <label class="inline"><input type="checkbox" id="compare"> Compare with plain SVG</label>
+      </div>
+      <div class="status" id="status" role="status"></div>
+
+      <div class="picker" id="picker" role="group" aria-label="Icon"></div>
+      <div class="custom" id="custom">
+        <textarea id="customSvg" spellcheck="false" aria-label="Your SVG" placeholder='Paste an <svg> here: an icon, a logo, anything with an outline.'></textarea>
+      </div>
+
+      <div class="code">
+        <header>
+          <div class="seg tabs" id="tabs" role="tablist" aria-label="Code"></div>
+          <button class="btn" type="button" id="copyCode">Copy</button>
+        </header>
+        <pre id="code"><code></code></pre>
+      </div>
+    </div>
+
+    <aside class="panel" aria-label="Options">
+      <header>
+        <div class="row"><h2>Options</h2><span class="label" id="changed"></span></div>
+        <div class="presets" id="presets" role="group" aria-label="Presets"></div>
+      </header>
+      <div class="groups" id="groups"></div>
+      <footer>
+        <button class="btn" type="button" id="reset">Reset all</button>
+        <button class="btn primary" type="button" id="share">Copy link</button>
+      </footer>
+    </aside>
+  </section>
+
+  <section class="notes">
+    <article>
+      <h3>It bends what is behind it.</h3>
+      <p>Light is refracted through the icon by Snell's law, with optical depth, colour split at the rim, frost, a moving highlight and a soft shadow. Over a wallpaper, a photo, a video or plain HTML.</p>
+    </article>
+    <article>
+      <h3>Your SVG stays.</h3>
+      <p>The original icon is kept in the page, so its label, focus and clicks keep working. Without WebGL2 it simply shows as before.</p>
+    </article>
+    <article>
+      <h3>Any framework.</h3>
+      <p>React, Vue, Svelte, Solid, Preact, Angular, Remix, or a script tag. Server rendering is fine.</p>
+    </article>
+  </section>
+
+  <footer class="site">
+    <span>glassity v%VERSION% · MIT · <a href="https://github.com/duckvhuynh/glassity">Source on GitHub</a></span>
+    <span>Icons: <a href="https://lucide.dev">Lucide</a> (ISC) and <a href="https://phosphoricons.com">Phosphor</a> (MIT)</span>
+  </footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script type="module" src="main.js"></script>
+</body>
+</html>

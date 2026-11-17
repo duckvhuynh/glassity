@@ -2,6 +2,8 @@
 node_modules/
 dist/
 demo/out/
+site/dist/
+site/backdrops/raw/
 *.tgz
 *.log
 

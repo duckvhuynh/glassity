@@ -146,7 +146,9 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run typecheck && npm test && npm run build",
     "demo": "node demo/serve.mjs",
-    "demo:build": "node demo/build.mjs"
+    "demo:build": "node demo/build.mjs",
+    "site:build": "node site/build.mjs",
+    "site": "node site/build.mjs && node demo/serve.mjs"
   },
   "peerDependencies": {
     "@angular/core": ">=19",
@@ -174,11 +176,13 @@
   },
   "devDependencies": {
     "@angular/core": "^22.2.6",
+    "@phosphor-icons/core": "^2.1.1",
     "@playwright/test": "^1.65.1",
     "@types/node": "^26.6.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "esbuild": "^0.25.0",
+    "lucide": "^1.74.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
