@@ -94,6 +94,16 @@
         "default": "./dist/angular.cjs"
       }
     },
+    "./remix": {
+      "import": {
+        "types": "./dist/remix.d.ts",
+        "default": "./dist/remix.js"
+      },
+      "require": {
+        "types": "./dist/remix.d.cts",
+        "default": "./dist/remix.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "typesVersions": {
@@ -115,6 +125,9 @@
       ],
       "angular": [
         "./dist/angular.d.ts"
+      ],
+      "remix": [
+        "./dist/remix.d.ts"
       ]
     }
   },
@@ -136,6 +149,7 @@
   "peerDependencies": {
     "@angular/core": ">=19",
     "react": ">=18",
+    "remix": ">=3",
     "solid-js": ">=1.6",
     "vue": ">=3.3"
   },
@@ -144,6 +158,9 @@
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "remix": {
       "optional": true
     },
     "solid-js": {
@@ -163,6 +180,7 @@
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "remix": "^3.2.0",
     "rxjs": "^7.8.2",
     "solid-js": "^1.9.19",
     "tsup": "^8.3.5",
@@ -182,6 +200,7 @@
     "svelte",
     "solid",
     "preact",
-    "angular"
+    "angular",
+    "remix"
   ]
 }
