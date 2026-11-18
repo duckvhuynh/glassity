@@ -3,6 +3,7 @@ node_modules/
 dist/
 demo/out/
 site/dist/
+site/examples/node_modules/
 site/backdrops/raw/
 site/icon/raw/
 *.tgz
