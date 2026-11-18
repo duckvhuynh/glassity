@@ -149,8 +149,8 @@
     "prepublishOnly": "npm run typecheck && npm test && npm run build",
     "demo": "node demo/serve.mjs",
     "demo:build": "node demo/build.mjs",
-    "site:build": "node site/build.mjs",
-    "site": "node site/build.mjs && node demo/serve.mjs"
+    "site:build": "node site/build.mjs && npm --prefix site/examples run build",
+    "site": "npm run site:build && node demo/serve.mjs"
   },
   "peerDependencies": {
     "@angular/core": ">=19",

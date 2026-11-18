@@ -80,6 +80,15 @@
   .prompt code { flex: 1; font-size: 12.5px; line-height: 1.55; white-space: normal; overflow-wrap: anywhere; color: var(--ink); }
   .prompt .btn { flex: none; }
 
+  /* real apps */
+  .real { padding: 0 0 72px; display: grid; gap: 14px; }
+  .real-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+  .real h2 { font: 400 40px/1.1 var(--serif); letter-spacing: -0.02em; margin: 0 0 8px; }
+  .real-head p { margin: 0; color: var(--muted); max-width: 70ch; }
+  .real-frame { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); height: min(820px, 80vh); }
+  .real-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .real-foot { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); }
+
   /* get started */
   .start { padding: 0 0 72px; }
   .start h2 { font: 400 40px/1.1 var(--serif); letter-spacing: -0.02em; margin: 0 0 20px; }
@@ -301,6 +310,7 @@
     <a class="brand" href="./"><img src="icons/icon-192.png" alt="" width="28" height="28"><b>glassity</b><span class="tag">v%VERSION%</span></a>
     <nav>
       <a href="#play">Playground</a>
+      <a class="wide" href="#examples">Examples</a>
       <a href="#install">Install</a>
       <a class="wide" href="https://github.com/duckvhuynh/glassity#use">Docs</a>
       <a class="wide" href="https://www.npmjs.com/package/glassity">npm</a>
@@ -400,6 +410,23 @@
         <button class="btn primary" type="button" id="share">Copy link</button>
       </footer>
     </aside>
+  </section>
+
+  <section class="real" id="examples" aria-labelledby="examples-title">
+    <div class="real-head">
+      <div>
+        <h2 id="examples-title">In a real app</h2>
+        <p>The same glass inside real interfaces: a dashboard built from the <a href="https://ui.shadcn.com/blocks">shadcn/ui</a> block dashboard-01, a mobile app screen and a landing page. Everything around the glass is ordinary React and Tailwind; the glass is one <code>&lt;GlassProvider&gt;</code> and <code>data-glass</code> on the icons.</p>
+      </div>
+      <div class="seg" id="exampleTabs" role="tablist" aria-label="Example"></div>
+    </div>
+    <div class="real-frame">
+      <iframe id="exampleFrame" title="glassity example" loading="lazy" src="examples/index.html#dashboard"></iframe>
+    </div>
+    <div class="real-foot">
+      <span id="exampleNote"></span>
+      <a id="exampleOpen" href="examples/index.html#dashboard" target="_blank" rel="noopener">Open full screen</a>
+    </div>
   </section>
 
   <section class="start" id="install" aria-labelledby="install-title">

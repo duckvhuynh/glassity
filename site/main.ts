@@ -839,6 +839,24 @@ function wire(): void {
   $('#copyCode').addEventListener('click', () => copy(code()));
   for (const b of document.querySelectorAll<HTMLElement>('[data-copy]')) b.addEventListener('click', () => copy(b.dataset.copy!, b.dataset.done));
 
+  // In a real app: the examples page (site/examples) in a frame, one scene at a time.
+  const examples: [string, string, string][] = [
+    ['dashboard', 'Dashboard', 'shadcn/ui block dashboard-01 with glass quick actions over a photo.'],
+    ['mobile', 'Mobile app', 'A feed with a glass tab bar and round glass buttons: the photos bend as they scroll under them.'],
+    ['landing', 'Landing page', 'Feature icons as glass over a hero photo, with shadcn/ui buttons and cards.'],
+  ];
+  let example = 'dashboard';
+  const showExample = (id: string) => {
+    example = id;
+    const url = `examples/index.html#${id}`;
+    ($('#exampleFrame') as HTMLIFrameElement).src = url;
+    ($('#exampleOpen') as HTMLAnchorElement).href = url;
+    $('#exampleNote').textContent = examples.find(([k]) => k === id)![2];
+    for (const sync of syncers) sync();
+  };
+  segmented($('#exampleTabs'), examples.map(([k, label]) => [k, label] as [string, string]), () => example, showExample);
+  $('#exampleNote').textContent = examples[0][2];
+
   // Get started: the install command for each package manager.
   const managers: [string, string][] = [['npm', 'npm i glassity'], ['pnpm', 'pnpm add glassity'], ['yarn', 'yarn add glassity'], ['bun', 'bun add glassity']];
   let manager = 'npm';
