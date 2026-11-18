@@ -839,23 +839,28 @@ function wire(): void {
   $('#copyCode').addEventListener('click', () => copy(code()));
   for (const b of document.querySelectorAll<HTMLElement>('[data-copy]')) b.addEventListener('click', () => copy(b.dataset.copy!, b.dataset.done));
 
-  // In a real app: the examples page (site/examples) in a frame, one scene at a time.
-  const examples: [string, string, string][] = [
-    ['dashboard', 'Dashboard', 'shadcn/ui block dashboard-01 with glass quick actions over a photo.'],
-    ['mobile', 'Mobile app', 'A feed with a glass tab bar and round glass buttons: the photos bend as they scroll under them.'],
-    ['landing', 'Landing page', 'Feature icons as glass over a hero photo, with shadcn/ui buttons and cards.'],
+  // In a real app: the examples (site/examples) in a frame, one at a time. The first three are
+  // built from shadcn/ui blocks; the others are v0 community templates, credited in the note.
+  const v0 = (name: string, by: string, url: string) => `${name} ${by} from the <a href="${url}" target="_blank" rel="noopener">v0 community templates</a>`;
+  const examples: [id: string, label: string, page: string, note: string][] = [
+    ['dashboard', 'Dashboard', 'examples/index.html#dashboard', 'shadcn/ui block dashboard-01 with glass quick actions over a photo.'],
+    ['mobile', 'Mobile app', 'examples/index.html#mobile', 'A feed with a glass tab bar and round glass buttons: the photos bend as they scroll under them.'],
+    ['landing', 'Landing page', 'examples/index.html#landing', 'Feature icons as glass over a hero photo, with shadcn/ui buttons and cards.'],
+    ['tasko', 'Tasko', 'examples/tasko.html', `${v0('Tasko', 'by jessin', 'https://v0.app/templates/tasko-modern-task-management-dashboard-SGGKgsJdrxG')}: glass menu icons and round glass buttons on a light dashboard.`],
+    ['finflow', 'FinFlow', 'examples/finflow.html', `${v0('FinFlow', 'by jessin', 'https://v0.app/templates/finflow-modern-finance-mobile-web-app-ui-TdbdgFKSnpg')}: round glass buttons over the photo; tap Next to see a glass contactless mark on the cards.`],
+    ['evasion', 'Evasion', 'examples/evasion.html', `${v0('Evasion', 'by kerroudj', 'https://v0.app/templates/evasion-ecommerce-template-annqMtFCROP')}: round glass save and add-to-bag buttons over the product photos (scroll down).`],
   ];
   let example = 'dashboard';
   const showExample = (id: string) => {
     example = id;
-    const url = `examples/index.html#${id}`;
-    ($('#exampleFrame') as HTMLIFrameElement).src = url;
-    ($('#exampleOpen') as HTMLAnchorElement).href = url;
-    $('#exampleNote').textContent = examples.find(([k]) => k === id)![2];
+    const [, , page, note] = examples.find(([k]) => k === id)!;
+    ($('#exampleFrame') as HTMLIFrameElement).src = page;
+    ($('#exampleOpen') as HTMLAnchorElement).href = page;
+    $('#exampleNote').innerHTML = note;
     for (const sync of syncers) sync();
   };
   segmented($('#exampleTabs'), examples.map(([k, label]) => [k, label] as [string, string]), () => example, showExample);
-  $('#exampleNote').textContent = examples[0][2];
+  $('#exampleNote').innerHTML = examples[0][3];
 
   // Get started: the install command for each package manager.
   const managers: [string, string][] = [['npm', 'npm i glassity'], ['pnpm', 'pnpm add glassity'], ['yarn', 'yarn add glassity'], ['bun', 'bun add glassity']];

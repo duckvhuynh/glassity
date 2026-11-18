@@ -4,8 +4,11 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Fixed
+- An icon painted in a see-through colour (Tailwind's `text-white/40`, an `rgba()` stroke) no longer erodes to a few dots: its shape is read at full strength.
+
 ### Documentation
-- The playground has an "In a real app" section: a shadcn/ui dashboard, a mobile app screen and a landing page using glassity, with React and Tailwind (`site/examples`).
+- The playground has an "In a real app" section: a shadcn/ui dashboard, a mobile app screen and a landing page using glassity, with React and Tailwind (`site/examples`). Three v0 community templates (Tasko, FinFlow, Evasion) join them, credited to their authors, and every icon in the examples is glass.
 - The README lists where glassity fits: landing pages, dashboards, mobile web and hybrid apps.
 
 ## [0.3.3] - 2026-11-18

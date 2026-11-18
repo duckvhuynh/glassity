@@ -4,8 +4,26 @@
     {
       "name": "glassity-demo",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["demo/serve.mjs", "4173"],
+      "runtimeArgs": [
+        "demo/serve.mjs",
+        "4173"
+      ],
       "port": 4173
+    },
+    {
+      "name": "glassity-examples",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "site/examples",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5199",
+        "--strictPort"
+      ],
+      "port": 5199
     }
   ]
 }
