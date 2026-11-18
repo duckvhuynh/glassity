@@ -4,6 +4,9 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Documentation
+- The playground's real-app examples have Glass and Profile pickers: switch every icon in a demo between looks (clear, frosted, crystal, tinted, bold) and edge profiles, live.
+
 ## [0.3.4] - 2026-11-18
 
 ### Fixed

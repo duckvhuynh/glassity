@@ -87,6 +87,8 @@
   .real-head p { margin: 0; color: var(--muted); max-width: 70ch; }
   .real-frame { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); height: min(820px, 80vh); }
   .real-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .real-style { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; font-size: 13px; color: var(--muted); }
+  .real-style label { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .real-foot { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); }
 
   /* get started */
@@ -419,6 +421,10 @@
         <p>The same glass inside real interfaces: a dashboard built from the <a href="https://ui.shadcn.com/blocks">shadcn/ui</a> block dashboard-01, a mobile app screen, a landing page, and three templates shared by the <a href="https://v0.app/templates">v0</a> community (credited under each). Everything around the glass is ordinary React and Tailwind; the glass is one <code>&lt;GlassProvider&gt;</code> and <code>data-glass</code> on the icons.</p>
       </div>
       <div class="seg" id="exampleTabs" role="tablist" aria-label="Example"></div>
+    </div>
+    <div class="real-style">
+      <label>Glass <span class="seg" id="lookTabs" role="group" aria-label="Glass look"></span></label>
+      <label>Profile <span class="seg" id="profileTabs" role="group" aria-label="Glass profile"></span></label>
     </div>
     <div class="real-frame">
       <iframe id="exampleFrame" title="glassity example" loading="lazy" src="examples/index.html#dashboard"></iframe>

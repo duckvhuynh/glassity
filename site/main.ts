@@ -2,6 +2,7 @@ import { auto, isSupported, type GlassController, type GlassOptions } from '../s
 import { resolveOptions, type ResolvedOptions } from '../src/options';
 import icons from 'virtual:icons';
 import { ensure, libIcon, mountLibrary, setInfo, showcase } from './library';
+import { LOOKS, PROFILES, type Look, type Profile, type StyleMessage } from './examples/src/glass-styles';
 
 // ── state ──────────────────────────────────────────────────────────────────
 
@@ -851,15 +852,36 @@ function wire(): void {
     ['evasion', 'Evasion', 'examples/evasion.html', `${v0('Evasion', 'by kerroudj', 'https://v0.app/templates/evasion-ecommerce-template-annqMtFCROP')}: round glass save and add-to-bag buttons over the product photos (scroll down).`],
   ];
   let example = 'dashboard';
+  // The glass look and profile for every icon in the example, sent into the frame as it
+  // changes and kept in the URL, so a tab switch or "Open full screen" keeps it.
+  let look: Look = 'default';
+  let profile: Profile = 'default';
+  const frame = $('#exampleFrame') as HTMLIFrameElement;
+  const pageUrl = (page: string) => {
+    const [path, hash] = page.split('#');
+    const query = new URLSearchParams();
+    if (look !== 'default') query.set('look', look);
+    if (profile !== 'default') query.set('profile', profile);
+    const q = query.toString();
+    return path + (q ? '?' + q : '') + (hash ? '#' + hash : '');
+  };
   const showExample = (id: string) => {
     example = id;
     const [, , page, note] = examples.find(([k]) => k === id)!;
-    ($('#exampleFrame') as HTMLIFrameElement).src = page;
-    ($('#exampleOpen') as HTMLAnchorElement).href = page;
+    frame.src = pageUrl(page);
+    ($('#exampleOpen') as HTMLAnchorElement).href = pageUrl(page);
     $('#exampleNote').innerHTML = note;
     for (const sync of syncers) sync();
   };
+  const restyle = () => {
+    const message: StyleMessage = { type: 'glassity-style', look, profile };
+    frame.contentWindow?.postMessage(message, location.origin);
+    ($('#exampleOpen') as HTMLAnchorElement).href = pageUrl(examples.find(([k]) => k === example)![2]);
+    for (const sync of syncers) sync();
+  };
   segmented($('#exampleTabs'), examples.map(([k, label]) => [k, label] as [string, string]), () => example, showExample);
+  segmented($('#lookTabs'), Object.entries(LOOKS).map(([k, v]) => [k as Look, v.label] as [Look, string]), () => look, (v) => ((look = v), restyle()));
+  segmented($('#profileTabs'), Object.entries(PROFILES).map(([k, v]) => [k as Profile, v.label] as [Profile, string]), () => profile, (v) => ((profile = v), restyle()));
   $('#exampleNote').innerHTML = examples[0][3];
 
   // Get started: the install command for each package manager.
