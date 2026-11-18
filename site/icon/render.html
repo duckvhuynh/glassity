@@ -12,7 +12,9 @@
     display: grid; place-items: center; color: #fff;
   }
   .icon.round { border-radius: 230px; }
-  .icon svg { width: 760px; height: 760px; }
+  /* The g fills about 72% of the icon's height. Its ink is centred at (15.5, 16.5) in the mark's 32 box, not (16, 16),
+     so the box is moved half a unit right and up to centre the g itself. */
+  .icon svg { width: 920px; height: 920px; position: relative; left: 14px; top: -14px; }
 </style>
 </head>
 <body>
