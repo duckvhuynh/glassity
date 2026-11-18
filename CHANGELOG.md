@@ -4,6 +4,10 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Documentation
+- The playground has an "In a real app" section: a shadcn/ui dashboard, a mobile app screen and a landing page using glassity, with React and Tailwind (`site/examples`).
+- The README lists where glassity fits: landing pages, dashboards, mobile web and hybrid apps.
+
 ## [0.3.3] - 2026-11-18
 
 No change to the library code.

@@ -53,6 +53,14 @@ Each look above is a handful of options on the same icon. Thin strokes turn into
 
 It refracts whatever sits behind it: a photo, a CSS gradient, a canvas, or ordinary HTML text, which it photographs and looks through. On a white page it stays light, the way Apple's glass does, and is drawn by its own shadow seen through the edge and a thin contour. Only small icons, under about 28 px, turn dark there to stay readable.
 
+### Where it fits
+
+- **Premium landing pages.** Feature icons over a hero photo or gradient look like real glass without redrawing them.
+- **Dashboards.** Quick actions and toolbars over a photo or chart header; the rest of the dashboard stays as it is.
+- **Mobile web, PWA and hybrid apps** (Capacitor, Ionic). A tab bar and round buttons that bend the feed scrolling under them, close to iOS 26.
+
+All three run live in the playground under [In a real app](https://duckvhuynh.github.io/glassity/#examples), built from [shadcn/ui](https://ui.shadcn.com/blocks) blocks with React and Tailwind; the source is in [site/examples](site/examples).
+
 ### Your own icons and logos
 
 <img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/logos.webp" alt="Twelve logos as glass over an aurora: React, Vue, Svelte, Angular, Astro, Solid, Nuxt, Next.js, Remix, Node.js, TypeScript and GitHub." width="100%">
@@ -387,6 +395,7 @@ npm run test:e2e   # browser tests on Chromium, Firefox and WebKit (after a buil
 npm run test:compat # the packed package in 12 framework apps (after a build)
 npm run demo:build # bundles the React demo
 npm run demo       # test pages: http://localhost:4173/  and  /demo/react.html
+npm --prefix site/examples ci   # once, for the real-app examples
 npm run site       # the playground: http://localhost:4173/site/dist/
 node site/capture.mjs  # re-renders the images in docs/media (needs the server above and ffmpeg)
 ```
