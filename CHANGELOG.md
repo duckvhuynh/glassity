@@ -4,6 +4,15 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-11-18
+
+No change to the library code.
+
+### Documentation
+- The README opens with a short black-and-white film of what glassity does, cut from the promo video.
+- A new glassity icon: the glass g, larger in its square, over glossy black slabs. The favicons, app icons and the playground header use it.
+- The agent setup guide (`get-started.md`) is clearer about Vue, which icons to pick, and how to check the result.
+
 ## [0.3.2] - 2026-11-18
 
 ### Added
@@ -92,7 +101,8 @@ First release.
 - Follows reduced motion, reduced transparency, increased contrast and forced colours.
 - Without WebGL2, icons stay plain SVG with a soft highlight.
 
-[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/duckvhuynh/glassity/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/duckvhuynh/glassity/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/duckvhuynh/glassity/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/duckvhuynh/glassity/compare/v0.2.0...v0.3.0
