@@ -238,6 +238,17 @@ export async function rasterAlpha(source: string, plan: RasterPlan, padding: num
   ctx.drawImage(image, x, y, w, h);
   const rgba = ctx.getImageData(0, 0, plan.gw, plan.gh).data;
   const alpha = new Uint8ClampedArray(plan.gw * plan.gh);
-  for (let i = 0; i < alpha.length; i++) alpha[i] = rgba[i * 4 + 3];
+  let max = 0;
+  for (let i = 0; i < alpha.length; i++) {
+    alpha[i] = rgba[i * 4 + 3];
+    if (alpha[i] > max) max = alpha[i];
+  }
+  // The alpha is the shape, not how strong it looks: an icon painted in a see-through
+  // colour (Tailwind's text-white/40) would otherwise fall under the edge threshold and
+  // erode to dots. Scale so the most solid part is solid; a duotone icon keeps its layers.
+  if (max > 0 && max < 255) {
+    const k = 255 / max;
+    for (let i = 0; i < alpha.length; i++) alpha[i] = alpha[i] * k;
+  }
   return alpha;
 }
