@@ -4,6 +4,8 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-11-18
+
 ### Fixed
 - An icon painted in a see-through colour (Tailwind's `text-white/40`, an `rgba()` stroke) no longer erodes to a few dots: its shape is read at full strength.
 
@@ -108,7 +110,8 @@ First release.
 - Follows reduced motion, reduced transparency, increased contrast and forced colours.
 - Without WebGL2, icons stay plain SVG with a soft highlight.
 
-[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/duckvhuynh/glassity/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/duckvhuynh/glassity/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/duckvhuynh/glassity/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/duckvhuynh/glassity/compare/v0.3.0...v0.3.1
