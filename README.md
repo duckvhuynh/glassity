@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/site/icons/icon-192.png" alt="The glassity icon: a lowercase g made of glass over a blue and violet gradient, rendered with glassity itself." width="96" height="96">
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/site/icons/icon-192.png" alt="The glassity icon: a lowercase g made of glass over glossy black slabs, rendered with glassity itself." width="96" height="96">
 
 # glassity
 
@@ -12,7 +12,7 @@ Liquid glass for the SVG icons you already use.
 
 [**Open the playground**](https://duckvhuynh.github.io/glassity/) · [Install](#install) · [Use](#use) · [Options](#options)
 
-<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/hero.webp" alt="Six large Lucide icons in the default glass over a green meadow. They appear by bending light in, the highlight follows the pointer, then they fade out." width="100%">
+<img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/film.webp" alt="Highlights from the glassity film, in black and white: a heart in a ball of glass over a meadow; a row of flat icons turning into glass tiles; an icon built up step by step from its outline to refracting glass; a glass dome turning the landscape upside down; one icon running through the playground presets; icons from ten sets morphing into the glassity g; the glassity logo in glass." width="100%">
 
 </div>
 
