@@ -79,6 +79,7 @@ function params(field: FieldTexture, back: BackTexture): DrawParams {
     shine: 0, rim: 0, reflection: 0, shadow: 0, light: [0, 0], scheme: 0,
     lens: 0, touch: [0, 0, 0], tile: 0, tileRadius: 0, tileBevel: 0,
     weight: 0, glyphOpacity: 0, highContrast: 0, seed: 0,
+    glyphSize: 24, legibilityColor: [0, 0, 0], legibilityAmount: 0,
   };
 }
 

@@ -9,6 +9,7 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 - `configure(options)` replaces page defaults for existing and future icons, beneath scopes and per-icon options. `configure({})` resets them.
 - `legibility: 'auto' | 'off'` (default `auto`): small icons on dark or saturated backdrops blend toward their own CSS colour, with smooth size and contrast ramps and hysteresis. Explicit tints are unchanged; `off` disables the new contrast correction.
 - `tint: 'currentColor'`: use the icon's computed CSS colour, including alpha, and follow class, state and theme changes.
+- A local Chromium performance benchmark for 50, 77 and 100 icons, with startup, idle, scrolling, pointer, theme and mount/destroy measurements, reproducible fixtures and JSON/Markdown budget reports (`npm run bench`).
 
 ### Changed
 - One option registry supplies defaults, validation, attribute parsing and adapter option names.
