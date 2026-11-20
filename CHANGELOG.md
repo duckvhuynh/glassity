@@ -7,10 +7,14 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 ### Added
 - Named looks: `look: 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold'`, also available as `data-glass-look`. The readonly `looks` recipes and `GlassLook` type are exported from `glassity`. Explicit options override a recipe; switching looks does not retain the previous recipe's values.
 - `configure(options)` replaces page defaults for existing and future icons, beneath scopes and per-icon options. `configure({})` resets them.
+- `legibility: 'auto' | 'off'` (default `auto`): small icons on dark or saturated backdrops blend toward their own CSS colour, with smooth size and contrast ramps and hysteresis. Explicit tints are unchanged; `off` disables the new contrast correction.
+- `tint: 'currentColor'`: use the icon's computed CSS colour, including alpha, and follow class, state and theme changes.
 
 ### Changed
 - One option registry supplies defaults, validation, attribute parsing and adapter option names.
 - Playground presets and real-app example look pickers use the library's named looks.
+- Small icons on dark and saturated surfaces look different by default and keep more contrast. Light neutral surfaces keep their near-black small icons. Tile glyphs use their size after padding: a default 48 px tile has a glyph of about 27 px. This sizing correction also applies with `legibility: 'off'`.
+- The real-app examples use the library's legibility policy instead of adding a tint workaround to each small icon. Their look and profile pickers still work through `data-glass-*` attributes.
 
 ### Fixed
 - Nested `auto()` scopes inherit options by DOM ancestry and update when an outer scope changes. Surviving controllers resume discovery when another controller on the same root is destroyed.

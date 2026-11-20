@@ -60,8 +60,10 @@ export interface GlassOptions {
   brightness?: number;
   /** Contrast of what is seen through the glass. Default `0.9`. */
   contrast?: number;
-  /** Glass body colour, any CSS colour. `auto` is white; icons under about 28 px turn near-black on a light page. Default `auto`. */
+  /** Glass body colour, any CSS colour or currentColor. Auto adapts small icons to their backdrop. Default auto. */
   tint?: string;
+  /** Help small automatic-tint glyphs contrast with dark or saturated backdrops. Default auto. */
+  legibility?: 'auto' | 'off';
   /** How much of the tint is mixed in, 0–1. Default `0.14` (`0.04` for clear). */
   tintOpacity?: number;
   /** Darkening under the glass, 0–1. `auto` darkens up to 35%, only over bright and busy backdrops (photos), never a plain light page. Default `0` (`auto` for clear). */
@@ -126,6 +128,7 @@ export interface ResolvedOptions {
   brightness: number;
   contrast: number;
   tint: string;
+  legibility: 'auto' | 'off';
   tintOpacity: number;
   dim: number | 'auto';
   opacity: number;
@@ -180,6 +183,7 @@ export const OPTION_DESCRIPTORS = {
   brightness: { kind: 'number', default: 1, min: 0, max: 3 },
   contrast: { kind: 'number', default: 0.9, min: 0, max: 2 },
   tint: { kind: 'string', default: 'auto' },
+  legibility: { kind: 'enum', default: 'auto', values: ['auto', 'off'] },
   tintOpacity: { kind: 'number', default: 0.14, min: 0, max: 1 },
   dim: { kind: 'number', default: 0, min: 0, max: 1, values: ['auto'] },
   opacity: { kind: 'number', default: 1, min: 0, max: 1 },

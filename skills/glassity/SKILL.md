@@ -173,7 +173,7 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `look` | `'default'` | `default`, `clear`, `frosted`, `crystal`, `tinted`, `bold` | Named recipe below explicit options; changing looks drops the previous recipe |
 | `variant` | `'regular'` | `regular`, `clear`, `identity` | `clear` presets: frost 0, saturation 1.1, contrast 1, tintOpacity 0.04, dim `auto`, dispersion 0.5. `identity` leaves the SVG as is |
 | `profile` | `'squircle'` | `squircle`, `circle`, `lip`, `dome` | Edge cross-section. `dome`: a glass ball traced through both surfaces; magnifies, and from depth about 0.3 shows the page upside down. Best on a round tile |
-| `tile` | `false` | boolean | Rounded glass plate filling the SVG's box; the icon becomes a white glass mark on it |
+| `tile` | `false` | boolean | Rounded glass plate filling the SVG's box; the icon becomes a glass mark on it |
 | `tileRadius` | `0.26` | 0 to 0.5 | Plate corner radius; `0.5` is a circle on a square box |
 | `glyphOpacity` | `0.9` | 0 to 1 | How solid the mark is on a plate |
 | `padding` | `0` (`0.22` with tile) | 0 to 0.45 | Inset of the icon in its box |
@@ -190,8 +190,9 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `saturation` | `1.35` | 0 to 3 | Of what is seen through |
 | `brightness` | `1` | 0 to 3 | Of what is seen through |
 | `contrast` | `0.9` | 0 to 2 | Of what is seen through |
-| `tint` | `'auto'` | CSS colour or `auto` | Glass body colour. `auto` is white; icons under about 28 px turn near-black on light pages |
+| `tint` | `'auto'` | CSS colour, `currentColor` or `auto` | Glass body colour. `currentColor` follows the icon's computed `color`, including alpha. Small automatic icons turn near-black on light neutral surfaces and blend toward their CSS colour on dark or saturated surfaces |
 | `tintOpacity` | `0.14` | 0 to 1 | How much tint is mixed in |
+| `legibility` | `'auto'` | `auto`, `off` | Help small automatic glyphs read on dark or saturated backdrops. `off` disables this contrast correction; explicit tints are unchanged |
 | `dim` | `0` | 0 to 1 or `'auto'` | Darkening under the glass. `auto` (clear default): up to 35% over bright, busy backdrops only |
 | `opacity` | `1` | 0 to 1 | Overall opacity. An inline `opacity` on the `<svg>` also applies |
 | `shine` | `1` | 0 to 4 | Specular highlight |
@@ -207,6 +208,19 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `accessibility` | `true` | boolean | Follow reduced motion, reduced transparency, more contrast, forced colours. `false` ignores them except forced colours, which always win |
 | `backdrop` | `'auto'` | see below | What the glass refracts |
 | `maxDpr` | `2` | 0.5 to 4 | Cap on device pixel ratio (cost) |
+
+### Small icons and CSS colour
+
+With the defaults (`tint: 'auto'`, `legibility: 'auto'`), small icons on dark and saturated surfaces now look different: glass blends toward the icon's computed CSS `color` to preserve contrast, and a semi-transparent colour stays dimmer. Light neutral surfaces keep the existing near-black ink. The policy reads the sampled backdrop, uses smooth size and contrast ramps with hysteresis, and follows class, state and theme changes without per-frame style reads.
+
+Size is the effective glyph after padding, not the tile: a 48 px tile at the default `padding: 0.22` has a glyph of about 27 px. This sizing correction still applies with `legibility: 'off'`, so padded tiles can differ from earlier releases.
+
+```ts
+glassify(svg, { tint: 'currentColor', tintOpacity: 0.55 });
+glassify(svg, { legibility: 'off' });
+```
+
+`currentColor` explicitly follows the SVG's computed `color` at any size. All explicit tints bypass automatic legibility and retain the chosen `tintOpacity`. Providers accept the same options; attributes are `data-glass-tint="currentColor"` and `data-glass-legibility="off"`.
 
 ### Backdrop
 
@@ -235,6 +249,8 @@ Use a named `look` instead of copying its recipe. `looks` is a readonly record e
 | Morph between icons | Swap the paths inside the same `<svg>`, swap the child of `<Glass>`, or `handle.retarget(newSvg)` |
 | Show and hide | `visible: false` / `true` (or `data-glass-visible="false"`) |
 | Tinted glass | `{ look: 'tinted' }` → tint `#2f6bef`, tintOpacity 0.55 |
+| Follow the icon's CSS colour at any size | `{ tint: 'currentColor', tintOpacity: 0.55 }` |
+| Disable the dark/saturated backdrop correction | `{ legibility: 'off' }` |
 
 Playground links carry settings after `#`: keys that are option names are options (`depth=0.3&tile=true&variant=clear`). `bg`, `layout`, `set`, `lib`, `icon`, `size`, `compare` only describe the playground.
 
@@ -243,8 +259,8 @@ Playground links carry settings after `#`: keys that are option names are option
 - **Server rendering.** Importing glassity on the server is safe; nothing runs there. `auto()` waits for load and idle and skips icons that React, Astro islands or lazily hydrated Vue components have not hydrated yet, so there are no hydration warnings.
 - **Hiding.** The SVG gets `data-glassity-hidden` and a constructed stylesheet sets its opacity to 0. Frameworks rewriting `style` cannot make it reappear. Printing shows the original icons.
 - **Accessibility.** Keep the icon's own `aria-label`/`role` (or `aria-hidden` when decorative). The canvas is `aria-hidden` and ignores the pointer. Reduced motion stops the pointer light and bounce; reduced transparency makes the glass frostier; more contrast makes it solid; forced colours show the plain SVG.
-- **Colour.** The glass shows what is behind the icon; the icon's own CSS `color` and fills are not drawn (only its outline is used). For white or coloured glass use `tint` with `tintOpacity`, or `tile: true` for a white mark on a plate.
-- **Light pages.** Glass stays light on white (as Apple's); it is drawn by its own refracted shadow and a thin contour. Small icons (under about 28 px) flip to dark ink.
+- **Colour.** The SVG supplies the outline; individual fills are not reproduced. Small automatic icons on dark or saturated surfaces also use the icon's computed CSS `color`. For a chosen colour at any size, use `tint` (including `currentColor`) with `tintOpacity`.
+- **Light pages.** Glass stays light on white (as Apple's); it is drawn by its own refracted shadow and a thin contour. Small glyphs (under about 28 px after padding) flip to dark ink.
 - **Performance.** One WebGL context; icons redraw only when something changes (pointer, animation, backdrop). Off-screen icons are skipped. `bands` and `maxDpr` are the cost knobs.
 - **Supported icon sources.** Inline SVG from any library (Lucide, Phosphor, Heroicons, Tabler, react-icons, Iconify, Material Symbols SVG, Font Awesome SVG), sprites through `<use href>` (same origin or CORS), gradients, masks, clip paths defined elsewhere, web components with an open shadow root (put `data-glass` on the element).
 - **CSP.** `img-src` needs `blob:` and `data:`. Trusted Types are fine. `style-src` needs no `unsafe-inline`.
@@ -263,7 +279,7 @@ Playground links carry settings after `#`: keys that are option names are option
 |---|---|
 | No `canvas[data-glassity-canvas]` | Setup did not run in the browser, or no `data-glass`. Check the import is client-side |
 | `data-glass` not on the `<svg>` | The component drops props (lucide-react in a Server Component). Client component or provider `selector` |
-| Flat, invisible glass | Nothing behind it: use a gradient or image background, `tile: true`, or a bigger icon |
+| Flat, invisible glass | Check the icon's CSS `color` contrasts with its surface and `legibility` is `auto`. Larger glass needs detail behind it: use a gradient or image background, `tile: true`, or a bigger icon |
 | Small icons on a white bar turned pale grey | Expected for icons from about 28 to 40 px on plain light backgrounds: below 28 px glassity turns them dark so they stay readable, but larger ones stay light glass with little to show. Leave them plain (`data-glass="off"`), make them bigger, or use `tile: true` |
 | Very frosted and tinted | The OS asks for reduced transparency. Intended; `accessibility: false` only for testing |
 | Plain icon | No WebGL2: `isSupported()` is false; the fallback is the plain SVG |
