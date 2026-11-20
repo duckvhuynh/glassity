@@ -114,12 +114,12 @@ const options = {
 
 const copyStatic = async () => {
   await mkdir(out, { recursive: true });
-  const html = (await readFile(join(here, 'index.html'), 'utf8')).replaceAll('%VERSION%', version);
+  const html = (await readFile(join(here, 'index.html'), 'utf8')).replaceAll('%VERSION%', version).replaceAll('%MINOR%', version.split('.').slice(0, 2).join('.'));
   await (await import('node:fs/promises')).writeFile(join(out, 'index.html'), html);
   // The icon, rendered with glassity by site/icon/render.mjs.
   await cp(join(here, 'icons'), join(out, 'icons'), { recursive: true });
   // Backdrop photos: site/backdrops/*.webp (made from raw/ by site/backdrops.mjs).
-  await cp(join(here, 'backdrops'), join(out, 'backdrops'), { recursive: true, filter: (src) => !/[\/]raw([\/]|$)/.test(src) });
+  await cp(join(here, 'backdrops'), join(out, 'backdrops'), { recursive: true, filter: (src) => !/[\\/]raw([\\/]|$)/.test(src) }); // either slash, so Windows skips raw/ too
   // Every icon of 21 open icon sets, split into small files the library panel loads on demand.
   const sets = await writeLibrary(out);
   console.log(`icon library: ${sets.length} sets, ${sets.reduce((n, s) => n + s.total, 0)} icons`);

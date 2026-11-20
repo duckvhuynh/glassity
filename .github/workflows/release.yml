@@ -16,7 +16,15 @@ permissions:
   id-token: write # OIDC for npm Trusted Publishing
 
 jobs:
+  # The full CI (unit, browsers, every framework app) on the tagged commit. Nothing is
+  # published unless it passes.
+  ci:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   publish:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # release.yml runs this whole workflow and publishes only if it passes.
+  workflow_call:
 
 permissions:
   contents: read
@@ -21,11 +23,19 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/examples/package-lock.json
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
       - run: npm run demo:build
+      # The playground and its real-app examples (their own Vite app and lockfile), so a
+      # pull request cannot break the published site unnoticed.
+      - run: npm ci
+        working-directory: site/examples
+      - run: npm run site:build
 
   browsers:
     runs-on: ubuntu-latest
