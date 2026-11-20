@@ -1,4 +1,5 @@
 import { FRAGMENT, VERTEX } from './shader';
+import { prepareProgram } from './program';
 
 export interface FieldTexture {
   texture: WebGLTexture;
@@ -92,6 +93,7 @@ export class Renderer {
   /** Bumped when the context is restored: textures from older generations are gone. */
   generation = 1;
   private status: RendererState = 'restoring';
+  private cancelInit: (() => void) | null = null;
   private textures = new Map<WebGLTexture, number>();
   private bytes = 0;
   private textureLimit = 2048;
@@ -140,7 +142,6 @@ export class Renderer {
     this.gl = gl;
     try {
       this.init();
-      this.status = 'ready';
     } catch (error) {
       this.disposeGpu();
       throw error;
@@ -154,9 +155,7 @@ export class Renderer {
       this.setState('restoring');
       this.generation++;
       try {
-        this.init();
-        this.setState('ready');
-        this.onrestore?.();
+        this.init(true);
       } catch (error) {
         this.fail(error);
       }
@@ -170,6 +169,8 @@ export class Renderer {
 
   private contextLost(): void {
     if (this.status === 'lost') return;
+    this.cancelInit?.();
+    this.cancelInit = null;
     // The browser already freed these objects. Never delete them in a new context.
     this.textures.clear();
     this.bytes = 0;
@@ -190,6 +191,8 @@ export class Renderer {
   }
 
   private disposeGpu(): void {
+    this.cancelInit?.();
+    this.cancelInit = null;
     for (const texture of this.textures.keys()) this.gl.deleteTexture(texture);
     this.textures.clear();
     this.bytes = 0;
@@ -199,47 +202,22 @@ export class Renderer {
     this.staging = null;
   }
 
-  private init(): void {
+  private init(restoring = false): void {
     const gl = this.gl;
-    const shaders: WebGLShader[] = [];
-    let program: WebGLProgram | null = null;
-    let vao: WebGLVertexArrayObject | null = null;
-    const compile = (type: number, source: string) => {
-      const shader = gl.createShader(type);
-      if (!shader) throw new Error('glassity: could not allocate shader');
-      shaders.push(shader);
-      gl.shaderSource(shader, source);
-      gl.compileShader(shader);
-      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error('glassity shader: ' + gl.getShaderInfoLog(shader));
-      return shader;
-    };
-    try {
-      program = gl.createProgram();
-      if (!program) throw new Error('glassity: could not allocate program');
-      gl.attachShader(program, compile(gl.VERTEX_SHADER, VERTEX));
-      gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAGMENT));
-      gl.linkProgram(program);
-      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error('glassity program: ' + gl.getProgramInfoLog(program));
-      vao = gl.createVertexArray();
-      if (!vao) throw new Error('glassity: could not allocate vertex array');
+    this.cancelInit = prepareProgram(gl, VERTEX, FRAGMENT, (program) => {
+      this.cancelInit = null;
+      this.program = program;
+      this.vao = gl.createVertexArray();
+      if (!this.vao) throw new Error('glassity: could not allocate vertex array');
       for (const name of UNIFORMS) this.loc[name] = gl.getUniformLocation(program, name);
       gl.disable(gl.BLEND);
       gl.disable(gl.DEPTH_TEST);
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
       this.textureLimit = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
       this.checkError();
-      this.program = program;
-      this.vao = vao;
-    } catch (error) {
-      if (program) gl.deleteProgram(program);
-      if (vao) gl.deleteVertexArray(vao);
-      throw error;
-    } finally {
-      for (const shader of shaders) {
-        if (this.program) gl.detachShader(this.program, shader);
-        gl.deleteShader(shader);
-      }
-    }
+      this.setState('ready');
+      if (restoring) this.onrestore?.();
+    }, (error) => this.fail(error));
   }
 
   private checkError(): void {

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Local backdrop capture</title>
+<style>
+  body { margin: 0; background: #fff; color: #111; }
+  .row { height: 100px; position: relative; }
+  .row > div { height: 100%; background: repeating-linear-gradient(90deg, #181818 0 4px, #eeeeee 4px 8px); }
+  .row span { display: inline-block; width: 12px; }
+  svg { position: absolute; top: 12320px; left: 160px; width: 24px; height: 24px; }
+</style>
+</head>
+<body>
+<svg id="icon" data-glass viewBox="0 0 24 24"><path d="M4 4H20V20H4Z"/></svg>
+<script type="module">
+  import * as glassity from '/dist/index.js';
+  for (let i = 0; i < 250; i++) {
+    const row = document.createElement('section');
+    row.className = 'row';
+    const stripes = document.createElement('div');
+    for (let j = 0; j < 10; j++) stripes.appendChild(document.createElement('span'));
+    row.appendChild(stripes);
+    document.body.appendChild(row);
+  }
+  window.glassity = glassity;
+  scrollTo(0, 12000);
+</script>
+</body>
+</html>

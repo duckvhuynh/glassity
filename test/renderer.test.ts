@@ -18,11 +18,12 @@ function fixture(maxTextureSize = 8192) {
     createShader: vi.fn<() => object | null>(resource), deleteShader: vi.fn(), detachShader: vi.fn(),
     shaderSource: vi.fn(), compileShader: vi.fn(), getShaderParameter: vi.fn(() => true),
     getShaderInfoLog: vi.fn(() => 'compile failed'), attachShader: vi.fn(), linkProgram: vi.fn(),
-    getProgramParameter: vi.fn(() => true), getProgramInfoLog: vi.fn(() => 'link failed'),
+    getProgramParameter: vi.fn((_program?: unknown, _name?: number) => true), getProgramInfoLog: vi.fn(() => 'link failed'),
     createVertexArray: vi.fn<() => object | null>(resource), deleteVertexArray: vi.fn(),
     getUniformLocation: vi.fn(resource), disable: vi.fn(), pixelStorei: vi.fn(),
     getParameter: vi.fn(() => maxTextureSize), getError: vi.fn(() => 0),
     isContextLost: vi.fn(() => lost),
+    getExtension: vi.fn<() => { COMPLETION_STATUS_KHR: number } | null>(() => null),
     createTexture: vi.fn<() => object | null>(resource), deleteTexture: vi.fn(), bindTexture: vi.fn(),
     texImage2D: vi.fn(), texParameteri: vi.fn(), generateMipmap: vi.fn(),
     viewport: vi.fn(), enable: vi.fn(), scissor: vi.fn(), clearColor: vi.fn(), clear: vi.fn(),
@@ -84,7 +85,7 @@ function params(field: FieldTexture, back: BackTexture): DrawParams {
 }
 
 beforeEach(() => { vi.spyOn(console, 'warn').mockImplementation(() => {}); });
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('renderer texture ownership', () => {
   it('counts RG16F and every rectangular mip level, then releases each texture once', () => {
@@ -325,5 +326,71 @@ describe('direct media texture limits', () => {
     expect(renderer.textureBytes).toBe(bytes);
     expect(f.gl.createTexture).toHaveBeenCalledTimes(1);
     expect(f.gl.deleteTexture).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('parallel shader compilation', () => {
+  it('does not query blocking compile/link status or uniforms before completion', () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    const completion = 0x91b1;
+    let complete = false;
+    f.gl.getExtension.mockReturnValue({ COMPLETION_STATUS_KHR: completion });
+    f.gl.getProgramParameter.mockImplementation((_program?: unknown, name?: number) => name === completion ? complete : true);
+    const renderer = f.create();
+    const states: string[] = [];
+    renderer.onstatechange = () => states.push(renderer.state);
+    expect(renderer.ready).toBe(false);
+    expect(f.gl.getShaderParameter).not.toHaveBeenCalled();
+    expect(f.gl.getUniformLocation).not.toHaveBeenCalled();
+    expect(f.gl.getProgramParameter).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(20);
+    expect(renderer.ready).toBe(false);
+    expect(f.gl.getProgramParameter.mock.calls.every((call) => call[1] === completion)).toBe(true);
+    complete = true;
+    vi.advanceTimersByTime(8);
+    expect(renderer.ready).toBe(true);
+    expect(states).toEqual(['ready']);
+    expect(f.gl.getShaderParameter).toHaveBeenCalledTimes(2);
+    expect(f.gl.getUniformLocation).toHaveBeenCalled();
+    expect(f.gl.deleteShader).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cancels a pending generation on loss and publishes only the restored program', () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    f.gl.getExtension.mockReturnValue({ COMPLETION_STATUS_KHR: 0x91b1 });
+    f.gl.getProgramParameter.mockReturnValue(false);
+    const renderer = f.create();
+    renderer.onrestore = vi.fn();
+    f.lose();
+    vi.advanceTimersByTime(100);
+    expect(renderer.state).toBe('lost');
+    expect(f.gl.getUniformLocation).not.toHaveBeenCalled();
+    expect(f.gl.deleteProgram).not.toHaveBeenCalled();
+    expect(f.gl.deleteShader).not.toHaveBeenCalled();
+    f.gl.getProgramParameter.mockReturnValue(true);
+    f.restore();
+    expect(renderer.state).toBe('restoring');
+    vi.runAllTimers();
+    expect(renderer.state).toBe('ready');
+    expect(renderer.generation).toBe(2);
+    expect(renderer.onrestore).toHaveBeenCalledTimes(1);
+    expect(f.gl.deleteShader).toHaveBeenCalledTimes(2);
+  });
+
+  it('releases pending program resources when compilation finishes with an error', () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    f.gl.getExtension.mockReturnValue({ COMPLETION_STATUS_KHR: 0x91b1 });
+    const renderer = f.create();
+    f.gl.getShaderParameter.mockReturnValue(false);
+    vi.runAllTimers();
+    expect(renderer.state).toBe('failed');
+    expect(f.gl.deleteProgram).toHaveBeenCalledTimes(1);
+    expect(f.gl.deleteShader).toHaveBeenCalledTimes(2);
+    expect(f.gl.createVertexArray).not.toHaveBeenCalled();
   });
 });

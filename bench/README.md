@@ -137,6 +137,16 @@ runtime caches or JIT warmup can produce such a delta without a library leak;
 review the paired raw values and repeat on the same machine. Texture or canvas
 growth is not excused by a heap decrease.
 
+## Startup and local capture changes
+
+Startup previously waited for the window `load` event before its 400 ms idle timeout; unrelated resources could therefore delay glass indefinitely. Deferred-hydration retries also grew to two seconds. Geometry already deduplicated identical serialized shapes, but distance/thickness construction ran synchronously after decode. Renderer creation synchronously queried shader compile and link status, and each DOM snapshot copied its tree in one uninterrupted task. These are code-level causes of stalls, not a measured attribution of the earlier 17.6 s result.
+
+`auto()` now starts at DOM readiness with a 100 ms idle deadline and at most 250 ms between hydration retries, retaining per-icon hydration guards. Visible icons mount first in 4 ms batches. Field construction yields in 4 ms slices, draw batches yield after 6 ms, and GPUs exposing `KHR_parallel_shader_compile` are polled without blocking status queries. Identical geometry still shares its pending build. DOM captures share an engine queue with 6 ms cooperative slices, cancellation and last-good pixels. Nearby icons share document-space regions (normally 768 CSS px with a guard band), so a long page does not reduce local texture density.
+
+The 3 s first-real-glass regression is in `e2e/capture.spec.ts`, using the same 77-icon image fixture and probe, excluding the temporary colour swatch. The long-page regression checks source-pixel contrast/density, rendered detail and scroll alignment. `e2e/html-canvas.spec.ts` checks native paint updates when supported, and forces snapshots in its fallback case. Screenshot baselines are unchanged.
+
+The smoke benchmark could not run in this worktree environment: its build subprocess failed with `spawnSync cmd.exe EPERM`. Direct build, Vitest and Playwright startup also hit subprocess `EPERM`. No before/after timing or long-task-budget pass is claimed. Run the command above on the target desktop to validate the 3 s regression and the stricter benchmark budgets. Cooperative budgets cannot preempt an individual browser layout, image decode/upload or driver call; the no-extension shader path is still synchronous.
+
 ## Verification
 
 ```sh

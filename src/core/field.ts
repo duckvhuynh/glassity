@@ -41,6 +41,10 @@ function edt1d(f: Float64Array, n: number, d: Float64Array, v: Int32Array, z: Fl
 
 /** Exact Euclidean distance from every pixel to the nearest pixel where `sites` is non-zero. */
 export function distanceToSites(sites: ArrayLike<number>, w: number, h: number): Float32Array {
+  return finish(distanceSteps(sites, w, h));
+}
+
+function* distanceSteps(sites: ArrayLike<number>, w: number, h: number): Generator<void, Float32Array> {
   const n = Math.max(w, h);
   const f = new Float64Array(n);
   const d = new Float64Array(n);
@@ -53,32 +57,38 @@ export function distanceToSites(sites: ArrayLike<number>, w: number, h: number):
     for (let y = 0; y < h; y++) f[y] = sites[y * w + x] ? 0 : FAR;
     edt1d(f, h, d, v, z);
     for (let y = 0; y < h; y++) tmp[y * w + x] = d[y];
+    yield;
   }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) f[x] = tmp[y * w + x];
     edt1d(f, w, d, v, z);
     for (let x = 0; x < w; x++) out[y * w + x] = Math.sqrt(d[x]);
+    yield;
   }
   return out;
 }
 
-function blur3(src: Float32Array, w: number, h: number): Float32Array {
+function* blur3(src: Float32Array, w: number, h: number): Generator<void, Float32Array> {
   const tmp = new Float32Array(src.length);
   const out = new Float32Array(src.length);
-  for (let y = 0; y < h; y++)
+  for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
       const l = src[x > 0 ? i - 1 : i];
       const r = src[x < w - 1 ? i + 1 : i];
       tmp[i] = (l + 2 * src[i] + r) * 0.25;
     }
-  for (let y = 0; y < h; y++)
+    yield;
+  }
+  for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
       const u = tmp[y > 0 ? i - w : i];
       const d = tmp[y < h - 1 ? i + w : i];
       out[i] = (u + 2 * tmp[i] + d) * 0.25;
     }
+    yield;
+  }
   return out;
 }
 
@@ -92,7 +102,7 @@ function blur3(src: Float32Array, w: number, h: number): Float32Array {
  * d(q) with value d(q); pixels keep the maximum. A painted value can never
  * exceed the truth because each painted disc is itself inscribed.
  */
-function localThickness(dIn: Float32Array, inside: Uint8Array, w: number, h: number): Float32Array {
+function* localThickness(dIn: Float32Array, inside: Uint8Array, w: number, h: number): Generator<void, Float32Array> {
   const step = Math.max(w, h) > 256 ? 2 : 1;
   const cw = Math.ceil(w / step);
   const ch = Math.ceil(h / step);
@@ -100,7 +110,7 @@ function localThickness(dIn: Float32Array, inside: Uint8Array, w: number, h: num
   const at = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : dIn[y * w + x]);
   const pairs = [1, 0, 0, 1, 1, 1, 1, -1];
 
-  for (let cy = 0; cy < ch; cy++)
+  for (let cy = 0; cy < ch; cy++) {
     for (let cx = 0; cx < cw; cx++) {
       const x = Math.min(w - 1, cx * step);
       const y = Math.min(h - 1, cy * step);
@@ -128,17 +138,23 @@ function localThickness(dIn: Float32Array, inside: Uint8Array, w: number, h: num
           const j = py * cw + px;
           if (coarse[j] < d) coarse[j] = d;
         }
+        // A large inscribed disc must not monopolize a slice.
+        yield;
       }
     }
+    yield;
+  }
 
   const out = new Float32Array(w * h);
-  for (let y = 0; y < h; y++)
+  for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
       if (!inside[i]) continue;
       const c = coarse[Math.min(ch - 1, Math.round(y / step)) * cw + Math.min(cw - 1, Math.round(x / step))];
       out[i] = Math.max(c, dIn[i]);
     }
+    yield;
+  }
   return out;
 }
 
@@ -148,6 +164,17 @@ function localThickness(dIn: Float32Array, inside: Uint8Array, w: number, h: num
  * @param unit  reference size in raster pixels; outputs are divided by it
  */
 export function buildField(alpha: ArrayLike<number>, w: number, h: number, unit: number): Float32Array {
+  return finish(buildFieldSteps(alpha, w, h, unit));
+}
+
+function finish(work: Generator<void, Float32Array>): Float32Array {
+  let step = work.next();
+  while (!step.done) step = work.next();
+  return step.value;
+}
+
+/** Small CPU steps shared by the synchronous helpers and the browser's sliced build. */
+export function* buildFieldSteps(alpha: ArrayLike<number>, w: number, h: number, unit: number): Generator<void, Float32Array> {
   const scale = alpha instanceof Uint8Array || alpha instanceof Uint8ClampedArray ? 1 / 255 : 1;
   const inside = new Uint8Array(w * h);
   const outside = new Uint8Array(w * h);
@@ -155,9 +182,10 @@ export function buildField(alpha: ArrayLike<number>, w: number, h: number, unit:
     const on = alpha[i] * scale >= 0.5 ? 1 : 0;
     inside[i] = on;
     outside[i] = on ^ 1;
+    if ((i & 2047) === 2047) yield;
   }
-  const dIn = distanceToSites(outside, w, h); // for inside pixels: distance to the nearest outside pixel
-  const dOut = distanceToSites(inside, w, h);
+  const dIn = yield* distanceSteps(outside, w, h); // for inside pixels: distance to the nearest outside pixel
+  const dOut = yield* distanceSteps(inside, w, h);
 
   let sd: Float32Array = new Float32Array(w * h);
   for (let i = 0; i < sd.length; i++) {
@@ -166,18 +194,24 @@ export function buildField(alpha: ArrayLike<number>, w: number, h: number, unit:
     // Antialiased edge pixels know where the edge is to sub-pixel precision.
     if (a > 0.02 && a < 0.98 && Math.abs(v) <= 1) v = 0.5 - a;
     sd[i] = v;
+    if ((i & 2047) === 2047) yield;
   }
-  sd = blur3(sd, w, h);
+  sd = yield* blur3(sd, w, h);
 
   // Shapes that touch nothing (empty raster) would otherwise report FAR.
-  for (let i = 0; i < dIn.length; i++) if (dIn[i] > w + h) dIn[i] = w + h;
-  const thick = blur3(localThickness(dIn, inside, w, h), w, h);
+  for (let i = 0; i < dIn.length; i++) {
+    if (dIn[i] > w + h) dIn[i] = w + h;
+    if ((i & 2047) === 2047) yield;
+  }
+  const thickness = yield* localThickness(dIn, inside, w, h);
+  const thick = yield* blur3(thickness, w, h);
 
   const out = new Float32Array(w * h * 2);
   const inv = 1 / unit;
   for (let i = 0; i < sd.length; i++) {
     out[i * 2] = sd[i] * inv;
     out[i * 2 + 1] = Math.max(thick[i], 0.5) * inv;
+    if ((i & 2047) === 2047) yield;
   }
   return out;
 }

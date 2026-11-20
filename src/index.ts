@@ -1,6 +1,7 @@
 import { getEngine, type GlassHandle, type Scope } from './engine';
 import type { GlassOptions } from './options';
 import { awaitingHydration, findSvg, outsideZones, OWN, whenSettled } from './dom';
+import { mountInSlices } from './mount-queue';
 
 export type { GlassHandle } from './engine';
 export { looks } from './options';
@@ -96,8 +97,8 @@ const noController: GlassController = { update() {}, set() {}, refresh() {}, des
  *
  * Per-icon attributes still apply: `data-glass="clear"`, `data-glass-depth="0.3"`, `data-glass="off"`.
  *
- * The first look happens once the page has loaded and the browser is idle, so a
- * server-rendered page can hydrate before anything changes.
+ * The first look happens after DOM readiness and a bounded idle wait. Icons still
+ * awaiting framework hydration are left untouched until they are claimed.
  */
 export function auto(options: AutoOptions = {}): GlassController {
   if (!isBrowser) return noController;
@@ -117,6 +118,7 @@ function startAuto(options: AutoOptions): GlassController {
   let queued = false;
   let retry = 0;
   let retryDelay = 100;
+  let cancelMounts = () => {};
   const schedule = () => {
     if (queued || destroyed) return;
     queued = true;
@@ -183,13 +185,16 @@ function startAuto(options: AutoOptions): GlassController {
     clearTimeout(retry);
     if (hydrating) {
       retry = window.setTimeout(schedule, retryDelay);
-      retryDelay = Math.min(retryDelay * 2, 2000);
+      retryDelay = Math.min(retryDelay * 2, 250);
     } else retryDelay = 100;
     for (const instance of engine.inScope(scope)) if (!wanted.has(instance.element) || !instance.element.isConnected) instance.destroy();
-    for (const svg of wanted) {
-      if (!engine.get(svg)) engine.mount(svg, {}, scope);
-      else engine.claim(svg, scope); // picked up earlier by an outer scope: this one owns it now
-    }
+    cancelMounts();
+    cancelMounts = mountInSlices([...wanted], (svg) => {
+      if (!engine.get(svg)) {
+        if (awaitingHydration(svg)) { schedule(); return; }
+        engine.mount(svg, {}, scope);
+      } else engine.claim(svg, scope); // picked up earlier by an outer scope: this one owns it now
+    });
   };
 
   const ownCanvas = (node: Node) => node instanceof Element && node.hasAttribute(OWN);
@@ -202,8 +207,7 @@ function startAuto(options: AutoOptions): GlassController {
     if (relevant) schedule();
   });
 
-  // Nothing is touched until the page has loaded and gone idle, so a server-rendered
-  // page can hydrate first (see whenSettled).
+  // Give hydration a bounded head start; per-icon checks protect deferred islands.
   const cancelStart = whenSettled(() => {
     if (destroyed) return;
     observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', ROOT, 'class', 'ssr'] });
@@ -231,6 +235,7 @@ function startAuto(options: AutoOptions): GlassController {
       if (destroyed) return;
       destroyed = true;
       cancelStart();
+      cancelMounts();
       clearTimeout(retry);
       observer.disconnect();
       for (const watcher of shadows.values()) watcher.disconnect();

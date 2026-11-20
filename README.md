@@ -348,8 +348,12 @@ The same options work on providers and as `data-glass-tint="currentColor"` or `d
 WebGL cannot see the page behind a canvas, so glassity builds a picture of it. With `backdrop: 'auto'` it looks for the surface the icon sits on, the nearest ancestor that paints a background:
 
 1. The surface has a background **image or gradient**: that background is refracted. Exact and cheap. This is the usual "icons on a wallpaper" case.
-2. The surface has only a **background colour**: its HTML content is rendered to a picture and refracted. The picture is taken again when the content changes.
+2. The surface has only a **background colour**: its HTML content is captured around nearby icons and refracted. Shared local regions include space for refraction and blur, keep screen-level detail on long pages, and refresh when content or scrolling changes.
 3. No surface found: the provider's container, or `<body>`, is used the same way.
+
+HTML captures share a queue that prioritises visible regions and yields between small pieces of DOM work. The previous good picture stays visible while a replacement is prepared; stale captures are discarded. Extremely dense regions still fall back to their CSS background when the local node budget is exceeded.
+
+Where the browser exposes HTML-in-Canvas, glassity can follow native paint events for an **already-rendered drawable subtree in an application-owned canvas**, without cloning or moving its HTML. This is feature-detected, never selected by browser version. Current native APIs bind drawable elements to their owning canvas; they cannot capture arbitrary page HTML into glassity’s canvas. Ordinary HTML therefore keeps the local snapshot path, including on Chrome 157+, and CSS-only animation there is not live. No wrapper, backdrop declaration or new option is required for normal use. See [Chrome’s HTML-in-Canvas documentation](https://developer.chrome.com/docs/web-platform/html-in-canvas/concepts).
 
 Or say what to refract:
 
@@ -371,7 +375,7 @@ What has been run, and what is known not to work. The [compatibility suite](comp
 | React 19, Vue 3, Svelte 5, Solid, Preact | Adapters, checked from the packed package. React 18 is in the supported range but not in the suite |
 | Next.js 16, Nuxt 4, SvelteKit 3, React Router 8 (the successor of Remix 2) | Checked end to end (Nuxt also with a `hydrate-on-visible` component that hydrates on scroll): production build, server HTML, hydration, then the same interactions, with both the adapters and `glassity/auto`. The server HTML carries no glass; no hydration warning appears |
 | Astro 7 | Checked the same way, with a React island and static markup. Islands that hydrate late (`client:visible`, `client:idle`) are left alone until they have hydrated, then their icons become glass |
-| Other server rendering | Importing glassity on the server is safe. `auto()` waits until the page has loaded and gone idle, and skips icons that React, an Astro island or a lazily hydrated Vue component (`hydrateOnVisible` and the other strategies, Nuxt's `hydrate-on-*`) has not hydrated yet |
+| Other server rendering | Importing glassity on the server is safe. `auto()` starts after DOM readiness and a bounded idle wait, and skips icons that React, an Astro island or a lazily hydrated Vue component (`hydrateOnVisible` and the other strategies, Nuxt's `hydrate-on-*`) has not hydrated yet |
 | Remix 3 | `glassity/remix` mixins, checked end to end: client entries, static server HTML with `glassity/auto`, and frame reloads that reconcile new server HTML into the page |
 | Angular 21 with zone.js, Angular 22 zoneless | `glassity/angular`, checked from the packed package in both setups; an idle page with glass causes no change detection in either |
 | htmx, Alpine, Turbo, swup, Barba | `auto()` follows DOM changes; pages restored from a clone are cleaned up |

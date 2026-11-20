@@ -226,7 +226,7 @@ glassify(svg, { legibility: 'off' });
 
 | Value | Refracts |
 |---|---|
-| `'auto'` | The nearest ancestor with a CSS background image or gradient. If it only has a colour, a snapshot of its HTML (retaken when it changes; up to 1500 nodes). If none, the provider root or `<body>` |
+| `'auto'` | The nearest ancestor with a CSS background image or gradient. If it only has a colour, a local snapshot around nearby icons (queued, retaken on content/scroll changes; up to 1500 copied nodes per region). If none, the provider root or `<body>` |
 | `'none'` | Only the page colour |
 | `'/path.webp'` (URL) | That image, covering the container |
 | `<img>`, `<video>`, `<canvas>` element | That element, live (video and canvas every frame) |
@@ -256,7 +256,7 @@ Playground links carry settings after `#`: keys that are option names are option
 
 ## Behaviour to know
 
-- **Server rendering.** Importing glassity on the server is safe; nothing runs there. `auto()` waits for load and idle and skips icons that React, Astro islands or lazily hydrated Vue components have not hydrated yet, so there are no hydration warnings.
+- **Server rendering.** Importing glassity on the server is safe; nothing runs there. `auto()` waits for DOM readiness and a bounded idle period and skips icons that React, Astro islands or lazily hydrated Vue components have not hydrated yet, so there are no hydration warnings.
 - **Hiding.** The SVG gets `data-glassity-hidden` and a constructed stylesheet sets its opacity to 0. Frameworks rewriting `style` cannot make it reappear. Printing shows the original icons.
 - **Accessibility.** Keep the icon's own `aria-label`/`role` (or `aria-hidden` when decorative). The canvas is `aria-hidden` and ignores the pointer. Reduced motion stops the pointer light and bounce; reduced transparency makes the glass frostier; more contrast makes it solid; forced colours show the plain SVG.
 - **Colour.** The SVG supplies the outline; individual fills are not reproduced. Small automatic icons on dark or saturated surfaces also use the icon's computed CSS `color`. For a chosen colour at any size, use `tint` (including `currentColor`) with `tintOpacity`.
@@ -270,7 +270,7 @@ Playground links carry settings after `#`: keys that are option names are option
 - Icon fonts are not supported (no SVG to read).
 - Rotation and skew of the icon, or of the canvas's ancestors, are not followed; translation and scale are.
 - Multicolour SVGs are used for their outline only.
-- HTML snapshots are pictures: web fonts, cross-origin images without CORS, pseudo-elements and iframes may be missing.
+- HTML snapshots are pictures: web fonts, cross-origin images without CORS, pseudo-elements and iframes may be missing. Local regions retain their last good pixels while queued replacements are prepared. Native HTML-in-Canvas paint events are used only for an already-rendered drawable subtree in an application-owned canvas, detected at runtime. The browser cannot capture arbitrary page HTML this way; ordinary HTML remains on snapshots. Never move app DOM or require a wrapper to enable native capture.
 - Real Safari on macOS and iOS has not been checked; WebKit builds pass the test suite.
 
 ## Troubleshooting

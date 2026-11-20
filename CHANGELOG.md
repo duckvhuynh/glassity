@@ -5,6 +5,8 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 ## [Unreleased]
 
 ### Added
+- An engine-owned backdrop capture queue with shared requests, visible-region priority, cancellation and cooperative DOM-work slices. HTML snapshots use local regions with a refraction/blur guard instead of shrinking an entire long page into one texture.
+- Feature-detected native paint updates for existing HTML-in-Canvas drawable content. Ordinary HTML retains snapshots because browser-native drawable images are bound to their owning canvas; no wrappers or new options are required.
 - Named looks: `look: 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold'`, also available as `data-glass-look`. The readonly `looks` recipes and `GlassLook` type are exported from `glassity`. Explicit options override a recipe; switching looks does not retain the previous recipe's values.
 - `configure(options)` replaces page defaults for existing and future icons, beneath scopes and per-icon options. `configure({})` resets them.
 - `legibility: 'auto' | 'off'` (default `auto`): small icons on dark or saturated backdrops blend toward their own CSS colour, with smooth size and contrast ramps and hysteresis. Explicit tints are unchanged; `off` disables the new contrast correction.
@@ -18,6 +20,8 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 - The real-app examples use the library's legibility policy instead of adding a tint workaround to each small icon. Their look and profile pickers still work through `data-glass-*` attributes.
 
 ### Fixed
+- First glass no longer waits for unrelated window-load resources: DOM readiness and a bounded idle wait start visible icons in batches, with deferred-hydration checks retained. Field construction and draw batches yield; shader compilation avoids blocking status queries when `KHR_parallel_shader_compile` is available.
+- Superseded or disposed captures cannot replace newer pixels. Refreshes retain the last good backdrop, and local crops carry document coordinates through scrolling.
 - Nested `auto()` scopes inherit options by DOM ancestry and update when an outer scope changes. Surviving controllers resume discovery when another controller on the same root is destroyed.
 - React document providers render no wrapper and share one discovery controller, including icons in portals. A provider with only `className` keeps its neutral layout, and `useGlass` follows a ref whose target changes.
 - Vue notices in-place option mutations. Solid, Angular and Remix restart discovery when the selector changes.
