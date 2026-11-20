@@ -5,6 +5,7 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 ## [Unreleased]
 
 ### Added
+- `environment: 'auto' | 'studio' | 'none'` (default `auto`), also available as `data-glass-environment` and the exported `GlassEnvironment` type. Procedural window and fill lights plus a dark horizon give flat surfaces visible reflections, tinted by the backdrop and bounded by Fresnel. Automatic mode fades them over detailed backdrops; `studio` keeps them on, `none` preserves the original reflection, and frost broadens the highlights.
 - Named looks: `look: 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold'`, also available as `data-glass-look`. The readonly `looks` recipes and `GlassLook` type are exported from `glassity`. Explicit options override a recipe; switching looks does not retain the previous recipe's values.
 - `configure(options)` replaces page defaults for existing and future icons, beneath scopes and per-icon options. `configure({})` resets them.
 - `legibility: 'auto' | 'off'` (default `auto`): small icons on dark or saturated backdrops blend toward their own CSS colour, with smooth size and contrast ramps and hysteresis. Explicit tints are unchanged; `off` disables the new contrast correction.

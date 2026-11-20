@@ -1,4 +1,5 @@
 import { FRAGMENT, VERTEX } from './shader';
+import type { GlassEnvironment } from '../options';
 
 export interface FieldTexture {
   texture: WebGLTexture;
@@ -50,6 +51,7 @@ export interface DrawParams {
   shine: number;
   rim: number;
   reflection: number;
+  environment: GlassEnvironment;
   shadow: number;
   light: [number, number];
   scheme: number;
@@ -70,7 +72,7 @@ const UNIFORMS = [
   'uBands', 'uFrost', 'uSat', 'uBright', 'uContrast', 'uTint', 'uTintAuto', 'uTintOpacity', 'uDim',
   'uOpacity', 'uShine', 'uRim', 'uRefl', 'uShadow', 'uLight', 'uScheme', 'uLens', 'uTouch', 'uTile',
   'uTileRadius', 'uTileBevel', 'uGlyphOpacity', 'uHighContrast', 'uSeed', 'uWeight',
-  'uGlyphSize', 'uLegibilityColor', 'uLegibilityAmount',
+  'uGlyphSize', 'uLegibilityColor', 'uLegibilityAmount', 'uEnvironment',
 ] as const;
 
 type UniformName = (typeof UNIFORMS)[number];
@@ -412,6 +414,7 @@ export class Renderer {
     gl.uniform1f(u.uShine, p.shine);
     gl.uniform1f(u.uRim, p.rim);
     gl.uniform1f(u.uRefl, p.reflection);
+    gl.uniform1i(u.uEnvironment, p.environment === 'none' ? 0 : p.environment === 'studio' ? 2 : 1);
     gl.uniform1f(u.uShadow, p.shadow);
     gl.uniform2f(u.uLight, p.light[0], p.light[1]);
     gl.uniform1f(u.uScheme, p.scheme);

@@ -1,3 +1,5 @@
+import { ENVIRONMENT } from './environment';
+
 export const VERTEX = /* glsl */ `#version 300 es
 out vec2 vUv;
 void main() {
@@ -55,6 +57,7 @@ uniform float uOpacity;
 uniform float uShine;
 uniform float uRim;
 uniform float uRefl;
+uniform int uEnvironment;    // 0 none, 1 auto, 2 studio
 uniform float uShadow;
 uniform vec2 uLight;         // unit vector towards the light
 uniform float uScheme;       // -1 automatic, 0 dark page, 1 light page
@@ -221,6 +224,8 @@ vec3 grade(vec3 c, float dim, vec3 tint, float tintOpacity) {
   return clamp(c, 0.0, 1.0);
 }
 
+${ENVIRONMENT}
+
 vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflectivity, float bright) {
   vec3 toLight = normalize(vec3(uLight, 0.85));
   vec3 halfway = normalize(toLight + vec3(0.0, 0.0, 1.0));
@@ -237,6 +242,11 @@ vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflec
   // Over a bright page the edge reflects a neutral room, so it darkens a little instead of vanishing.
   vec3 env = mix(mix(ambient, vec3(1.0), 0.55), mix(vec3(0.55), ambient, 0.4), bright);
   vec3 room = env * (0.35 + 0.65 * smoothstep(-0.3, 0.9, dot(mirror, uLight)));
+  if (gEnvironmentStrength > 0.0) {
+    vec3 reflected = reflect(vec3(0.0, 0.0, -1.0), L.n);
+    float roughness = clamp(uFrost / max(0.16 * uUnit, 0.001), 0.0, 1.0);
+    room = mix(room, studioEnvironment(reflected, uLight, ambient, roughness), gEnvironmentStrength);
+  }
   float k = clamp(fresnel * reflectivity, 0.0, 0.9) * uLens;
   float shade = 1.0 - 0.22 * exp(-max(L.d, 0.0) / (L.edge * 0.7 + 0.5)) * max(-facing, 0.0) * uLens * min(uCurv, 1.0);
 
@@ -305,6 +315,7 @@ void main() {
     busy += abs(luma(textureLod(uBack, uv, max(localLod - 1.5, 0.0)).rgb) - luma(textureLod(uBack, uv, min(localLod + 1.0, uBackMaxLod)).rgb));
   }
   busy = clamp(busy * 0.8, 0.0, 1.0);
+  gEnvironmentStrength = environmentStrength(uEnvironment, busy);
   // The 35% dimming is for busy bright content behind clear glass, not for a plain light page.
   float dim = uDim < 0.0 ? 0.35 * smoothstep(0.5, 0.85, luma(ambient)) * smoothstep(0.02, 0.25, busy) : uDim;
   vec3 ink = mix(vec3(1.0), vec3(0.05, 0.06, 0.08), bright);

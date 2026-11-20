@@ -267,6 +267,7 @@ one.destroy();
 | `data-glass="clear"` | Pick a variant (`regular`, `clear`, `identity`) |
 | `data-glass="off"` | Leave this icon alone |
 | `data-glass-look="frosted"` | Pick a named look |
+| `data-glass-environment="studio"` | Keep studio reflections on, including over photos |
 | `data-glass-depth="0.3"`, `data-glass-tile`, … | Any option below, in kebab-case |
 
 ### Named looks and page defaults
@@ -323,6 +324,7 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `shine` | `1` | Specular highlight |
 | `rim` | `1` | Thin light along the edge |
 | `reflection` | `0.6` | Reflected surroundings |
+| `environment` | `'auto'` | Studio reflections: `auto` adds light on flat surfaces and fades it over detailed backdrops; `studio` keeps it on; `none` keeps the original reflection |
 | `lightAngle` | `-45` | Light direction in degrees, clockwise from the top |
 | `shadow` | `0.3` | Drop shadow |
 | `interactive` | `false` | Swell, bounce and glow when pressed |
@@ -342,6 +344,18 @@ glassify(svg, { legibility: 'off' }); // disable the dark/saturated backdrop cor
 ```
 
 The same options work on providers and as `data-glass-tint="currentColor"` or `data-glass-legibility="off"`. An explicit tint, including `currentColor`, keeps your chosen `tintOpacity` and bypasses automatic legibility. The corrected glyph sizing after padding still applies with `legibility: 'off'`, so padded tiles can differ from earlier releases.
+
+### Lighting on flat surfaces
+
+The default `environment: 'auto'` gives solid buttons and plain dashboards a broad window reflection, a softer fill and a dark horizon band. The lights take their colour from the backdrop and fade as backdrop detail increases, keeping the look over photos essentially unchanged. Frost broadens the highlights; `reflection` controls their strength, and Fresnel keeps them restrained. No extra wrapper or backdrop declaration is needed.
+
+```ts
+glassify(svg, { environment: 'studio' }); // keep the studio lights on over any backdrop
+glassify(svg, { environment: 'studio', frost: 0.6 }); // softer highlights
+glassify(svg, { environment: 'none' }); // keep the original ambient reflection
+```
+
+The same option works on providers and as `data-glass-environment="studio"`. `environment: 'none'` only disables the added studio lights; `reflection: 0` disables reflected surroundings altogether.
 
 ## What the glass refracts
 

@@ -619,6 +619,7 @@ class Instance implements GlassHandle {
       shine: r.shine,
       rim: r.rim,
       reflection: r.reflection,
+      environment: r.environment,
       shadow: r.shadow,
       light: [light[0] / length, light[1] / length],
       scheme: r.scheme === 'auto' ? -1 : r.scheme === 'light' ? 1 : 0,

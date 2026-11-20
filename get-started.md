@@ -242,7 +242,7 @@ To make a whole icon set glass without touching every icon, give the provider a 
 If the person did not say which icons, choose icons that will look like glass, using these two rules:
 
 - **Size: 40 px or more for a pronounced glass effect.** Smaller icons have less room for the bevel and the bending. Under about 28 px, automatic legibility keeps them near-black on light neutral surfaces and blends toward their CSS colour on dark or saturated surfaces.
-- **Something behind them: a photo, a gradient, a colourful section.** Glass shows what is behind it, so over plain white or plain black it has little to show.
+- **Choose the surface for the look.** Photos and gradients show refraction; solid buttons and plain dashboards get studio highlights automatically with `environment: 'auto'`. No backdrop declaration or extra wrapper is needed.
 
 Good first choices: feature or category icons in a hero, a dock or toolbar over a colourful background, icons on cards with an image. Five to ten icons is a good start.
 
@@ -278,9 +278,15 @@ Named looks use the library's recipes, also used by the playground. Set `look` a
 | Crystal | `{ look: 'crystal' }` |
 | Tinted | `{ look: 'tinted' }` |
 | Bold | `{ look: 'bold' }` |
+| Flat dashboards and solid buttons | Default `{ environment: 'auto' }` |
+| Studio lights over any backdrop | `{ environment: 'studio' }` |
+| Soft studio highlights | `{ environment: 'studio', frost: 0.6 }` |
+| Original ambient reflection only | `{ environment: 'none' }` |
 | App-icon tiles | `{ tile: true, interactive: true }` |
 | Round buttons | `{ tile: true, tileRadius: 0.5, profile: 'circle', bevel: 0.5, depth: 0.3, weight: 0.02 }` |
 | Glass ball lens | `{ tile: true, tileRadius: 0.5, profile: 'dome', variant: 'clear', depth: 0.6, weight: 0.02 }` |
+
+Studio lighting adds a broad window reflection, a softer opposite fill and a dark horizon tinted by the backdrop. `environment: 'auto'` (the default) strengthens flat surfaces and fades the lights over detailed backdrops, keeping photos essentially unchanged. `studio` keeps the lights on; `none` preserves the original ambient reflection. `reflection` controls the strength and `frost` broadens the highlights, with Fresnel keeping them restrained. Use the same option on a provider, `glassify(svg, { environment: 'studio' })`, or `data-glass-environment="studio"` on one icon.
 
 `configure({ look: 'frosted' })` sets page defaults for existing and future icons; `configure({})` resets them. Each call replaces the page defaults and does not start discovery. Nested providers and `auto({ root })` scopes inherit by DOM ancestry. Explicit options apply in order: page defaults, outer scope, inner scope, icon attributes, then an icon's own options. The selected look's recipe sits below all explicit options; changing looks drops the previous recipe but keeps explicit overrides. `looks` and `type GlassLook` are exported from `glassity` if you need to inspect recipes or type a look picker.
 
@@ -306,7 +312,7 @@ Each glass icon gets a `<canvas data-glassity-canvas>` right after its `<svg>`, 
 |---|---|
 | No canvas at all | The setup code did not run in the browser, or no element has `data-glass`. Check that the import is in client code. In Next.js it must be in a `'use client'` file. |
 | `data-glass` missing on the `<svg>` | The icon component dropped the prop (lucide-react in a Server Component). Use a client component or a provider `selector`. |
-| Icon looks flat or invisible | For small icons, check that their CSS `color` contrasts with the surface and `legibility` is `auto`. For larger glass, put detail behind it with a gradient or photo, or use `tile: true`. |
+| Icon looks flat or invisible | For small icons, check that their CSS `color` contrasts with the surface and `legibility` is `auto`. On flat surfaces leave `environment: 'auto'`, or use `studio` to keep highlights on; check that `reflection` is above 0. |
 | Glass is very frosty and tinted | The system asks for reduced transparency (on Windows: Transparency effects off). That is on purpose. `accessibility: false` turns it off, for testing only. |
 | Plain icon, no glass | The browser has no WebGL2 (`isSupported()` from `glassity` returns false). The plain icon is the fallback. |
 | Icon content missing | A `<use href>` sprite from another origin without CORS. Same-origin sprites work. |
