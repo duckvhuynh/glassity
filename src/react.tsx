@@ -12,7 +12,8 @@ import {
   type RefObject,
 } from 'react';
 import { auto, glassify, type BackdropSource, type GlassController, type GlassHandle, type GlassOptions } from './index';
-import { OPTION_KEYS } from './options';
+import { OPTION_KEYS, readAttributes } from './options';
+import { textTarget } from './text';
 import { findSvg } from './dom';
 import { inheritedOptions } from './scopes';
 
@@ -182,7 +183,7 @@ export function Glass(props: GlassComponentProps): ReactElement {
 
   // Runs after every commit: the child may have rendered a different <svg> node.
   useIsomorphicLayoutEffect(() => {
-    const svg = host.current ? findSvg(host.current) : null;
+    const svg = host.current ? textTarget(host.current, options.text ?? readAttributes(host.current)?.text ?? parent.text) ?? findSvg(host.current) : null;
     if (handle.current && handle.current.element !== svg) inheritedOptions.delete(handle.current.element);
     if (!svg) {
       if (!handle.current && typeof console !== 'undefined')
@@ -215,7 +216,7 @@ export function Glass(props: GlassComponentProps): ReactElement {
       ref: host,
       className,
       'data-glassity-host': '',
-      style: { display: 'inline-flex', position: 'relative', lineHeight: 0, verticalAlign: 'middle', ...style },
+      style: { display: 'inline-flex', position: 'relative', lineHeight: (options.text ?? parent.text) ? undefined : 0, verticalAlign: 'middle', ...style },
     },
     children,
   );
@@ -237,7 +238,7 @@ export function useGlass(target: RefObject<Element | null>, props: GlassProps = 
 
   // Ref objects stay the same when React replaces their target node.
   useIsomorphicLayoutEffect(() => {
-    const svg = target.current ? findSvg(target.current) : null;
+    const svg = target.current ? textTarget(target.current, options.text ?? readAttributes(target.current)?.text ?? parent.text) ?? findSvg(target.current) : null;
     if (handle.current && handle.current.element !== svg) inheritedOptions.delete(handle.current.element);
     if (!svg) {
       handle.current?.destroy();

@@ -1,8 +1,10 @@
 import { getEngine, type GlassHandle, type Scope } from './engine';
-import type { GlassOptions } from './options';
+import { readAttributes, resolveOptions, type GlassOptions } from './options';
+import { textTarget, type GlassElement } from './text';
 import { awaitingHydration, findSvg, outsideZones, OWN, whenSettled } from './dom';
 
 export type { GlassHandle } from './engine';
+export type { GlassElement } from './text';
 export { looks } from './options';
 export type { BackdropSource, GlassLook, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
 
@@ -23,7 +25,7 @@ const inert: GlassHandle = {
 };
 
 /**
- * Turn one SVG into glass.
+ * Turn one SVG or a text element into glass.
  *
  * ```js
  * import { glassify } from 'glassity';
@@ -32,16 +34,18 @@ const inert: GlassHandle = {
  * glass.destroy();
  * ```
  *
- * @param target an `<svg>`, or an element that contains one (also in its open shadow root)
+ * @param target an `<svg>`, an element containing one, or an HTML text element with `text: true`
  */
 export function glassify(target: Element, options: GlassOptions = {}): GlassHandle {
   if (!isBrowser) return inert;
-  const svg = findSvg(target);
+  const engine = outsideZones(getEngine);
+  const text = resolveOptions(...engine.scopes.layers(target), readAttributes(target), options).text;
+  const svg = textTarget(target, text) ?? findSvg(target);
   if (!svg) {
-    console.warn('glassity: no <svg> found. Pass an <svg> element, or an element that contains one.', target);
+    console.warn('glassity: no source found. Pass an <svg>, an element containing one, or use { text: true } for HTML text.', target);
     return inert;
   }
-  return outsideZones(() => wrap(getEngine().mount(svg, options, null)));
+  return outsideZones(() => wrap(engine.mount(svg, options, null)));
 }
 
 /** Replace the page defaults and update existing icons. Pass {} to reset them. Safe during SSR. */
@@ -51,6 +55,7 @@ export function configure(options: GlassOptions): void {
     const engine = getEngine();
     engine.scopes.configure(options);
     engine.configure();
+    engine.scopes.discover();
   });
 }
 
@@ -67,7 +72,7 @@ function wrap<T extends object>(target: T): T {
 export interface AutoOptions extends GlassOptions {
   /** Where to look for icons. Default: the whole document. */
   root?: Element | Document;
-  /** Which elements become glass. Default `[data-glass]`. May match an `<svg>` or an element that contains one. */
+  /** Which elements become glass. Default `[data-glass]`. May match an SVG, its wrapper, or `[data-glass="text"]`. */
   selector?: string;
 }
 
@@ -154,7 +159,7 @@ function startAuto(options: AutoOptions): GlassController {
     engine.sweep(container);
     engine.syncScopes();
     let hydrating = false;
-    const wanted = new Set<SVGSVGElement>();
+    const wanted = new Set<GlassElement>();
     let matches: Element[] = [];
     try {
       matches = Array.from(container.querySelectorAll(selector));
@@ -169,7 +174,8 @@ function startAuto(options: AutoOptions): GlassController {
       const flag = match.getAttribute('data-glass')?.trim().toLowerCase();
       if (flag === 'off' || flag === 'false' || flag === 'none') continue;
       if (match.shadowRoot || match.localName.includes('-')) watchShadow(match);
-      const svg = findSvg(match);
+      const text = resolveOptions(...engine.scopes.layers(match), readAttributes(match)).text;
+      const svg = textTarget(match, text) ?? findSvg(match);
       if (!svg || svg.getAttribute('data-glass')?.trim().toLowerCase() === 'off') continue;
       // Not hydrated yet: look again shortly. An icon already glass keeps its glass.
       if (!engine.get(svg) && awaitingHydration(svg)) {
@@ -212,6 +218,7 @@ function startAuto(options: AutoOptions): GlassController {
 
   const apply = () => {
     engine.configure();
+    engine.scopes.discover();
   };
 
   return {

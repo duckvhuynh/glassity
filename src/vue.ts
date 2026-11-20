@@ -16,6 +16,8 @@ import {
 import { auto, glassify, type GlassController, type GlassHandle, type GlassOptions } from './index';
 import { changed, fromAttributes } from './adapter';
 import { findSvg } from './dom';
+import { textTarget } from './text';
+import { readAttributes } from './options';
 
 export type { GlassHandle, GlassOptions } from './index';
 
@@ -46,9 +48,9 @@ export const vGlass: Directive<Element, GlassOptions | undefined> = {
   updated(el, binding) {
     const entry = handles.get(el);
     if (!entry) return;
-    const svg = findSvg(el);
-    if (svg && svg !== entry.handle.element) entry.handle.retarget(svg); // the child icon was swapped: morph
     const next = binding.value ?? {};
+    const svg = textTarget(el, next.text ?? readAttributes(el)?.text) ?? findSvg(el);
+    if (svg && svg !== entry.handle.element) entry.handle.retarget(svg); // the child icon was swapped: morph
     if (!changed(entry.options, next)) return;
     entry.options = { ...next };
     entry.handle.set(next);

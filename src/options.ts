@@ -14,6 +14,8 @@ export type GlassLook = 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' |
 export type BackdropSource = 'auto' | 'none' | string | HTMLElement;
 
 export interface GlassOptions {
+  /** Rasterize HTML text instead of looking for an SVG. Default `false`. */
+  text?: boolean;
   /** Named recipe underneath explicit options. Default `default`. */
   look?: GlassLook;
   /** `regular` keeps content legible, `clear` is see-through, `identity` leaves the SVG untouched. Default `regular`. */
@@ -107,6 +109,7 @@ export interface GlassOptions {
 }
 
 export interface ResolvedOptions {
+  text: boolean;
   look: GlassLook;
   variant: GlassVariant;
   profile: GlassProfile;
@@ -162,6 +165,7 @@ interface OptionDescriptor<T = unknown> {
 }
 
 export const OPTION_DESCRIPTORS = {
+  text: { kind: 'boolean', default: false },
   look: { kind: 'enum', default: 'default', values: ['default', 'clear', 'frosted', 'crystal', 'tinted', 'bold'] },
   variant: { kind: 'enum', default: 'regular', values: ['regular', 'clear', 'identity'] },
   profile: { kind: 'enum', default: 'squircle', values: ['squircle', 'circle', 'lip', 'dome'] },
@@ -280,6 +284,7 @@ export function readAttributes(el: { getAttribute(name: string): string | null; 
   if (main != null) {
     const v = main.trim().toLowerCase();
     if (v === 'off' || v === 'false' || v === 'none') return null;
+    if (v === 'text') out.text = true;
     if (OPTION_DESCRIPTORS.variant.values.includes(v as GlassVariant)) out.variant = v;
   }
   for (const name of el.getAttributeNames()) {

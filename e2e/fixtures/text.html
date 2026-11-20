@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glassity — text and icon fonts</title>
+<style>
+  @font-face {
+    font-family: "Glassity Test Icons";
+    src: url("./text-icons.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #10161d; color: #f5f7fa; font: 16px/1.4 Arial, sans-serif; }
+  main { width: min(800px, 100%); margin: auto; }
+  .hero { min-height: 250px; padding: 32px 40px; background: #337082 url("/site/backdrops/ocean.webp") center / cover; }
+  .eyebrow { margin: 0 0 20px; color: #fff; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+  h1 { margin: 0; font-size: clamp(64px, 14vw, 112px); line-height: 1.1; letter-spacing: -4px; font-weight: 700; }
+  .heading-panel { padding: 28px 40px; background: linear-gradient(120deg, #435475, #6c8291 70%, #b1bac0); }
+  h2 { width: 390px; max-width: 100%; margin: 0; font: 700 48px/1.08 Arial, sans-serif; letter-spacing: -1px; }
+  .toolbar { padding: 22px 40px 30px; background: linear-gradient(120deg, #1a2430, #344f54); }
+  .icon-row { display: flex; align-items: center; gap: 24px; }
+  .icon { display: inline-block; width: 80px; height: 80px; font: 64px/80px "Glassity Test Icons"; font-feature-settings: "liga"; font-variant-ligatures: common-ligatures; }
+  .caption { margin: 10px 0 0; color: #bac7cd; font-size: 13px; }
+  #small { margin: 14px 0 0; width: 320px; font-size: 20px; }
+  #manual { display: inline-block; margin: 14px 0 0; font-size: 32px; font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <p class="eyebrow">Glass text · live HTML</p>
+    <h1 id="wordmark" data-glass="text" data-glass-look="clear">glassity</h1>
+  </section>
+  <section class="heading-panel">
+    <h2 id="wrapped" data-glass="text">Every letter bends light</h2>
+  </section>
+  <section class="toolbar">
+    <div class="icon-row">
+      <span id="ligature" class="icon" data-glass="text" role="img" aria-label="Home ligature">home</span>
+      <span id="direct-glyph" class="icon" data-glass="text" role="img" aria-label="Home direct glyph">&#xe000;</span>
+      <span id="tile-glyph" class="icon" data-glass="text" data-glass-tile role="img" aria-label="Home on a glass tile">home</span>
+    </div>
+    <p class="caption">A local font: “home” shapes into the same house as the direct glyph.</p>
+    <p id="small" data-glass="text">Small text stays readable.</p>
+    <p id="manual">Plain until glassify()</p>
+  </section>
+</main>
+<script type="module">
+  import * as glassity from '/dist/index.js';
+  window.glassity = glassity;
+  window.textGlassHandles = {};
+  if (!new URLSearchParams(location.search).has('manual')) {
+    window.textGlassController = glassity.auto({ duration: 0, pointerLight: false });
+  }
+</script>
+</body>
+</html>

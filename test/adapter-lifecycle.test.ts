@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   cleanups: [] as (() => void)[],
   watches: [] as ((options: GlassOptions) => void)[],
   host: {} as Element,
+  textTargets: new Set<Element>(),
   react: null as null | { refs: { current: unknown }[]; effects: { deps?: unknown[]; cleanup?: () => void }[]; cursor: number; pending: (() => void)[] },
   inherited: {} as GlassOptions,
   controllers: [] as { set: ReturnType<typeof vi.fn>; destroy: ReturnType<typeof vi.fn> }[],
@@ -25,7 +26,7 @@ vi.mock('../src/index', () => ({
     return handle;
   }),
 }));
-vi.mock('../src/dom', () => ({ findSvg: (element: Element) => element }));
+vi.mock('../src/dom', () => ({ findSvg: (element: Element) => state.textTargets.has(element) ? null : element }));
 vi.mock('vue', () => ({
   defineComponent: (component: unknown) => component,
   onMounted: (fn: () => void) => state.mounts.push(fn),
@@ -95,6 +96,8 @@ function reactComponent() {
   };
 }
 
+const bareElement = () => ({ getAttribute: () => null, getAttributeNames: () => [] }) as unknown as Element;
+
 beforeEach(() => {
   vi.clearAllMocks();
   state.mounts = [];
@@ -104,6 +107,8 @@ beforeEach(() => {
   state.controllers = [];
   state.handles = [];
   state.inherited = {};
+  state.host = bareElement();
+  state.textTargets.clear();
 });
 
 describe('React lifecycles', () => {
@@ -133,8 +138,8 @@ describe('React lifecycles', () => {
 
   it('follows a stable ref when the SVG changes or disappears, keeping inherited options below own options', () => {
     const component = reactComponent();
-    const first = {} as SVGSVGElement;
-    const second = {} as SVGSVGElement;
+    const first = bareElement() as SVGSVGElement;
+    const second = bareElement() as SVGSVGElement;
     const ref: { current: Element | null } = { current: first };
     state.inherited = { depth: 0.2, frost: 0.4 };
     component.render(() => useReactGlass(ref, { frost: 0.8 }));
@@ -153,6 +158,61 @@ describe('React lifecycles', () => {
     expect(state.handles[0].destroy).toHaveBeenCalledTimes(1);
     expect(inheritedOptions.has(second)).toBe(false);
     component.unmount();
+  });
+});
+
+describe('text adapter targets', () => {
+  it('React mounts and retargets HTML refs without looking for an SVG', () => {
+    class Html {
+      tagName = 'H1';
+      localName = 'h1';
+      getAttribute() { return null; }
+      getAttributeNames() { return []; }
+    }
+    const realHtml = (globalThis as { HTMLElement?: unknown }).HTMLElement;
+    (globalThis as { HTMLElement?: unknown }).HTMLElement = Html;
+    const first = new Html() as unknown as HTMLElement;
+    const second = new Html() as unknown as HTMLElement;
+    state.textTargets.add(first);
+    state.textTargets.add(second);
+    const component = reactComponent();
+    const ref = { current: first };
+    try {
+      component.render(() => useReactGlass(ref, { text: true }));
+      component.commit();
+      // Identity checks: chai cannot print these fake elements in a failure message.
+      expect(vi.mocked(glassify).mock.calls.length).toBe(1);
+      expect(vi.mocked(glassify).mock.calls[0][0] === first).toBe(true);
+      expect(vi.mocked(glassify).mock.calls[0][1]).toEqual({ text: true });
+      ref.current = second;
+      component.render(() => useReactGlass(ref, { text: true }));
+      component.commit();
+      expect(vi.mocked(state.handles[0].retarget).mock.calls.at(-1)?.[0] === second).toBe(true);
+      component.unmount();
+    } finally { (globalThis as { HTMLElement?: unknown }).HTMLElement = realHtml; }
+  });
+
+  it('Vue keeps text as the directive source when its options change', () => {
+    class Html {
+      tagName = 'H1';
+      localName = 'h1';
+      getAttribute() { return null; }
+      getAttributeNames() { return []; }
+    }
+    const realHtml = (globalThis as { HTMLElement?: unknown }).HTMLElement;
+    (globalThis as { HTMLElement?: unknown }).HTMLElement = Html;
+    const element = new Html() as unknown as HTMLElement;
+    state.textTargets.add(element);
+    const directive = vGlass as { mounted(el: Element, binding: { value: GlassOptions }): void; updated(el: Element, binding: { value: GlassOptions }): void };
+    try {
+      directive.mounted(element, { value: { text: true } });
+      directive.updated(element, { value: { text: true, depth: 0.4 } });
+      expect(vi.mocked(glassify).mock.calls.length).toBe(1);
+      expect(vi.mocked(glassify).mock.calls[0][0] === element).toBe(true);
+      expect(vi.mocked(glassify).mock.calls[0][1]).toEqual({ text: true });
+      expect(state.handles[0].set).toHaveBeenCalledWith({ text: true, depth: 0.4 });
+      expect(state.handles[0].retarget).not.toHaveBeenCalled();
+    } finally { (globalThis as { HTMLElement?: unknown }).HTMLElement = realHtml; }
   });
 });
 

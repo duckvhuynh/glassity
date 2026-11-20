@@ -1,6 +1,6 @@
 # Set up glassity
 
-You are an AI coding agent, and someone asked you to add **glassity** to their project. glassity turns the inline SVG icons a site already has into liquid glass, rendered with WebGL2: the page behind each icon bends at its edges, splits into colour at the rim and catches a highlight that follows the pointer. The original `<svg>` stays in the page, so labels, focus and clicks keep working. Browsers without WebGL2 show the plain icon.
+You are an AI coding agent, and someone asked you to add **glassity** to their project. glassity turns the inline SVG icons, short headings, wordmarks and icon-font glyphs a site already has into liquid glass, rendered with WebGL2: the page behind each icon bends at its edges, splits into colour at the rim and catches a highlight that follows the pointer. The original `<svg>` stays in the page, so labels, focus and clicks keep working. Browsers without WebGL2 show the plain icon.
 
 Follow the steps below in order. Keep the change small: add glassity, mark a few icons, show the person the result. Do not restyle their app or swap their icon library.
 
@@ -38,7 +38,7 @@ When several match, take the first row that matches: a Next.js app also lists `r
 
 **Icons.** Find how icons are drawn: `lucide-react`, `@lucide/vue`, `lucide-vue-next`, `@lucide/svelte`, `lucide-solid`, `@phosphor-icons/*`, `@heroicons/*`, `react-icons`, `@tabler/icons-*`, `@iconify/*`, or `<svg>` written inline. All of these render an inline `<svg>` and work.
 
-Icon **fonts** do not work: Material Symbols or Material Icons loaded as a font, the Font Awesome webfont, `<i class="fa ...">`. There is no SVG to read. Tell the person and suggest the SVG version of the same set (for example `@material-symbols/svg-400`, `@fortawesome/react-fontawesome`, or the set in https://duckvhuynh.github.io/glassity/ under "More sets").
+Icon **fonts** work when the glyph or ligature text is inside the element: mark it with `data-glass="text"`, keeping the font's existing CSS. For example, `<span class="material-symbols-outlined" data-glass="text">home</span>`. Glyphs supplied only by `::before` or `::after` are not text nodes; use an actual glyph in the element or the SVG version of that set. Web fonts need readable `@font-face` rules and same-origin or CORS-enabled font files.
 
 ## 2. Install
 
@@ -50,7 +50,7 @@ Use `pnpm add glassity`, `yarn add glassity` or `bun add glassity` to match the 
 
 ## 3. Turn it on
 
-Pick the one block that matches the framework. Each one makes every `<svg data-glass>` on the page glass. Add it once, at the root of the app.
+Pick the one block that matches the framework. Each one makes every `<svg data-glass>` and every text element marked `data-glass="text"` on the page glass. Add it once, at the root of the app.
 
 ### React (Vite and similar), Preact
 
@@ -248,6 +248,20 @@ Good first choices: feature or category icons in a hero, a dock or toolbar over 
 
 Small toolbar and tab icons can use the defaults without wrappers or backdrop declarations. Small icons on dark and saturated surfaces now look different: glassity uses their CSS `color` to keep contrast and respects its alpha, so dimmed icons stay dimmer. The size is measured after padding; a 48 px tile with default padding has a glyph of about 27 px. Check readability in both active and inactive states.
 
+### Headings, wordmarks and icon-font glyphs
+
+After the same setup, mark the existing text element:
+
+```html
+<h1 id="wordmark" data-glass="text">Made of light</h1>
+<h2 data-glass="text">A heading that can wrap onto two lines</h2>
+<span class="material-symbols-outlined" data-glass="text">home</span>
+```
+
+Do not add a wrapper or a backdrop declaration. The existing CSS sets the font, spacing, direction and wrapping. To target one element in code, use `glassify(document.querySelector('#wordmark'), { text: true })`. All appearance options apply, including named looks and automatic small-text legibility; `strokeWidth` remains SVG-only. React also supports `useGlass(ref, { text: true })` and `<Glass text>`, but keep the existing provider and markup unless per-element control is needed.
+
+Text stays selectable and readable by assistive technology. glassity waits for `document.fonts.ready`, then follows font loading, content changes and layout changes. Keep each source to **512 UTF-16 code units, eight rendered lines and 64 descendant elements**; longer content stays plain without truncation. Use real text nodes and inline formatting for short horizontal text, including RTL, not paragraphs. Translation and positive axis-aligned scale work; vertical writing, rotation, skew, perspective and reflection deliberately leave the original visible. Font loading retains usable `src` alternatives when another fails. If no custom font source can be embedded or resolved locally (for example, a FontFace API-only font or unreadable remote font CSS), leave the original visible and fix font access instead of substituting another font.
+
 ## 5. Pick a look
 
 Keep the Default look unless the person asked for a style. Make one adjustment on your own: thin outline icon sets (Lucide, Feather, Tabler, Heroicons outline, Iconoir) look better a little bolder, so add `weight: 0.03`.
@@ -296,7 +310,7 @@ await page.waitForFunction(() => document.querySelector('canvas[data-glassity-ca
 await page.evaluate(() => document.querySelectorAll('canvas[data-glassity-canvas]').length); // > 0: glass is on
 ```
 
-Each glass icon gets a `<canvas data-glassity-canvas>` right after its `<svg>`, and the `<svg>` gets `data-glassity-hidden` (it stays in the page, invisible).
+Each glass source gets a `<canvas data-glassity-canvas>` right after its SVG or text element, and the source gets `data-glassity-hidden` once rendering succeeds (it stays in the page, invisible). For text, also check that `getByText()` still finds it, selection still returns the original text, and changing its content updates the glass. Test wrapped headings at narrow widths and wait for the intended font before judging icon-font ligatures.
 
 - With a headless browser (Playwright, Puppeteer), launch Chromium with `--enable-unsafe-swiftshader --ignore-gpu-blocklist`. Without a GPU it otherwise has no WebGL2, finds no glass, and the check fails although the setup is right. Console warnings like "GPU stall due to ReadPixels" come from that software renderer and are harmless.
 - Look at the result too, in a screenshot if you can. Check small icons on white, dark and saturated surfaces, including an active tab or button. Small automatic icons use near-black ink on light neutral surfaces and their CSS `color` on other surfaces; larger icons remain more transparent. To follow CSS colour at any size, use `{ tint: 'currentColor', tintOpacity: 0.55 }`, or choose an explicit tint such as `{ tint: '#ffffff', tintOpacity: 0.4 }`.
@@ -310,6 +324,7 @@ Each glass icon gets a `<canvas data-glassity-canvas>` right after its `<svg>`, 
 | Glass is very frosty and tinted | The system asks for reduced transparency (on Windows: Transparency effects off). That is on purpose. `accessibility: false` turns it off, for testing only. |
 | Plain icon, no glass | The browser has no WebGL2 (`isSupported()` from `glassity` returns false). The plain icon is the fallback. |
 | Icon content missing | A `<use href>` sprite from another origin without CORS. Same-origin sprites work. |
+| Text stays plain | Check the console: text may exceed the 512-character/eight-line/64-element cap, or its web font may be unreadable. Use actual glyph text, readable `@font-face` CSS and same-origin or CORS-enabled font files. |
 | Blocked images under a strict CSP | `img-src` must allow `blob:` and `data:`. |
 | Hydration warning | Should not happen: glassity waits for hydration. If it does, make sure glassity is imported once, from client code, not passed to a server component. |
 
