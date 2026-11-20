@@ -1,6 +1,7 @@
 import { FRAGMENT, VERTEX } from './shader';
 import { prepareProgram } from './program';
 import type { GlassEnvironment } from '../options';
+import { LayerCompositor, type LayerTarget } from './layer-compositor';
 
 export interface FieldTexture {
   texture: WebGLTexture;
@@ -78,6 +79,7 @@ const UNIFORMS = [
   'uTileRadius', 'uTileBevel', 'uGlyphOpacity', 'uHighContrast', 'uSeed', 'uWeight',
   'uGlyphSize', 'uLegibilityColor', 'uLegibilityAmount', 'uEnvironment',
   'uSurface', 'uBackBasis', 'uBackOffset',
+  'uLayers', 'uHasLayers', 'uLayersMaxLod', 'uLayersDensity',
 ] as const;
 
 type UniformName = (typeof UNIFORMS)[number];
@@ -104,6 +106,7 @@ export class Renderer {
   private bytes = 0;
   private textureLimit = 2048;
   private staging: HTMLCanvasElement | null = null;
+  private layers: LayerCompositor | null = null;
   onstatechange: (() => void) | null = null;
   onrestore: (() => void) | null = null;
 
@@ -185,6 +188,7 @@ export class Renderer {
     // The browser already freed these objects. Never delete them in a new context.
     this.textures.clear();
     this.bytes = 0;
+    this.layers = null;
     this.program = this.vao = null;
     this.staging = null;
     this.setState('lost');
@@ -204,6 +208,7 @@ export class Renderer {
   private disposeGpu(): void {
     this.cancelInit?.();
     this.cancelInit = null;
+    this.releaseLayers();
     for (const texture of this.textures.keys()) this.gl.deleteTexture(texture);
     this.textures.clear();
     this.bytes = 0;
@@ -339,17 +344,70 @@ export class Renderer {
     return this.textureLimit;
   }
 
+  /** Release shared intermediate targets after the last icon is removed. */
+  releaseLayers(): void {
+    this.layers?.dispose();
+    this.layers = null;
+  }
+
   /** Draw one icon and copy it into `target`. Returns false when the context is lost. */
   draw(target: CanvasRenderingContext2D, pw: number, ph: number, p: DrawParams): boolean {
+    if (!this.drawPass(pw, ph, p)) return false;
+    target.clearRect(0, 0, pw, ph);
+    target.drawImage(this.canvas, 0, 0, pw, ph, 0, 0, pw, ph);
+    return true;
+  }
+
+  /** Each upper surface samples the accumulated lower glass before it is composited. */
+  drawLayers(target: CanvasRenderingContext2D, pw: number, ph: number, params: readonly DrawParams[]): boolean {
+    if (!this.ready || !params.length) return false;
+    if (params.length === 1) return this.draw(target, pw, ph, params[0]);
+    if (params.slice(0, 4).some((p) => [p.fieldA, p.fieldB, p.back].some((t) => t.generation !== this.generation || !this.textures.has(t.texture)))) return false;
+    if (!this.layers) this.layers = new LayerCompositor(this.gl, {
+      generation: this.generation,
+      allocate: () => this.allocate(),
+      account: (texture, bytes) => this.account(texture, bytes),
+      release: (texture) => this.release(texture),
+      checkError: () => this.checkError(),
+    });
+    const gl = this.gl;
+    const targets = this.layers.ensure(pw, ph, this.textureLimit);
+    let lower: LayerTarget | null = null;
+    const count = Math.min(params.length, 4);
+    try {
+      for (let i = 0; i < count; i++) {
+        const destination = i === count - 1 ? null : targets[i % 2];
+        const p = params[i];
+        const width = destination?.w ?? pw;
+        const height = destination?.h ?? ph;
+        const pass = destination ? { ...p, dpr: Math.min(width / p.canvas[0], height / p.canvas[1]) } : p;
+        if (!this.drawPass(width, height, pass, destination, lower)) return false;
+        if (destination) {
+          gl.bindTexture(gl.TEXTURE_2D, destination.texture);
+          gl.generateMipmap(gl.TEXTURE_2D);
+          this.checkError();
+        }
+        lower = destination;
+      }
+      target.clearRect(0, 0, pw, ph);
+      target.drawImage(this.canvas, 0, 0, pw, ph, 0, 0, pw, ph);
+      return true;
+    } finally {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+  }
+
+  private drawPass(pw: number, ph: number, p: DrawParams, destination: LayerTarget | null = null, lower: LayerTarget | null = null): boolean {
     if (!this.ready || !this.program) return false;
     if ([p.fieldA, p.fieldB, p.back].some((t) => t.generation !== this.generation || !this.textures.has(t.texture))) return false;
     const gl = this.gl;
     const canvas = this.canvas;
-    if (canvas.width < pw || canvas.height < ph) {
+    if (!destination && (canvas.width < pw || canvas.height < ph)) {
       canvas.width = Math.max(canvas.width, Math.ceil(pw / 128) * 128);
       canvas.height = Math.max(canvas.height, Math.ceil(ph / 128) * 128);
     }
-    const y = canvas.height - ph;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, destination?.framebuffer ?? null);
+    const y = destination ? 0 : canvas.height - ph;
     gl.viewport(0, y, pw, ph);
     gl.enable(gl.SCISSOR_TEST);
     gl.scissor(0, y, pw, ph);
@@ -364,8 +422,14 @@ export class Renderer {
     gl.bindTexture(gl.TEXTURE_2D, p.fieldB.texture);
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, p.back.texture);
+    gl.activeTexture(gl.TEXTURE0 + 3);
+    gl.bindTexture(gl.TEXTURE_2D, lower?.texture ?? p.back.texture);
 
     const u = this.loc;
+    gl.uniform1i(u.uLayers, 3);
+    gl.uniform1i(u.uHasLayers, lower ? 1 : 0);
+    gl.uniform1f(u.uLayersMaxLod, lower?.maxLod ?? 0);
+    gl.uniform1f(u.uLayersDensity, lower ? Math.max(lower.w / p.canvas[0], lower.h / p.canvas[1]) : 1);
     gl.uniform1i(u.uFieldA, 0);
     gl.uniform1i(u.uFieldB, 1);
     gl.uniform1i(u.uBack, 2);
@@ -447,8 +511,6 @@ export class Renderer {
       }, 1000 - (now - this.lastDrawCheck));
     }
 
-    target.clearRect(0, 0, pw, ph);
-    target.drawImage(canvas, 0, 0, pw, ph, 0, 0, pw, ph);
     return true;
   }
 }

@@ -14,6 +14,9 @@ function fixture(maxTextureSize = 8192) {
     TEXTURE_WRAP_S: 10242, TEXTURE_WRAP_T: 10243, CLAMP_TO_EDGE: 33071,
     BLEND: 3042, DEPTH_TEST: 2929, SCISSOR_TEST: 3089, COLOR_BUFFER_BIT: 16384,
     TEXTURE0: 33984, TEXTURE1: 33985, TEXTURE2: 33986, TRIANGLES: 4,
+    FRAMEBUFFER: 36160, COLOR_ATTACHMENT0: 36064, FRAMEBUFFER_COMPLETE: 36053,
+    createFramebuffer: vi.fn<() => object | null>(resource), deleteFramebuffer: vi.fn(),
+    bindFramebuffer: vi.fn(), framebufferTexture2D: vi.fn(), checkFramebufferStatus: vi.fn(() => 36053),
     createProgram: vi.fn<() => object | null>(resource), deleteProgram: vi.fn(),
     createShader: vi.fn<() => object | null>(resource), deleteShader: vi.fn(), detachShader: vi.fn(),
     shaderSource: vi.fn(), compileShader: vi.fn(), getShaderParameter: vi.fn(() => true),
@@ -410,5 +413,93 @@ describe('parallel shader compilation', () => {
     expect(f.gl.deleteProgram).toHaveBeenCalledTimes(1);
     expect(f.gl.deleteShader).toHaveBeenCalledTimes(2);
     expect(f.gl.createVertexArray).not.toHaveBeenCalled();
+  });
+});
+
+describe('layered glass targets', () => {
+  it('draws bottom to top, shares a bounded pair, and accounts every mip level', () => {
+    const f = fixture();
+    const renderer = f.create();
+    const p = params(renderer.createField(new Float32Array(16), 4, 2), renderer.uploadBack(null, source(), 8, 4));
+    const originalBytes = renderer.textureBytes;
+    const target = f.ctx as unknown as CanvasRenderingContext2D;
+    const uniforms = new Map(f.gl.getUniformLocation.mock.calls.map((args, i) => [args[1], f.gl.getUniformLocation.mock.results[i].value]));
+    let framebuffer: object | null = null;
+    let unit = f.gl.TEXTURE0;
+    const bound = new Map<number, object>();
+    const passes: { framebuffer: object | null; lower: object | undefined }[] = [];
+    f.gl.bindFramebuffer.mockImplementation((_target, next) => { framebuffer = next; });
+    f.gl.activeTexture.mockImplementation((next) => { unit = next; });
+    f.gl.bindTexture.mockImplementation((_target, texture) => { bound.set(unit, texture); });
+    f.gl.drawArrays.mockImplementation(() => { passes.push({ framebuffer, lower: bound.get(f.gl.TEXTURE0 + 3) }); });
+    expect(renderer.drawLayers(target, 24, 24, [p, p, p])).toBe(true);
+    expect(f.gl.drawArrays).toHaveBeenCalledTimes(3);
+    expect(f.ctx.drawImage).toHaveBeenCalledTimes(1);
+    expect(f.gl.createFramebuffer).toHaveBeenCalledTimes(2);
+    expect(renderer.textureBytes).toBe(originalBytes + 2 * 21844); // 64x64 through 1x1, RGBA8.
+    expect(f.gl.uniform1i.mock.calls.filter(([location]) => location === uniforms.get('uHasLayers')).map(([, value]) => value)).toEqual([0, 1, 1]);
+    const attachments = f.gl.framebufferTexture2D.mock.calls.map((call) => call[3]);
+    expect(passes).toEqual([
+      { framebuffer: f.gl.createFramebuffer.mock.results[0].value, lower: p.back.texture },
+      { framebuffer: f.gl.createFramebuffer.mock.results[1].value, lower: attachments[0] },
+      { framebuffer: null, lower: attachments[1] },
+    ]);
+    expect(f.gl.bindFramebuffer).toHaveBeenLastCalledWith(f.gl.FRAMEBUFFER, null);
+    expect(renderer.drawLayers(target, 32, 32, [p, p])).toBe(true);
+    expect(f.gl.createFramebuffer).toHaveBeenCalledTimes(2);
+    renderer.releaseLayers();
+    renderer.releaseLayers();
+    expect(f.gl.deleteFramebuffer).toHaveBeenCalledTimes(2);
+    expect(renderer.textureBytes).toBe(originalBytes);
+    // An ordinary draw after a layered icon must not sample the old accumulation.
+    expect(renderer.draw(target, 24, 24, p)).toBe(true);
+    expect(f.gl.uniform1i.mock.calls.filter(([location]) => location === uniforms.get('uHasLayers')).at(-1)?.[1]).toBe(0);
+  });
+
+  it('never retains more than two 2048px targets or draws more than four layers', () => {
+    const f = fixture();
+    const renderer = f.create();
+    const p = params(renderer.createField(new Float32Array(16), 4, 2), renderer.uploadBack(null, source(), 8, 4));
+    expect(renderer.drawLayers(f.ctx as unknown as CanvasRenderingContext2D, 4096, 3072, [p, p, p, p, p])).toBe(true);
+    const allocations = f.gl.texImage2D.mock.calls.filter((call) => call.length === 9 && call[2] === f.gl.RGBA);
+    expect(allocations.map((call) => [call[3], call[4]])).toEqual([[2048, 1536], [2048, 1536]]);
+    expect(f.gl.drawArrays).toHaveBeenCalledTimes(4);
+    expect(f.gl.createFramebuffer).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops targets on loss and restores them in the new generation without deleting stale objects', () => {
+    const f = fixture();
+    const renderer = f.create();
+    const p = params(renderer.createField(new Float32Array(16), 4, 2), renderer.uploadBack(null, source(), 8, 4));
+    const target = f.ctx as unknown as CanvasRenderingContext2D;
+    expect(renderer.drawLayers(target, 24, 24, [p, p])).toBe(true);
+    f.lose();
+    expect(renderer.textureBytes).toBe(0);
+    expect(f.gl.deleteFramebuffer).not.toHaveBeenCalled();
+    expect(f.gl.deleteTexture).not.toHaveBeenCalled();
+    f.restore();
+    expect(renderer.drawLayers(target, 24, 24, [p, p])).toBe(false);
+    expect(f.gl.createFramebuffer).toHaveBeenCalledTimes(2);
+    const restored = params(renderer.createField(new Float32Array(16), 4, 2), renderer.uploadBack(null, source(), 8, 4));
+    expect(renderer.drawLayers(target, 24, 24, [restored, restored])).toBe(true);
+    expect(f.gl.createFramebuffer).toHaveBeenCalledTimes(4);
+    renderer.fail(new Error('failed later'));
+    expect(renderer.textureBytes).toBe(0);
+    expect(f.gl.deleteFramebuffer).toHaveBeenCalledTimes(2);
+    expect(f.gl.deleteTexture).toHaveBeenCalledTimes(4);
+  });
+
+  it('releases partially allocated targets when framebuffer setup fails', () => {
+    const f = fixture();
+    const renderer = f.create();
+    const p = params(renderer.createField(new Float32Array(16), 4, 2), renderer.uploadBack(null, source(), 8, 4));
+    const bytes = renderer.textureBytes;
+    f.gl.checkFramebufferStatus.mockReturnValueOnce(f.gl.FRAMEBUFFER_COMPLETE).mockReturnValueOnce(0);
+    expect(() => renderer.drawLayers(f.ctx as unknown as CanvasRenderingContext2D, 24, 24, [p, p])).toThrow('incomplete layer framebuffer');
+    expect(renderer.textureBytes).toBe(bytes);
+    expect(f.gl.deleteTexture).toHaveBeenCalledTimes(2);
+    expect(f.gl.deleteFramebuffer).toHaveBeenCalledTimes(2);
+    expect(f.gl.bindFramebuffer).toHaveBeenLastCalledWith(f.gl.FRAMEBUFFER, null);
+    expect(f.ctx.drawImage).not.toHaveBeenCalled();
   });
 });

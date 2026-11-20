@@ -9,7 +9,7 @@ void main() {
 }`;
 
 /**
- * One pass per icon. All lengths are CSS pixels unless noted; the origin is
+ * One pass per glass surface. All lengths are CSS pixels unless noted; the origin is
  * the top-left of the icon's canvas with y pointing down.
  */
 export const FRAGMENT = /* glsl */ `#version 300 es
@@ -31,6 +31,10 @@ uniform float uBackMaxLod;
 uniform vec4 uBackBasis;
 uniform vec2 uBackOffset;
 uniform float uSurface;
+uniform sampler2D uLayers;
+uniform bool uHasLayers;
+uniform float uLayersMaxLod;
+uniform float uLayersDensity;
 
 uniform vec2 uCanvas;
 uniform vec2 uBox;
@@ -164,7 +168,7 @@ void smoothSurface(vec2 uv, inout Layer L) {
 
 vec2 backUv(vec2 p) { return (mat2(uBackBasis.xy, uBackBasis.zw) * p + uBackOffset - uBackRect.xy) / uBackRect.zw; }
 
-vec3 sampleBack(vec2 p, float blur) {
+vec3 samplePage(vec2 p, float blur) {
   float lod = max(log2(max(blur * uBackDensity, 1.0)), log2(max(uBackDensity / uDpr, 1.0)));
   vec2 uv = backUv(p);
   if (blur < 0.5) return textureLod(uBack, uv, min(lod, uBackMaxLod)).rgb;
@@ -176,6 +180,29 @@ vec3 sampleBack(vec2 p, float blur) {
   c += textureLod(uBack, uv + r * vec2(-0.92, -0.38), lod).rgb;
   c += textureLod(uBack, uv + r * vec2(0.38, -0.92), lod).rgb;
   return c * 0.25;
+}
+
+// Framebuffer textures have a bottom-left origin; the fields and DOM use top-left.
+vec4 sampleLayers(vec2 p, float blur) {
+  vec2 uv = p / uCanvas;
+  if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec4(0.0);
+  uv.y = 1.0 - uv.y;
+  float lod = max(log2(max(blur * uLayersDensity, 1.0)), log2(max(uLayersDensity / uDpr, 1.0)));
+  if (blur < 0.5) return textureLod(uLayers, uv, min(lod, uLayersMaxLod));
+  lod = min(max(lod - 1.0, 0.0), uLayersMaxLod);
+  vec2 r = vec2(blur * 0.5) / uCanvas;
+  vec4 c = textureLod(uLayers, uv + r * vec2(0.92, 0.38), lod);
+  c += textureLod(uLayers, uv + r * vec2(-0.38, 0.92), lod);
+  c += textureLod(uLayers, uv + r * vec2(-0.92, -0.38), lod);
+  c += textureLod(uLayers, uv + r * vec2(0.38, -0.92), lod);
+  return c * 0.25;
+}
+
+vec3 sampleBack(vec2 p, float blur) {
+  vec3 page = samplePage(p, blur);
+  if (!uHasLayers) return page;
+  vec4 lower = sampleLayers(p, blur);
+  return lower.rgb + page * (1.0 - lower.a);
 }
 
 float shadowSeen(vec2 q);
@@ -316,7 +343,7 @@ void main() {
 
   // The backdrop right under the icon decides light-on-dark or dark-on-light.
   float localLod = min(log2(max(uUnit * uBackDensity, 1.0)), uBackMaxLod);
-  vec3 ambient = textureLod(uBack, backUv(0.5 * uCanvas), localLod).rgb;
+  vec3 ambient = uHasLayers ? sampleBack(0.5 * uCanvas, uUnit) : textureLod(uBack, backUv(0.5 * uCanvas), localLod).rgb;
   float bright = uScheme < 0.0 ? smoothstep(0.76, 0.9, luma(ambient)) : uScheme;
   // Detail under the icon: the difference between a sharp and a blurred look at it.
   float busy = 0.0;
@@ -421,4 +448,5 @@ void main() {
   // Mostly the bending of light brings the glass in; alpha only covers the last moment.
   float presence = clamp(uLens * 4.0, 0.0, 1.0) * uOpacity;
   outColor = vec4(clamp(color, 0.0, 1.0) * cover, cover + shadow) * presence;
+  if (uHasLayers) outColor += sampleLayers(p, 0.0) * (1.0 - outColor.a);
 }`;

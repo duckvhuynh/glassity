@@ -319,6 +319,43 @@ console.log(looks.crystal);                 // readonly recipe, shared with the 
 
 Explicit options apply in this order: page defaults from `configure()`, outer scope, inner scope, element attributes, then an icon's own options. Nested `auto({ root })` scopes inherit by DOM ancestry, and changing an outer scope updates its descendants. The selected look is a recipe beneath all these explicit options, so even an outer scope's explicit `depth` overrides a look's depth.
 
+### Layered app icons
+
+Opt in with `data-glass-layers` and mark each glass body with `<g data-glass-layer="name">`. The first group is the bottom layer; later groups refract the already-rendered glass beneath them. No wrapper or backdrop declaration is needed.
+
+```html
+<svg data-glass data-glass-layers data-glass-colors="source"
+     viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="App">
+  <g data-glass-layer="base" fill="#2479ef">
+    <rect x="4" y="4" width="92" height="92" rx="24" />
+  </g>
+  <g data-glass-layer="mark" data-glass-depth="0.08"
+     data-glass-frost="0.1" data-glass-opacity="0.9" fill="#ffffff">
+    <circle cx="50" cy="50" r="23" />
+  </g>
+</svg>
+```
+
+Use `appearance` on the SVG or through any adapter:
+
+```ts
+const handle = glassify(svg, { layers: true, colors: 'source', appearance: 'dark' });
+handle.update({ appearance: 'tinted', tint: '#a38cff' });
+```
+
+| Appearance | Layered icon treatment |
+|---|---|
+| `default` | Inherited glass options and each group's overrides |
+| `dark` | A dark body with light marks |
+| `clear` | The clear variant with no frost and a faint tint |
+| `tinted` | Every layer uses the icon's `tint`, with monochrome content; `auto` uses its CSS colour |
+
+Groups can override material options with attributes such as `data-glass-depth`, `data-glass-frost`, `data-glass-tint`, `data-glass-tint-opacity` and `data-glass-opacity`. Group overrides win over appearance defaults, except `tinted` keeps one tint and zero saturation throughout. Visibility, interaction, accessibility and backdrop belong to the whole icon. A layered icon uses its authored base shape instead of the automatic `tile` plate.
+
+`colors: 'source'` uses each layer's first visible solid fill as its tint (or a solid stroke for stroke-only artwork), mixed at `0.55` by default. A group's explicit tint or tint opacity overrides it. It is one colour per layer: gradients and patterns are not reproduced as colour textures. Dark and tinted appearances replace the source palette; clear keeps only a faint tint.
+
+To bound memory and draw cost, glassity renders at most **four marked groups**, in SVG document order; additional marked groups are omitted. Ordinary exporter groups never become layers automatically. Unmarked artwork outside marked groups is omitted in layered mode; keep it inside a layer. Nested marked groups render separately and are excluded from their parent's shape. Definitions, masks and clip paths remain available but are not themselves layers. An SVG with no marked groups keeps the usual single-body rendering, and `appearance` has no effect on it. Adding, removing or reordering a layer updates the stack; layer geometry changes replace the stack together without a per-layer shape morph.
+
 ## Options
 
 Every option is optional. Sizes are fractions of the icon's box, so icons of any size keep the same look.
@@ -326,6 +363,9 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | Option | Default | What it does |
 |---|---|---|
 | `look` | `'default'` | Named recipe: `default`, `clear`, `frosted`, `crystal`, `tinted`, or `bold`. Explicit options override it |
+| `layers` | `false` | Render explicitly marked `g[data-glass-layer]` groups separately, bottom to top; at most four |
+| `colors` | `'default'` | `source` uses each layer's SVG fill or stroke as its tint; layered icons only |
+| `appearance` | `'default'` | Layered icon treatment: `default`, `dark`, `clear`, or `tinted` |
 | `variant` | `'regular'` | `regular` keeps content legible; `clear` is see-through; `identity` leaves the SVG untouched |
 | `profile` | `'squircle'` | Cross-section of the edge: `squircle`, `circle`, `lip`, or `dome`, a ball of glass that magnifies and, with `depth` from about 0.3, shows the page upside down. Best on a round tile |
 | `surface` | `false` | Glass background for an HTML container, sized and rounded by its CSS; content stays on top |
@@ -467,8 +507,8 @@ Without WebGL2 the icon stays a plain SVG with a soft highlight.
 
 - **Snapshots are pictures, not live content.** In the HTML-snapshot case, web fonts, cross-origin images without CORS, pseudo-elements and iframes may be missing or differ. A snapshot copies at most 1500 nodes; beyond that only the CSS background is used. Use `backdrop` to choose something smaller.
 - **SVG icons positioned by CSS transforms with rotation or skew** are not handled. Surfaces follow their own and their ancestors' 2D transforms, including scale, rotation and skew. Under 3D or perspective transforms the surface still follows the DOM, but backdrop sampling remains planar.
-- **Icons do not merge with each other**, and multi-layer icons are treated as one shape.
-- **Multicolour SVGs** are used for their outline only.
+- **Icons do not merge with each other.** Within one SVG, opt-in layered icons support up to four marked glass bodies.
+- **Multicolour SVGs** use their outline by default. Layered icons with `colors: 'source'` use one solid tint per layer, not per-pixel SVG colours.
 - Browser tests pass on Chromium, Firefox and WebKit (Playwright builds). Real Safari on macOS and iOS has not been checked yet.
 - "Liquid glass" here is a simulation of the look. It is not Apple's shader.
 

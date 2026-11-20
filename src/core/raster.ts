@@ -1,4 +1,5 @@
 import { cachedLoad, LruCache } from './lru';
+import { isolateLayer } from './layers';
 
 /** Browser-only: turn a mounted <svg> into alpha coverage at a chosen resolution. */
 
@@ -181,7 +182,7 @@ async function inlineReferences(original: SVGSVGElement, clone: SVGSVGElement): 
  * every node is written inline first, and referenced parts are copied in.
  * `__W__`/`__H__` are filled in per raster.
  */
-export async function serializeIcon(svg: SVGSVGElement, strokeWidth: number | null): Promise<string> {
+export async function serializeIcon(svg: SVGSVGElement, strokeWidth: number | null, layer?: SVGGElement): Promise<string> {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   const from = [svg, ...Array.from(svg.querySelectorAll('*'))];
   const to = [clone, ...Array.from(clone.querySelectorAll('*'))];
@@ -201,6 +202,7 @@ export async function serializeIcon(svg: SVGSVGElement, strokeWidth: number | nu
     dst.removeAttribute('class');
   }
 
+  if (layer) isolateLayer(svg, clone, layer);
   await inlineReferences(svg, clone);
 
   for (const name of clone.getAttributeNames()) if (!KEEP_ON_ROOT.has(name.toLowerCase()) && name !== 'style') clone.removeAttribute(name);

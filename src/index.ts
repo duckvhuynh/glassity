@@ -7,7 +7,7 @@ import { mountInSlices } from './mount-queue';
 export type { GlassHandle } from './engine';
 export type { GlassElement } from './surface';
 export { looks } from './options';
-export type { BackdropSource, GlassEnvironment, GlassLook, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
+export type { BackdropSource, GlassAppearance, GlassColors, GlassEnvironment, GlassLook, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
 
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 

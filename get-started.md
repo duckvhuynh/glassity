@@ -305,6 +305,26 @@ Studio lighting adds a broad window reflection, a softer opposite fill and a dar
 
 If the person sends a playground link, its settings are in the part after `#`: every key that is an option name (`depth=0.3`, `tile=true`, `variant=clear`, …) is an option to apply. Ignore `bg`, `layout`, `set`, `lib`, `icon`, `size` and `compare`: they only describe the playground.
 
+### Optional: authored app-icon layers
+
+Only add layers when the person wants an app icon built from separate glass bodies. Keep the existing provider or import. Add `data-glass-layers` to the SVG and mark its groups explicitly:
+
+```html
+<svg data-glass data-glass-layers data-glass-colors="source"
+     data-glass-appearance="dark" viewBox="0 0 100 100" width="96" height="96">
+  <g data-glass-layer="base" fill="#2479ef">
+    <rect x="4" y="4" width="92" height="92" rx="24" />
+  </g>
+  <g data-glass-layer="mark" data-glass-depth="0.08" fill="#ffffff">
+    <circle cx="50" cy="50" r="23" />
+  </g>
+</svg>
+```
+
+Each later group refracts the layers below it. Groups can override depth, frost, tint and opacity with `data-glass-*` attributes. `appearance` is `default`, `dark` (dark base, light marks), `clear`, or `tinted` (one colour from `tint`). The same options work in code: `{ layers: true, colors: 'source', appearance: 'dark' }`.
+
+There is a four-layer cap, in SVG document order. Ordinary exporter groups stay a single body unless explicitly marked. Put all visible artwork inside marked groups; artwork outside them and layers beyond four are omitted. Source colours mean one solid fill (or stroke) tint per layer, not multicolour or gradient textures. Layer additions and removals update automatically. See the full reference for nested groups and appearance override rules.
+
 ## 6. Check that it works
 
 Start the dev server (in the background; stop it when you are done, and kill the process if the port stays taken) and open the page. glassity starts after DOM readiness and a bounded idle wait, then mounts icons in small batches while respecting deferred hydration. Wait for the first glass canvas instead of checking at once:

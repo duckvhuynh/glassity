@@ -5,9 +5,11 @@ import { captureRegion, intersects } from './capture-region';
 import { canHostSurface, SurfaceLayer, type GlassElement, type SurfaceMap } from './surface';
 import { mapInto } from './surface-space';
 import { surfaceDpr } from './core/surface';
+import { parseLayers } from './core/layers';
+import { LayerStack } from './layers';
 import { buildField } from './core/field';
 import { planRaster, rasterAlpha, serializeIcon, type RasterPlan } from './core/raster';
-import { Renderer, type BackTexture, type FieldTexture } from './gl/renderer';
+import { Renderer, type BackTexture, type FieldTexture, type DrawParams } from './gl/renderer';
 import { readAttributes, resolveOptions, type GlassOptions, type ResolvedOptions } from './options';
 import { pageColor } from './snapshot';
 import { approachAmount, glyphSize, legibilityTarget, stableAmount, type LegibilityHistory, type RGB, type RGBA } from './core/legibility';
@@ -121,6 +123,7 @@ class Instance implements GlassHandle {
   backdrop: Backdrop | null = null;
   private backdropSource: unknown = undefined;
   private geometry: Geometry | null = null;
+  private layerStack: LayerStack | null = null;
   private previous: Geometry | null = null;
   private geometryKey = '';
   private token = 0;
@@ -293,6 +296,8 @@ class Instance implements GlassHandle {
     this.bindPress(r.interactive && !this.inert);
     this.bindBackdrop();
     if (this.inert) {
+      this.request++;
+      this.token++;
       this.showSvg();
       this.surface?.destroy();
       this.canvas.style.visibility = 'hidden';
@@ -334,6 +339,7 @@ class Instance implements GlassHandle {
     if (surroundings) this.bindBackdrop();
     this.surroundingsDirty = false;
     this.legibilitySample = '';
+    if (this.r.layers) void this.prepare();
     this.dirty = true;
     return surroundings;
   }
@@ -342,9 +348,10 @@ class Instance implements GlassHandle {
     const down = event.type === 'pointerdown';
     this.pressTarget = down ? 1 : 0;
     this.glowTarget = down ? 1 : 0;
-    if (down && this.rect && this.geometry) {
+    const geometry = this.layerStack?.geometry ?? this.geometry;
+    if (down && this.rect && geometry) {
       const pointer = event as PointerEvent;
-      const plan = this.geometry.plan;
+      const plan = geometry.plan;
       this.touch = [
         pointer.clientX - (this.rect.left + this.rect.width / 2 - plan.cssW / 2),
         pointer.clientY - (this.rect.top + this.rect.height / 2 - plan.cssH / 2),
@@ -404,13 +411,43 @@ class Instance implements GlassHandle {
   /** Rasterize the icon and build its distance field. Cheap when nothing changed. */
   private async prepare(): Promise<void> {
     if (this.destroyed || this.inert) return;
+    const request = ++this.request;
     this.place();
     const rect = this.element.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return; // not laid out yet; the resize observer calls again
+    const layers = this.surface ? [] : parseLayers(this.element as SVGSVGElement, this.r);
+    const weight = Math.max(this.r.weight, ...layers.map((layer) => layer.options.weight));
     const surface = this.surface?.measure();
-    const plan = planRaster(surface?.width ?? rect.width, surface?.height ?? rect.height, this.engine.dpr(this.surface ? Math.min(1.5, this.r.maxDpr) : this.r.maxDpr), this.r.weight);
+    const plan = planRaster(surface?.width ?? rect.width, surface?.height ?? rect.height, this.engine.dpr(this.surface ? Math.min(1.5, this.r.maxDpr) : this.r.maxDpr), weight);
     const padding = this.surface ? 0 : this.r.padding;
-    const request = ++this.request;
+    if (layers.length) {
+      ++this.token;
+      let stack: LayerStack;
+      try {
+        stack = await LayerStack.create(this.engine, layers, plan, this.element as SVGSVGElement, () => !this.destroyed && request === this.request);
+      } catch (error) {
+        if (request === this.request) console.warn('glassity: could not rasterize the layers; keeping the current icon.', error);
+        return;
+      }
+      if (this.destroyed || request !== this.request) {
+        stack.release();
+        return;
+      }
+      this.layerStack?.release();
+      this.engine.releaseGeometry(this.geometry);
+      this.engine.releaseGeometry(this.previous);
+      this.geometry = this.previous = null;
+      this.geometryKey = '';
+      this.layerStack = stack;
+      this.blank = stack.empty;
+      this.morph = 1;
+      this.canvas.style.width = plan.cssW + 'px';
+      this.canvas.style.height = plan.cssH + 'px';
+      if (stack.empty) this.suspend();
+      this.dirty = true;
+      this.engine.requestFrame();
+      return;
+    }
     let source: string;
     try {
       source = surface?.source ?? await serializeIcon(this.element as SVGSVGElement, this.r.strokeWidth);
@@ -422,7 +459,7 @@ class Instance implements GlassHandle {
       return;
     }
     const key = `${plan.gw}x${plan.gh}|${plan.cssW}x${plan.cssH}|${padding}|${source}`;
-    if (key === this.geometryKey) return;
+    if (key === this.geometryKey && this.geometry?.key === key && !this.layerStack) return;
     this.geometryKey = key;
     const token = ++this.token;
 
@@ -436,12 +473,14 @@ class Instance implements GlassHandle {
       }
       return;
     }
-    if (token !== this.token || this.destroyed) {
+    if (token !== this.token || request !== this.request || this.destroyed) {
       this.engine.releaseGeometry(geometry);
       return;
     }
     // Nothing drawn (a reference that cannot be resolved, an empty icon): hiding the
     // original would make the icon vanish, so it stays as it is.
+    this.layerStack?.release();
+    this.layerStack = null;
     this.blank = geometry.empty;
     if (geometry.empty) {
       this.engine.releaseGeometry(geometry);
@@ -502,7 +541,7 @@ class Instance implements GlassHandle {
   /** Advance animations and redraw if anything changed. Returns true while still animating. */
   step(now: number, dt: number, back: Rect | null): boolean {
     const rect = this.rect;
-    const geometry = this.geometry;
+    const geometry = this.layerStack?.geometry ?? this.geometry;
     if (this.destroyed || this.inert || this.blank || !rect || !geometry || !this.backdrop || !back || rect.width < 1) return false;
     if (this.surfaceBackRect) back = this.surfaceBackRect;
     const { engine, r } = this;
@@ -638,7 +677,7 @@ class Instance implements GlassHandle {
     const light = this.light;
     const length = Math.hypot(light[0], light[1]) || 1;
 
-    const ok = engine.renderer!.draw(this.ctx, pw, ph, {
+    const params: DrawParams = {
       fieldA: this.previous ? engine.fieldTexture(this.previous) : fieldB,
       fieldB,
       morph: this.previous ? this.morph : 0,
@@ -688,7 +727,10 @@ class Instance implements GlassHandle {
       glyphOpacity: this.surface ? 0 : r.glyphOpacity,
       highContrast: moreContrast ? 1 : 0,
       seed: this.seed,
-    });
+    };
+    const ok = this.layerStack
+      ? this.layerStack.draw(this.ctx, pw, ph, params, r, reducedTransparency)
+      : engine.renderer!.draw(this.ctx, pw, ph, params);
     if (!ok) {
       this.suspend();
       return animating;
@@ -750,6 +792,8 @@ class Instance implements GlassHandle {
     this.canvas.style.visibility = 'hidden';
     const canvas = this.canvas;
     queueMicrotask(() => canvas.remove());
+    this.layerStack?.release();
+    this.layerStack = null;
     this.engine.releaseGeometry(this.geometry);
     this.engine.releaseGeometry(this.previous);
     if (this.surface) this.backdrop?.refresh();
@@ -935,6 +979,7 @@ export class Engine {
       this.unlisten();
       this.renderer?.release(this.neutral?.texture ?? null);
       this.neutral = null;
+      this.renderer?.releaseLayers();
     }
   }
 
