@@ -1,6 +1,8 @@
 export type GlassVariant = 'regular' | 'clear' | 'identity';
 export type GlassProfile = 'squircle' | 'circle' | 'lip' | 'dome';
 export type GlassScheme = 'auto' | 'light' | 'dark';
+export type GlassAppearance = 'default' | 'dark' | 'clear' | 'tinted';
+export type GlassColors = 'default' | 'source';
 export type GlassLook = 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold';
 
 /**
@@ -14,6 +16,12 @@ export type GlassLook = 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' |
 export type BackdropSource = 'auto' | 'none' | string | HTMLElement;
 
 export interface GlassOptions {
+  /** Render up to four explicitly marked SVG groups as separate glass layers. Default `false`. */
+  layers?: boolean;
+  /** Use the first solid SVG fill (or stroke) in each layer as its tint. Default `default`. */
+  colors?: GlassColors;
+  /** App-icon appearance, applied only to layered icons. Default `default`. */
+  appearance?: GlassAppearance;
   /** Named recipe underneath explicit options. Default `default`. */
   look?: GlassLook;
   /** `regular` keeps content legible, `clear` is see-through, `identity` leaves the SVG untouched. Default `regular`. */
@@ -107,6 +115,9 @@ export interface GlassOptions {
 }
 
 export interface ResolvedOptions {
+  layers: boolean;
+  colors: GlassColors;
+  appearance: GlassAppearance;
   look: GlassLook;
   variant: GlassVariant;
   profile: GlassProfile;
@@ -162,6 +173,9 @@ interface OptionDescriptor<T = unknown> {
 }
 
 export const OPTION_DESCRIPTORS = {
+  layers: { kind: 'boolean', default: false },
+  colors: { kind: 'enum', default: 'default', values: ['default', 'source'] },
+  appearance: { kind: 'enum', default: 'default', values: ['default', 'dark', 'clear', 'tinted'] },
   look: { kind: 'enum', default: 'default', values: ['default', 'clear', 'frosted', 'crystal', 'tinted', 'bold'] },
   variant: { kind: 'enum', default: 'regular', values: ['regular', 'clear', 'identity'] },
   profile: { kind: 'enum', default: 'squircle', values: ['squircle', 'circle', 'lip', 'dome'] },

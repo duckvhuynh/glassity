@@ -4,7 +4,7 @@ import { awaitingHydration, findSvg, outsideZones, OWN, whenSettled } from './do
 
 export type { GlassHandle } from './engine';
 export { looks } from './options';
-export type { BackdropSource, GlassLook, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
+export type { BackdropSource, GlassAppearance, GlassColors, GlassLook, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
 
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 

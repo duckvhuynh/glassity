@@ -5,6 +5,8 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 ## [Unreleased]
 
 ### Added
+- Opt-in layered glass icons: `layers` / `data-glass-layers` renders up to four explicitly marked `g[data-glass-layer]` groups in document order, with per-group material overrides and upper layers refracting the lower glass. Changes to the marked groups update automatically.
+- Layered icon appearances: `appearance: 'default' | 'dark' | 'clear' | 'tinted'`, plus `colors: 'source'` to use one solid SVG fill or stroke tint per layer. Ordinary SVGs keep their existing rendering.
 - Named looks: `look: 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold'`, also available as `data-glass-look`. The readonly `looks` recipes and `GlassLook` type are exported from `glassity`. Explicit options override a recipe; switching looks does not retain the previous recipe's values.
 - `configure(options)` replaces page defaults for existing and future icons, beneath scopes and per-icon options. `configure({})` resets them.
 - `legibility: 'auto' | 'off'` (default `auto`): small icons on dark or saturated backdrops blend toward their own CSS colour, with smooth size and contrast ramps and hysteresis. Explicit tints are unchanged; `off` disables the new contrast correction.
