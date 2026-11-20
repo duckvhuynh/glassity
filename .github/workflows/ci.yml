@@ -39,7 +39,7 @@ jobs:
 
   browsers:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -48,7 +48,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx playwright install --with-deps chromium firefox webkit
+      # The download sometimes hangs on the runner (it once used up a release's whole
+      # timeout): give each attempt 5 minutes and try three times.
+      - name: Install browsers
+        timeout-minutes: 16
+        run: |
+          for attempt in 1 2 3; do
+            timeout 300 npx playwright install --with-deps chromium firefox webkit && exit 0
+            echo "::warning::Browser install attempt $attempt failed or hung; retrying"
+          done
+          exit 1
       - name: Browser tests (Chromium, WebKit)
         run: npx playwright test --project=chromium --project=webkit
         env:
@@ -79,7 +88,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx playwright install --with-deps chromium webkit
+      # The download sometimes hangs on the runner (it once used up a release's whole
+      # timeout): give each attempt 5 minutes and try three times.
+      - name: Install browsers
+        timeout-minutes: 16
+        run: |
+          for attempt in 1 2 3; do
+            timeout 300 npx playwright install --with-deps chromium webkit && exit 0
+            echo "::warning::Browser install attempt $attempt failed or hung; retrying"
+          done
+          exit 1
       - run: npm run test:compat
         env:
           COMPAT_BROWSERS: chromium,webkit
