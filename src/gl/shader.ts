@@ -30,6 +30,7 @@ uniform float uBackMaxLod;
 uniform vec2 uCanvas;
 uniform vec2 uBox;
 uniform float uUnit;
+uniform float uGlyphSize;
 uniform float uDpr;
 
 uniform int uProfile;        // 0 squircle, 1 circle, 2 lip, 3 dome
@@ -46,6 +47,8 @@ uniform float uBright;
 uniform float uContrast;
 uniform vec3 uTint;
 uniform float uTintAuto;
+uniform vec3 uLegibilityColor;
+uniform float uLegibilityAmount;
 uniform float uTintOpacity;
 uniform float uDim;          // < 0 means automatic
 uniform float uOpacity;
@@ -329,7 +332,7 @@ void main() {
   gShadowBlur = shadowBlur;
   gSelfShadow = clamp(uShadow * 1.4, 0.0, 0.7) * uLens;
   // Only small glyphs flip to dark ink on a bright page, as small system symbols do.
-  float small = 1.0 - smoothstep(22.0, 34.0, uUnit);
+  float small = 1.0 - smoothstep(22.0, 34.0, uGlyphSize);
 
   vec3 color;
   float cover;
@@ -348,6 +351,8 @@ void main() {
     vec3 through = plate(lensed, aa, dim, bright, ambient, grain, glow, false, seen);
     vec3 face = mix(mix(through, vec3(1.0), 0.35), mix(vec3(1.0), ink, small), 0.55 + 0.4 * small);
     vec3 mark = lit(face, glyph, ambient, 1.0, glow, uRefl * 0.6, bright);
+    // Keep the plate optical; only its mark needs the small-icon contrast floor.
+    if (uLegibilityAmount > 0.0) mark = mix(clamp(mark, 0.0, 1.0), uLegibilityColor, uLegibilityAmount * uLens);
     color = mix(body, mark, glyph.cover * uGlyphOpacity * uLens);
     cover = tile.cover;
 
@@ -367,6 +372,7 @@ void main() {
     float inkiness = min(uTintOpacity + uTintAuto * small * (0.3 + 0.42 * bright), 1.0);
     body = grade(body, dim, mix(uTint, mix(vec3(1.0), ink, small), uTintAuto), inkiness);
     color = lit(body, glyph, ambient, grain, glow, uRefl, bright);
+    if (uLegibilityAmount > 0.0) color = mix(clamp(color, 0.0, 1.0), uLegibilityColor, uLegibilityAmount * uLens);
     cover = glyph.cover;
 
     float ssd = fieldAt(vUv - shadowShift / uCanvas).r * uUnit;

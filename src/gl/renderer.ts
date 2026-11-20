@@ -26,6 +26,7 @@ export interface DrawParams {
   canvas: [number, number];
   box: [number, number];
   unit: number;
+  glyphSize: number;
   dpr: number;
   profile: number;
   bevel: number;
@@ -41,6 +42,8 @@ export interface DrawParams {
   contrast: number;
   tint: [number, number, number];
   tintAuto: number;
+  legibilityColor: readonly [number, number, number];
+  legibilityAmount: number;
   tintOpacity: number;
   dim: number;
   opacity: number;
@@ -67,6 +70,7 @@ const UNIFORMS = [
   'uBands', 'uFrost', 'uSat', 'uBright', 'uContrast', 'uTint', 'uTintAuto', 'uTintOpacity', 'uDim',
   'uOpacity', 'uShine', 'uRim', 'uRefl', 'uShadow', 'uLight', 'uScheme', 'uLens', 'uTouch', 'uTile',
   'uTileRadius', 'uTileBevel', 'uGlyphOpacity', 'uHighContrast', 'uSeed', 'uWeight',
+  'uGlyphSize', 'uLegibilityColor', 'uLegibilityAmount',
 ] as const;
 
 type UniformName = (typeof UNIFORMS)[number];
@@ -231,6 +235,7 @@ export class Renderer {
     gl.uniform2f(u.uCanvas, p.canvas[0], p.canvas[1]);
     gl.uniform2f(u.uBox, p.box[0], p.box[1]);
     gl.uniform1f(u.uUnit, p.unit);
+    gl.uniform1f(u.uGlyphSize, p.glyphSize);
     gl.uniform1f(u.uDpr, p.dpr);
     gl.uniform1i(u.uProfile, p.profile);
     gl.uniform1f(u.uBevel, p.bevel);
@@ -246,6 +251,8 @@ export class Renderer {
     gl.uniform1f(u.uContrast, p.contrast);
     gl.uniform3f(u.uTint, p.tint[0], p.tint[1], p.tint[2]);
     gl.uniform1f(u.uTintAuto, p.tintAuto);
+    gl.uniform3f(u.uLegibilityColor, p.legibilityColor[0], p.legibilityColor[1], p.legibilityColor[2]);
+    gl.uniform1f(u.uLegibilityAmount, p.legibilityAmount);
     gl.uniform1f(u.uTintOpacity, p.tintOpacity);
     gl.uniform1f(u.uDim, p.dim);
     gl.uniform1f(u.uOpacity, p.opacity);

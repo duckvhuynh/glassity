@@ -4,6 +4,9 @@ import { planRaster, rasterAlpha, serializeIcon, type RasterPlan } from './core/
 import { Renderer, type BackTexture, type FieldTexture } from './gl/renderer';
 import { readAttributes, resolveOptions, type GlassOptions, type ResolvedOptions } from './options';
 import { pageColor } from './snapshot';
+import { approachAmount, glyphSize, legibilityTarget, stableAmount, type LegibilityHistory, type RGB, type RGBA } from './core/legibility';
+import { BackdropSampler } from './backdrop-sample';
+import { StyleWatch } from './style-watch';
 import { ensureStyles, HIDDEN, OWN } from './dom';
 
 /** Control over one glass icon. */
@@ -112,6 +115,17 @@ class Instance implements GlassHandle {
   private request = 0;
   private sizeTimer = 0;
   private mutationQueued = false;
+  styleDirty = true;
+  private surroundingsDirty = true;
+  private currentColor: RGBA = [0, 0, 0, 1];
+  private legibilityColor: RGB = [0, 0, 0];
+  private legibilityColorGoal: RGB = [0, 0, 0];
+  private legibilityHistory: LegibilityHistory | null = null;
+  private legibilityMoving = false;
+  private legibilityAmount = 0;
+  private legibilityGoal: number | null = null;
+  private legibilitySample = '';
+
 
   private left = 0;
   private top = 0;
@@ -230,6 +244,8 @@ class Instance implements GlassHandle {
 
   /** Resolve options from every layer and react to what changed. */
   configure(): void {
+    this.styleDirty = true;
+    this.legibilitySample = '';
     const before = this.r;
     this.r = resolveOptions(this.scope?.options, readAttributes(this.element) ?? undefined, this.own);
     const r = this.r;
@@ -255,7 +271,7 @@ class Instance implements GlassHandle {
 
   private bindBackdrop(): void {
     const source = this.r.backdrop;
-    if (this.backdrop && source === this.backdropSource && source !== 'auto') return;
+    if (this.backdrop && source === this.backdropSource && source !== 'auto' && source !== 'none') return;
     const next = this.inert ? null : this.engine.backdropFor(this.element, source, this.scope);
     if (next === this.backdrop) return;
     if (next) next.refs++;
@@ -263,6 +279,24 @@ class Instance implements GlassHandle {
     this.backdrop = next;
     this.backdropSource = source;
     this.drawnVersion = -1;
+  }
+
+  styleChanged(surroundings: boolean): void {
+    this.styleDirty = true;
+    this.surroundingsDirty ||= surroundings;
+  }
+
+  /** Read event-invalidated colour and surroundings before the frame writes. */
+  syncStyle(): boolean {
+    this.styleDirty = false;
+    if (this.r.tint === 'currentColor' || (this.r.tint === 'auto' && this.r.legibility === 'auto'))
+      this.currentColor = this.engine.color(getComputedStyle(this.element).color);
+    const surroundings = this.surroundingsDirty;
+    if (surroundings) this.bindBackdrop();
+    this.surroundingsDirty = false;
+    this.legibilitySample = '';
+    this.dirty = true;
+    return surroundings;
   }
 
   private readonly onPress = (event: Event) => {
@@ -389,6 +423,7 @@ class Instance implements GlassHandle {
 
   /** The SVG's box changed size. */
   resized(): void {
+    this.styleChanged(true);
     clearTimeout(this.sizeTimer);
     this.sizeTimer = window.setTimeout(() => void this.prepare(), 60);
   }
@@ -495,8 +530,37 @@ class Instance implements GlassHandle {
 
     const { reducedTransparency, moreContrast } = this.system;
     const tintAuto = r.tint === 'auto';
-    const tint = tintAuto ? ([1, 1, 1, 1] as const) : engine.color(r.tint);
+    const tint = tintAuto ? ([1, 1, 1, 1] as const) : r.tint === 'currentColor' ? this.currentColor : engine.color(r.tint);
     const glyphScale = 1 - 2 * r.padding;
+    const effectiveSize = glyphSize(plan.unit, r.padding);
+    if (tintAuto && r.legibility === 'auto' && effectiveSize < 38) {
+      const sampleKey = relation + '|' + this.backdrop.version + '|' + backTexture.neutral + '|' + effectiveSize;
+      if (sampleKey !== this.legibilitySample) {
+        const ambient = engine.sampler.sample(this.backdrop, back, rect, backTexture.neutral);
+        const target = legibilityTarget(effectiveSize, ambient, this.currentColor, this.legibilityHistory);
+        this.legibilityHistory = target.history;
+        this.legibilityColorGoal = target.color;
+        this.legibilityGoal = stableAmount(this.legibilityGoal, target.amount);
+        this.legibilitySample = sampleKey;
+        if (!this.revealed) {
+          this.legibilityAmount = this.legibilityGoal;
+          this.legibilityColor = this.legibilityColorGoal;
+        }
+      }
+      this.legibilityAmount = approachAmount(this.legibilityAmount, this.legibilityGoal ?? 0, dt);
+      this.legibilityColor = [
+        approachAmount(this.legibilityColor[0], this.legibilityColorGoal[0], dt),
+        approachAmount(this.legibilityColor[1], this.legibilityColorGoal[1], dt),
+        approachAmount(this.legibilityColor[2], this.legibilityColorGoal[2], dt),
+      ];
+      this.legibilityMoving = this.legibilityAmount !== this.legibilityGoal || this.legibilityColor.some((value, i) => value !== this.legibilityColorGoal[i]);
+      if (this.legibilityMoving) animating = true;
+    } else {
+      this.legibilityAmount = 0;
+      this.legibilityGoal = null;
+      this.legibilityHistory = null;
+      this.legibilityMoving = false;
+    }
     const fieldB = engine.fieldTexture(geometry);
     const light = this.light;
     const length = Math.hypot(light[0], light[1]) || 1;
@@ -511,6 +575,7 @@ class Instance implements GlassHandle {
       canvas: [plan.cssW, plan.cssH],
       box: [plan.boxW, plan.boxH],
       unit: plan.unit,
+      glyphSize: effectiveSize,
       dpr,
       profile: PROFILES[r.profile],
       bevel: r.bevel * plan.unit * (r.tile ? glyphScale : 1),
@@ -526,6 +591,8 @@ class Instance implements GlassHandle {
       contrast: r.contrast,
       tint: [tint[0], tint[1], tint[2]],
       tintAuto: tintAuto ? 1 : 0,
+      legibilityColor: this.legibilityColor,
+      legibilityAmount: this.legibilityAmount,
       tintOpacity: (reducedTransparency ? Math.max(r.tintOpacity, 0.5) : r.tintOpacity) * tint[3],
       dim: r.dim === 'auto' ? -1 : r.dim,
       opacity: r.opacity,
@@ -548,7 +615,7 @@ class Instance implements GlassHandle {
     });
     if (!ok) return animating;
 
-    this.dirty = false;
+    this.dirty = this.legibilityMoving;
     this.relation = relation;
     this.drawnVersion = this.backdrop.version;
     this.canvas.style.visibility = 'visible';
@@ -653,6 +720,11 @@ export class Engine {
   private neutral: { backdrop: ColorBackdrop; texture: BackTexture | null } | null = null;
   private colors = new Map<string, readonly [number, number, number, number]>();
   private colorCtx: CanvasRenderingContext2D | null = null;
+  readonly sampler = new BackdropSampler();
+  private readonly styles = new StyleWatch((icon, surroundings) => {
+    this.instances.get(icon as SVGSVGElement)?.styleChanged(surroundings);
+    this.requestFrame();
+  });
   private raf = 0;
   private last = 0;
   /** Frames left to keep following something that is moving without an event. */
@@ -772,11 +844,13 @@ export class Engine {
   };
 
   observe(svg: SVGSVGElement): void {
+    this.styles.observe(svg);
     this.intersection?.observe(svg);
     this.resize?.observe(svg);
   }
 
   unobserve(svg: SVGSVGElement): void {
+    this.styles.unobserve(svg);
     this.intersection?.unobserve(svg);
     this.resize?.unobserve(svg);
   }
@@ -806,8 +880,13 @@ export class Engine {
     const rects = new Map<Backdrop, Rect>();
     let live = false;
     let moved = false;
+    const refresh = new Set<Backdrop>();
     for (const instance of this.instances.values()) {
       if (!instance.onscreen || instance.inert) continue;
+      this.styles.observe(instance.element);
+      if (instance.styleDirty) {
+        if (instance.syncStyle() && instance.backdrop) refresh.add(instance.backdrop);
+      }
       const rect = instance.element.getBoundingClientRect();
       const was = instance.rect;
       if (was && (Math.abs(was.left - rect.left) > 0.2 || Math.abs(was.top - rect.top) > 0.2 || Math.abs(was.width - rect.width) > 0.2)) moved = true;
@@ -821,6 +900,8 @@ export class Engine {
       }
       active.push(instance);
     }
+
+    for (const backdrop of refresh) backdrop.refresh();
 
     let again = live;
     for (const instance of active) {

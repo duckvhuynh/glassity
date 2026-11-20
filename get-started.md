@@ -241,12 +241,12 @@ To make a whole icon set glass without touching every icon, give the provider a 
 
 If the person did not say which icons, choose icons that will look like glass, using these two rules:
 
-- **Size: 40 px or more.** Smaller icons have little room for the bevel and the bending, and lose contrast. (Under about 28 px glassity turns icons dark on light pages so they stay readable, but they look less like glass.)
+- **Size: 40 px or more for a pronounced glass effect.** Smaller icons have less room for the bevel and the bending. Under about 28 px, automatic legibility keeps them near-black on light neutral surfaces and blends toward their CSS colour on dark or saturated surfaces.
 - **Something behind them: a photo, a gradient, a colourful section.** Glass shows what is behind it, so over plain white or plain black it has little to show.
 
 Good first choices: feature or category icons in a hero, a dock or toolbar over a colourful background, icons on cards with an image. Five to ten icons is a good start.
 
-**Leave small icons on a plain light bar alone** (a white header with 20 to 32 px icons, for example) unless the person asks for them. They turn into pale grey glass with less contrast than before. If the person wants them anyway, give them `tile: true` (a glass plate with a solid white mark) or make them bigger, and say so in the report.
+Small toolbar and tab icons can use the defaults without wrappers or backdrop declarations. Small icons on dark and saturated surfaces now look different: glassity uses their CSS `color` to keep contrast and respects its alpha, so dimmed icons stay dimmer. The size is measured after padding; a 48 px tile with default padding has a glyph of about 27 px. Check readability in both active and inactive states.
 
 ## 5. Pick a look
 
@@ -264,6 +264,8 @@ Where options go, by setup:
 | `glassProvider` mixin (Remix 3) | `glassProvider({ weight: 0.03 })` |
 | Script tag | `glassity.controller.update({ weight: 0.03 })` after the script, or `data-glass-*` attributes |
 | One icon | `data-glass-weight="0.03"` (any option, kebab-case) |
+
+Keep `tint: 'auto'` and `legibility: 'auto'` (the defaults) for automatic small-icon contrast. `legibility: 'off'` disables the new dark/saturated backdrop correction; the corrected glyph sizing after padding still applies, including on tiles. To follow the icon's computed CSS colour explicitly at any size, use `{ tint: 'currentColor', tintOpacity: 0.55 }`. Colour changes from classes, state or themes are picked up automatically. Explicit tints, including `currentColor`, bypass automatic legibility. These also work as `data-glass-legibility="off"` and `data-glass-tint="currentColor"`.
 
 These presets are the same as in the playground:
 
@@ -293,14 +295,14 @@ await page.evaluate(() => document.querySelectorAll('canvas[data-glassity-canvas
 Each glass icon gets a `<canvas data-glassity-canvas>` right after its `<svg>`, and the `<svg>` gets `data-glassity-hidden` (it stays in the page, invisible).
 
 - With a headless browser (Playwright, Puppeteer), launch Chromium with `--enable-unsafe-swiftshader --ignore-gpu-blocklist`. Without a GPU it otherwise has no WebGL2, finds no glass, and the check fails although the setup is right. Console warnings like "GPU stall due to ReadPixels" come from that software renderer and are harmless.
-- Look at the result too, in a screenshot if you can. The icons now show the page through them, so **their CSS `color` no longer shows**: white icons become clear glass. That is expected; tell the person. For whiter or coloured glass use `tint` with `tintOpacity` (for example `{ tint: '#ffffff', tintOpacity: 0.4 }`), or `tile: true` for a solid white mark on a glass plate.
+- Look at the result too, in a screenshot if you can. Check small icons on white, dark and saturated surfaces, including an active tab or button. Small automatic icons use near-black ink on light neutral surfaces and their CSS `color` on other surfaces; larger icons remain more transparent. To follow CSS colour at any size, use `{ tint: 'currentColor', tintOpacity: 0.55 }`, or choose an explicit tint such as `{ tint: '#ffffff', tintOpacity: 0.4 }`.
 - If you cannot open a browser at all, make sure the build passes and ask the person to look at the page.
 
 | Symptom | Cause and fix |
 |---|---|
 | No canvas at all | The setup code did not run in the browser, or no element has `data-glass`. Check that the import is in client code. In Next.js it must be in a `'use client'` file. |
 | `data-glass` missing on the `<svg>` | The icon component dropped the prop (lucide-react in a Server Component). Use a client component or a provider `selector`. |
-| Icon looks flat or invisible | Nothing interesting behind it. Put it over a gradient or photo, or use `tile: true`. |
+| Icon looks flat or invisible | For small icons, check that their CSS `color` contrasts with the surface and `legibility` is `auto`. For larger glass, put detail behind it with a gradient or photo, or use `tile: true`. |
 | Glass is very frosty and tinted | The system asks for reduced transparency (on Windows: Transparency effects off). That is on purpose. `accessibility: false` turns it off, for testing only. |
 | Plain icon, no glass | The browser has no WebGL2 (`isSupported()` from `glassity` returns false). The plain icon is the fallback. |
 | Icon content missing | A `<use href>` sprite from another origin without CORS. Same-origin sprites work. |
@@ -323,6 +325,6 @@ Tell the person, in a few lines:
 
 - which files you changed (including a saved skill file) and which icons are now glass, and which ones you left alone and why;
 - how to tune the look: open https://duckvhuynh.github.io/glassity/, adjust, and press "Copy link" or copy the code shown there;
-- that the icons' CSS colour no longer shows (step 6), and how to change it;
+- how small icons adapt to the surface and CSS colour (step 6), and how to use `tint: 'currentColor'` or opt out with `legibility: 'off'`;
 - how to turn it off for one icon: `data-glass="off"`; and everywhere: remove the setup code from step 3 (leftover `data-glass` attributes do no harm);
 - what is not committed. Do not commit unless the person asked you to.

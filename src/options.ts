@@ -57,8 +57,10 @@ export interface GlassOptions {
   brightness?: number;
   /** Contrast of what is seen through the glass. Default `0.9`. */
   contrast?: number;
-  /** Glass body colour, any CSS colour. `auto` is white; icons under about 28 px turn near-black on a light page. Default `auto`. */
+  /** Glass body colour, any CSS colour or currentColor. Auto adapts small icons to their backdrop. Default auto. */
   tint?: string;
+  /** Help small automatic-tint glyphs contrast with dark or saturated backdrops. Default auto. */
+  legibility?: 'auto' | 'off';
   /** How much of the tint is mixed in, 0–1. Default `0.14` (`0.04` for clear). */
   tintOpacity?: number;
   /** Darkening under the glass, 0–1. `auto` darkens up to 35%, only over bright and busy backdrops (photos), never a plain light page. Default `0` (`auto` for clear). */
@@ -122,6 +124,7 @@ export interface ResolvedOptions {
   brightness: number;
   contrast: number;
   tint: string;
+  legibility: 'auto' | 'off';
   tintOpacity: number;
   dim: number | 'auto';
   opacity: number;
@@ -161,6 +164,7 @@ const BASE: ResolvedOptions = {
   brightness: 1,
   contrast: 0.9,
   tint: 'auto',
+  legibility: 'auto',
   tintOpacity: 0.14,
   dim: 0,
   opacity: 1,
@@ -212,6 +216,7 @@ export function resolveOptions(...layers: (GlassOptions | undefined | null)[]): 
 
   o.profile = o.profile === 'circle' || o.profile === 'lip' || o.profile === 'dome' ? o.profile : 'squircle';
   o.scheme = o.scheme === 'light' || o.scheme === 'dark' ? o.scheme : 'auto';
+  o.legibility = o.legibility === 'off' ? 'off' : 'auto';
   o.tileRadius = clamp(num(o.tileRadius, d.tileRadius as number) || 0, 0, 0.5);
   o.glyphOpacity = clamp(num(o.glyphOpacity, d.glyphOpacity as number), 0, 1);
   o.padding = clamp(num(o.padding, d.padding as number) || 0, 0, 0.45);

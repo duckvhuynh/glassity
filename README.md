@@ -47,11 +47,11 @@ The original `<svg>` stays in the page, so screen readers, focus and clicks see 
 
 <img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/looks.webp" alt="One camera icon in six looks: default, clear, frosted, crystal, on a round glass button, and on a glass tile." width="100%">
 
-Each look above is a handful of options on the same icon. Thin strokes turn into round tubes, wide shapes get a flat top and a bevelled rim, and `tile` puts the icon on a plate (`tileRadius: 0.5` makes it round). `weight` makes any icon bolder, stroked or filled. There are 36 options, all with defaults.
+Each look above is a handful of options on the same icon. Thin strokes turn into round tubes, wide shapes get a flat top and a bevelled rim, and `tile` puts the icon on a plate (`tileRadius: 0.5` makes it round). `weight` makes any icon bolder, stroked or filled. There are 37 options, all with defaults.
 
 <img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/backdrops.webp" alt="Glass icons over leaves, silk, an ocean, an aurora, light streaks and a page of plain HTML text." width="100%">
 
-It refracts whatever sits behind it: a photo, a CSS gradient, a canvas, or ordinary HTML text, which it photographs and looks through. On a white page it stays light, the way Apple's glass does, and is drawn by its own shadow seen through the edge and a thin contour. Only small icons, under about 28 px, turn dark there to stay readable.
+It refracts whatever sits behind it: a photo, a CSS gradient, a canvas, or ordinary HTML text, which it photographs and looks through. On a white page it stays light, the way Apple's glass does, and is drawn by its own shadow seen through the edge and a thin contour. Small icons, under about 28 px, turn dark there to stay readable. On dark or saturated surfaces they blend toward their own CSS colour by default, keeping dimmed colours dimmer.
 
 ### Where it fits
 
@@ -285,8 +285,9 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `saturation` | `1.35` | Saturation of what is seen through the glass |
 | `brightness` | `1` | Brightness of what is seen through the glass |
 | `contrast` | `0.9` | Contrast of what is seen through the glass |
-| `tint` | `'auto'` | Glass colour. `auto` is white; icons under about 28 px turn near-black on a light page |
+| `tint` | `'auto'` | Glass colour: any CSS colour, `currentColor` (the icon's computed `color`), or `auto`. Small automatic icons turn near-black on light neutral surfaces and blend toward their CSS colour on dark or saturated surfaces |
 | `tintOpacity` | `0.14` (`0.04` clear) | How much tint is mixed in |
+| `legibility` | `'auto'` | Help small glyphs read on dark or saturated backdrops when `tint` is `auto`. `off` disables this contrast correction; explicit tints are unchanged |
 | `dim` | `0` (`'auto'` clear) | Darkening under the glass. `auto`: up to 35%, only over bright, busy backdrops such as photos; none on a plain light page |
 | `opacity` | `1` | Overall opacity |
 | `shine` | `1` | Specular highlight |
@@ -302,6 +303,15 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `accessibility` | `true` | Follow the system's accessibility settings (see below). Forced colours always apply |
 | `backdrop` | `'auto'` | What the glass refracts (see below) |
 | `maxDpr` | `2` | Upper limit for the device pixel ratio |
+
+Small icons on dark and saturated surfaces now look different by default. The adjustment follows the sampled backdrop and the icon's CSS `color`, including its alpha, with smooth size and contrast ramps. If the CSS colour itself has too little contrast, automatic mode shifts it toward contrasting light or dark ink. Class, state and theme changes are picked up automatically. Size means the glyph after padding: a 48 px tile with the default padding has a glyph of about 27 px.
+
+```ts
+glassify(svg, { tint: 'currentColor', tintOpacity: 0.55 }); // follow CSS colour explicitly
+glassify(svg, { legibility: 'off' }); // disable the dark/saturated backdrop correction
+```
+
+The same options work on providers and as `data-glass-tint="currentColor"` or `data-glass-legibility="off"`. An explicit tint, including `currentColor`, keeps your chosen `tintOpacity` and bypasses automatic legibility. The corrected glyph sizing after padding still applies with `legibility: 'off'`, so padded tiles can differ from earlier releases.
 
 ## What the glass refracts
 
