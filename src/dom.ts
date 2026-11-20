@@ -56,7 +56,7 @@ export function findSvg(target: Element): SVGSVGElement | null {
 }
 
 /**
- * Run `callback` once the page has loaded and the browser is idle. Server-rendered
+ * Run `callback` after DOM readiness and a bounded idle wait. Server-rendered
  * pages hydrate (React, Vue, Svelte) by walking the DOM the server sent and expect
  * it untouched until they finish; changing it earlier makes them throw away the
  * tree and render it again.
@@ -68,7 +68,7 @@ export function whenSettled(callback: () => void): () => void {
   const cancelIdle = (globalThis as { cancelIdleCallback?: (handle: number) => void }).cancelIdleCallback;
   const run = () => {
     if (cancelled) return;
-    if (idleCallback) idle = idleCallback(() => !cancelled && callback(), { timeout: 400 });
+    if (idleCallback) idle = idleCallback(() => !cancelled && callback(), { timeout: 100 });
     // Safari has no requestIdleCallback: give frameworks two frames and a moment more.
     else
       requestAnimationFrame(() =>
@@ -78,11 +78,11 @@ export function whenSettled(callback: () => void): () => void {
       );
   };
   const onLoad = () => run();
-  if (document.readyState === 'complete') run();
-  else window.addEventListener('load', onLoad, { once: true });
+  if (document.readyState !== 'loading') run();
+  else document.addEventListener('DOMContentLoaded', onLoad, { once: true });
   return () => {
     cancelled = true;
-    window.removeEventListener('load', onLoad);
+    document.removeEventListener('DOMContentLoaded', onLoad);
     if (idle) {
       if (idleCallback && cancelIdle) cancelIdle(idle);
       else clearTimeout(idle);

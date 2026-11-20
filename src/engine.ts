@@ -1,5 +1,7 @@
 import { Backdrop, ColorBackdrop, MediaBackdrop, nearestSurface, SnapshotBackdrop, UrlBackdrop, type Rect } from './backdrop';
-import { buildField } from './core/field';
+import { buildFieldAsync } from './core/field-work';
+import { CaptureQueue } from './capture-queue';
+import { captureRegion, intersects } from './capture-region';
 import { planRaster, rasterAlpha, serializeIcon, type RasterPlan } from './core/raster';
 import { Renderer, type BackTexture, type FieldTexture } from './gl/renderer';
 import { readAttributes, resolveOptions, type GlassOptions, type ResolvedOptions } from './options';
@@ -284,14 +286,19 @@ class Instance implements GlassHandle {
 
   private bindBackdrop(): void {
     const source = this.r.backdrop;
-    if (this.backdrop && source === this.backdropSource && source !== 'auto' && source !== 'none') return;
+    if (this.backdrop && source === this.backdropSource && source !== 'auto' && source !== 'none' && !(this.backdrop instanceof SnapshotBackdrop)) return;
     const next = this.inert ? null : this.engine.backdropFor(this.element, source, this.scope);
     if (next === this.backdrop) return;
+    if (next instanceof SnapshotBackdrop && this.backdrop instanceof SnapshotBackdrop) next.keepLast(this.backdrop);
     if (next) next.refs++;
     this.engine.releaseBackdrop(this.backdrop);
     this.backdrop = next;
     this.backdropSource = source;
     this.drawnVersion = -1;
+  }
+
+  syncRegion(rect: DOMRect): void {
+    if (this.backdrop instanceof SnapshotBackdrop && this.backdrop.needsRegion(rect)) this.bindBackdrop();
   }
 
   styleChanged(surroundings: boolean): void {
@@ -736,6 +743,7 @@ class PlainHandle implements GlassHandle {
 /** One per page: owns the WebGL context, the caches and the frame loop. */
 export class Engine {
   readonly scopes = new ScopeRegistry();
+  readonly captures = new CaptureQueue();
   renderer: Renderer | null;
   readonly media = { reducedMotion: false, reducedTransparency: false, moreContrast: false, forcedColors: false };
   private instances = new Map<SVGSVGElement, Instance>();
@@ -745,6 +753,7 @@ export class Engine {
   private backdropHomes = new WeakMap<Backdrop, { owner: object; key: string }>();
   private backStates = new WeakMap<Backdrop, BackState>();
   private neutral: { backdrop: ColorBackdrop; texture: BackTexture | null } | null = null;
+  private drawCursor = 0;
   private colors = new Map<string, readonly [number, number, number, number]>();
   private colorCtx: CanvasRenderingContext2D | null = null;
   readonly sampler = new BackdropSampler();
@@ -767,7 +776,7 @@ export class Engine {
     this.renderer = Renderer.create();
     if (this.renderer) {
       this.renderer.onstatechange = () => {
-        if (this.renderer?.state === 'ready') return;
+        if (this.renderer?.state === 'ready') { this.invalidate(); return; }
         cancelAnimationFrame(this.raf);
         this.raf = 0;
         clearTimeout(this.watch);
@@ -945,6 +954,7 @@ export class Engine {
       if (was && (Math.abs(was.left - rect.left) > 0.2 || Math.abs(was.top - rect.top) > 0.2 || Math.abs(was.width - rect.width) > 0.2)) moved = true;
       instance.rect = rect;
       instance.canvasRect = instance.canvas.getBoundingClientRect();
+      instance.syncRegion(rect);
       const backdrop = instance.backdrop;
       if (backdrop && !rects.has(backdrop)) {
         backdrop.tick();
@@ -957,7 +967,11 @@ export class Engine {
     for (const backdrop of refresh) backdrop.refresh();
 
     let again = live;
-    for (const instance of active) {
+    const drawingStarted = performance.now();
+    const first = this.drawCursor % Math.max(1, active.length);
+    for (let drawn = 0; drawn < active.length; drawn++) {
+      const index = (first + drawn) % active.length;
+      const instance = active[index];
       const back = instance.backdrop ? rects.get(instance.backdrop) ?? null : null;
       try {
         again = instance.step(now, dt, back) || again;
@@ -966,6 +980,11 @@ export class Engine {
         return;
       }
       if (!this.renderer.ready) return;
+      this.drawCursor = index + 1;
+      if (drawn + 1 < active.length && performance.now() - drawingStarted >= 6) {
+        again = true;
+        break;
+      }
     }
     // Layout can move an icon without any event (a sibling grows, a CSS transition
     // runs). Once movement is seen it is followed every frame for a moment; when
@@ -1057,13 +1076,13 @@ export class Engine {
   async acquireGeometry(key: string, source: string, plan: RasterPlan, padding: number): Promise<Geometry> {
     let entry = this.geometries.get(key);
     if (!entry) {
-      const pending = rasterAlpha(source, plan, padding).then((alpha) => {
+      const pending = rasterAlpha(source, plan, padding).then(async (alpha) => {
         let opaque = false;
         for (let i = 0; i < alpha.length && !opaque; i++) opaque = alpha[i] > 127;
         return {
           key,
           plan,
-          data: buildField(alpha, plan.gw, plan.gh, plan.unit * plan.scale),
+          data: await buildFieldAsync(alpha, plan.gw, plan.gh, plan.unit * plan.scale),
           empty: !opaque,
           refs: 0,
           texture: null,
@@ -1122,8 +1141,14 @@ export class Engine {
   /** Decide what an icon refracts. See `BackdropSource`. */
   backdropFor(svg: SVGSVGElement, source: ResolvedOptions['backdrop'], scope: Scope | null): Backdrop {
     const maxSize = Math.min(this.renderer?.maxTextureSize ?? 2048, 2560);
-    const snap = (el: Element, mode: 'background' | 'dom') =>
-      this.cachedBackdrop(el, mode, () => new SnapshotBackdrop(el, { mode, maxSize, isOwn: this.isOwn }));
+    const snap = (el: Element, mode: 'background' | 'dom') => {
+      const box = svg.getBoundingClientRect();
+      const region = mode === 'dom' ? captureRegion({ x: box.left + scrollX, y: box.top + scrollY, w: box.width, h: box.height }, maxSize, devicePixelRatio) : undefined;
+      return this.cachedBackdrop(el, mode + (region ? ':' + region.key : ''), () => new SnapshotBackdrop(el, {
+        mode, maxSize, region, queue: this.captures, isOwn: this.isOwn,
+        priority: () => !region || intersects(region, { x: scrollX, y: scrollY, w: innerWidth, h: innerHeight }) ? 1 : 0,
+      }));
+    };
     const container = scope?.root ?? null;
 
     if (source === 'none') {

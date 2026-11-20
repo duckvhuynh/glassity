@@ -288,7 +288,7 @@ If the person sends a playground link, its settings are in the part after `#`: e
 
 ## 6. Check that it works
 
-Start the dev server (in the background; stop it when you are done, and kill the process if the port stays taken) and open the page. glassity starts after the page has loaded and gone idle, so wait for the first glass canvas instead of checking at once:
+Start the dev server (in the background; stop it when you are done, and kill the process if the port stays taken) and open the page. glassity starts after DOM readiness and a bounded idle wait, then mounts icons in small batches while respecting deferred hydration. Wait for the first glass canvas instead of checking at once:
 
 ```js
 // Playwright
