@@ -47,7 +47,7 @@ The original `<svg>` stays in the page, so screen readers, focus and clicks see 
 
 <img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/looks.webp" alt="One camera icon in six looks: default, clear, frosted, crystal, on a round glass button, and on a glass tile." width="100%">
 
-Each look above is a handful of options on the same icon. Thin strokes turn into round tubes, wide shapes get a flat top and a bevelled rim, and `tile` puts the icon on a plate (`tileRadius: 0.5` makes it round). `weight` makes any icon bolder, stroked or filled. There are 36 options, all with defaults.
+Each look above is a handful of options on the same icon. Thin strokes turn into round tubes, wide shapes get a flat top and a bevelled rim, and `tile` puts the icon on a plate (`tileRadius: 0.5` makes it round). `weight` makes any icon bolder, stroked or filled. Every option has a default.
 
 <img src="https://raw.githubusercontent.com/duckvhuynh/glassity/main/docs/media/backdrops.webp" alt="Glass icons over leaves, silk, an ocean, an aurora, light streaks and a page of plain HTML text." width="100%">
 
@@ -116,7 +116,15 @@ Turn a whole icon set into glass without touching each icon:
 </GlassProvider>
 ```
 
-Providers nest. The inner one inherits the outer options and overrides them.
+Providers nest. The inner one inherits the outer options and overrides them. The default wrapper uses `display: contents`, including when only `className` is supplied; pass `style` to give it a layout.
+
+For page-wide discovery, including icons in portals, use `scope="document"`. It renders only context and children, with no wrapper element. Multiple document providers share one controller, which stays active until the last one unmounts. Their selectors are combined; when options conflict, the last-mounted document provider wins. Removing it restores the remaining providers’ values.
+
+```tsx
+<GlassProvider scope="document" look="frosted">
+  <App />
+</GlassProvider>
+```
 
 Give one icon its own options with `<Glass>`. Swap its child and the glass morphs from one shape to the other.
 
@@ -128,11 +136,11 @@ import { Glass } from 'glassity/react';
 </Glass>
 ```
 
-Already have a ref to an `<svg>`? Use the hook.
+Already have a ref to an `<svg>`? Use the hook. If a render points the ref at another element, the glass follows it.
 
 ```tsx
 const ref = useRef<SVGSVGElement>(null);
-useGlass(ref, { variant: 'clear' });
+useGlass(ref, { look: 'clear' });
 ```
 
 ### Vue
@@ -258,7 +266,28 @@ one.destroy();
 | `data-glass` | Make this icon glass with the shared options |
 | `data-glass="clear"` | Pick a variant (`regular`, `clear`, `identity`) |
 | `data-glass="off"` | Leave this icon alone |
+| `data-glass-look="frosted"` | Pick a named look |
 | `data-glass-depth="0.3"`, `data-glass-tile`, … | Any option below, in kebab-case |
+
+### Named looks and page defaults
+
+Pick a recipe with `look`: `default`, `clear`, `frosted`, `crystal`, `tinted`, or `bold`. Explicit options override the recipe. Changing `look` removes values supplied by the previous recipe; options you set explicitly keep their values.
+
+```ts
+import { auto, configure, looks, type GlassLook } from 'glassity';
+
+configure({ look: 'frosted', duration: 300 }); // existing and future icons
+const look: GlassLook = 'crystal';
+const icons = auto({ look, shine: 1.2 });
+icons.update({ look: 'clear' });             // no leftover crystal depth or dispersion
+configure({});                             // reset page defaults
+
+console.log(looks.crystal);                 // readonly recipe, shared with the playground
+```
+
+`configure(options)` replaces the page defaults; it does not start discovery. Use it alongside `auto()`, `glassity/auto`, or a framework provider. Importing glassity remains safe during server rendering.
+
+Explicit options apply in this order: page defaults from `configure()`, outer scope, inner scope, element attributes, then an icon's own options. Nested `auto({ root })` scopes inherit by DOM ancestry, and changing an outer scope updates its descendants. The selected look is a recipe beneath all these explicit options, so even an outer scope's explicit `depth` overrides a look's depth.
 
 ## Options
 
@@ -266,6 +295,7 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 
 | Option | Default | What it does |
 |---|---|---|
+| `look` | `'default'` | Named recipe: `default`, `clear`, `frosted`, `crystal`, `tinted`, or `bold`. Explicit options override it |
 | `variant` | `'regular'` | `regular` keeps content legible; `clear` is see-through; `identity` leaves the SVG untouched |
 | `profile` | `'squircle'` | Cross-section of the edge: `squircle`, `circle`, `lip`, or `dome`, a ball of glass that magnifies and, with `depth` from about 0.3, shows the page upside down. Best on a round tile |
 | `tile` | `false` | Put the icon on a rounded glass plate that fills the SVG's box |

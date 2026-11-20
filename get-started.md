@@ -64,7 +64,7 @@ export default function App() {
 }
 ```
 
-`GlassProvider` renders a `<div style="display: contents">`, so it does not change the layout; replacing a fragment `<>…</>` with it is fine.
+`GlassProvider` renders a `<div style="display: contents">`, including when only `className` is supplied, so it does not change the layout. For no wrapper at all and discovery across the whole document, including portals, use `<GlassProvider scope="document">`. Multiple document providers share discovery until the last one unmounts. Their selectors are combined; when options conflict, the last-mounted document provider wins. Removing it restores the remaining providers’ values.
 
 Preact uses the same `glassity/react` through `preact/compat` (the Preact Vite preset aliases it).
 
@@ -256,7 +256,7 @@ Where options go, by setup:
 
 | How you turned it on in step 3 | Example with `weight: 0.03` |
 |---|---|
-| `import 'glassity/auto'` (Vue, Svelte, Next.js, Nuxt, SvelteKit, Astro, React Router, plain JS) | `glassity/auto` takes no options. Replace the import with `import { auto } from 'glassity'; auto({ weight: 0.03 });` in the same file, or put `data-glass-weight="0.03"` on the icons |
+| `import 'glassity/auto'` (Vue, Svelte, Next.js, Nuxt, SvelteKit, Astro, React Router, plain JS) | Keep the import and add `import { configure } from 'glassity'; configure({ weight: 0.03 });` in the same file, or put `data-glass-weight="0.03"` on the icons |
 | `GlassProvider` from `glassity/react` (React, Preact) | `<GlassProvider weight={0.03}>` (options are props) |
 | `GlassProvider` from `glassity/vue` | `<GlassProvider weight="0.03">` or `:options="{ weight: 0.03 }"` |
 | `use:glassProvider` (Svelte, Solid) | `use:glassProvider={{ weight: 0.03 }}` |
@@ -265,18 +265,21 @@ Where options go, by setup:
 | Script tag | `glassity.controller.update({ weight: 0.03 })` after the script, or `data-glass-*` attributes |
 | One icon | `data-glass-weight="0.03"` (any option, kebab-case) |
 
-These presets are the same as in the playground:
+Named looks use the library's recipes, also used by the playground. Set `look` as a provider option or `data-glass-look="frosted"` on one icon:
 
 | Look | Options |
 |---|---|
-| Default | `{}` |
-| Clear | `{ variant: 'clear' }` |
-| Frosted | `{ frost: 0.8, tintOpacity: 0.32, dispersion: 0.1, shine: 0.8 }` |
-| Crystal | `{ variant: 'clear', depth: 0.34, curvature: 1.7, dispersion: 1.3, shine: 1.6 }` |
-| Bold | `{ weight: 0.04, depth: 0.22 }` |
+| Default | `{ look: 'default' }` |
+| Clear | `{ look: 'clear' }` |
+| Frosted | `{ look: 'frosted' }` |
+| Crystal | `{ look: 'crystal' }` |
+| Tinted | `{ look: 'tinted' }` |
+| Bold | `{ look: 'bold' }` |
 | App-icon tiles | `{ tile: true, interactive: true }` |
 | Round buttons | `{ tile: true, tileRadius: 0.5, profile: 'circle', bevel: 0.5, depth: 0.3, weight: 0.02 }` |
 | Glass ball lens | `{ tile: true, tileRadius: 0.5, profile: 'dome', variant: 'clear', depth: 0.6, weight: 0.02 }` |
+
+`configure({ look: 'frosted' })` sets page defaults for existing and future icons; `configure({})` resets them. Each call replaces the page defaults and does not start discovery. Nested providers and `auto({ root })` scopes inherit by DOM ancestry. Explicit options apply in order: page defaults, outer scope, inner scope, icon attributes, then an icon's own options. The selected look's recipe sits below all explicit options; changing looks drops the previous recipe but keeps explicit overrides. `looks` and `type GlassLook` are exported from `glassity` if you need to inspect recipes or type a look picker.
 
 If the person sends a playground link, its settings are in the part after `#`: every key that is an option name (`depth=0.3`, `tile=true`, `variant=clear`, …) is an option to apply. Ignore `bg`, `layout`, `set`, `lib`, `icon`, `size` and `compare`: they only describe the playground.
 

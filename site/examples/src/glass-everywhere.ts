@@ -2,7 +2,7 @@
 // inline <svg data-glass>), including those in menus and sheets React renders in portals.
 // Icons inside a <GlassProvider> keep that provider's own look (round buttons, tiles), unless
 // the playground picks a look or profile for the whole page (see glass-styles.ts).
-import { auto } from 'glassity';
+import { auto, looks } from 'glassity';
 import { LOOKS, PROFILES, isLook, isProfile, type Look, type Profile } from './glass-styles';
 
 const SELECTOR = 'svg.lucide, svg[data-glass]';
@@ -51,7 +51,7 @@ function wanted(svg: SVGSVGElement): Map<string, string> {
   // (near-black for small icons) already reads well, and larger icons keep it everywhere.
   // A look with its own tint wins.
   const { width, height } = svg.getBoundingClientRect();
-  if (!('tint' in chosen) && width && Math.max(width, height) < 28 && !onLightSurface(svg)) {
+  if (!('tint' in looks[look]) && width && Math.max(width, height) < 28 && !onLightSurface(svg)) {
     const [r, g, b, a] = rgba(getComputedStyle(svg).color);
     out.set(kebab('tint'), `rgb(${r}, ${g}, ${b})`);
     // A dimmed icon (text-white/40) stays a little dimmer.

@@ -1,4 +1,4 @@
-import { OPTION_KEYS, optionsKey, type GlassOptions } from './options';
+import { OPTION_KEYS, optionsKey, parseOptionAttribute, type GlassOptions } from './options';
 
 /**
  * Small helpers shared by the framework adapters (Vue, Svelte, Solid). They live
@@ -13,7 +13,7 @@ export function changed(previous: GlassOptions | undefined, next: GlassOptions |
 
 const camel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 
-/** Every option name (from the defaults), for picking options out of a bag of attributes. */
+/** Every option name (from the registry), for picking options out of a bag of attributes. */
 const NAMES = new Set<string>(OPTION_KEYS);
 
 /**
@@ -25,10 +25,7 @@ export function fromAttributes(attrs: Record<string, unknown>): GlassOptions {
   for (const [raw, value] of Object.entries(attrs)) {
     const name = camel(raw);
     if (!NAMES.has(name) || value === undefined) continue;
-    if (value === '' || value === 'true') out[name] = true;
-    else if (value === 'false') out[name] = false;
-    else if (typeof value === 'string' && /^-?(\d+\.?\d*|\.\d+)$/.test(value.trim())) out[name] = parseFloat(value);
-    else out[name] = value;
+    out[name] = parseOptionAttribute(value, false);
   }
   return out as GlassOptions;
 }

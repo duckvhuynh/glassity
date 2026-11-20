@@ -4,6 +4,19 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Added
+- Named looks: `look: 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold'`, also available as `data-glass-look`. The readonly `looks` recipes and `GlassLook` type are exported from `glassity`. Explicit options override a recipe; switching looks does not retain the previous recipe's values.
+- `configure(options)` replaces page defaults for existing and future icons, beneath scopes and per-icon options. `configure({})` resets them.
+
+### Changed
+- One option registry supplies defaults, validation, attribute parsing and adapter option names.
+- Playground presets and real-app example look pickers use the library's named looks.
+
+### Fixed
+- Nested `auto()` scopes inherit options by DOM ancestry and update when an outer scope changes. Surviving controllers resume discovery when another controller on the same root is destroyed.
+- React document providers render no wrapper and share one discovery controller, including icons in portals. A provider with only `className` keeps its neutral layout, and `useGlass` follows a ref whose target changes.
+- Vue notices in-place option mutations. Solid, Angular and Remix restart discovery when the selector changes.
+
 ## [0.3.5] - 2026-11-20
 
 ### Fixed

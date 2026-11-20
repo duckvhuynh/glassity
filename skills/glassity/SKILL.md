@@ -19,7 +19,7 @@ Each glass icon gets a `<canvas data-glassity-canvas>` inserted right after its 
 
 | Import | What it gives |
 |---|---|
-| `glassity` | `glassify(element, options)`, `auto(options)`, `isSupported()`, types |
+| `glassity` | `glassify(element, options)`, `auto(options)`, `configure(options)`, `looks`, `isSupported()`, types including `GlassLook` |
 | `glassity/auto` | Side effect: every `[data-glass]` on the page becomes glass, now and later |
 | `glassity/react` | `GlassProvider`, `Glass`, `useGlass` (also Preact through `preact/compat`) |
 | `glassity/vue` | `GlassProvider`, `vGlass` (directive `v-glass`), `useGlass` |
@@ -32,11 +32,13 @@ Each glass icon gets a `<canvas data-glassity-canvas>` inserted right after its 
 ### Core API
 
 ```ts
-import { glassify, auto, isSupported } from 'glassity';
+import { glassify, auto, configure, looks, isSupported, type GlassLook } from 'glassity';
+
+configure({ look: 'frosted', duration: 300 }); // page defaults, existing and future icons
 
 const one = glassify(svgOrElementContainingSvg, { tile: true });
 one.update({ depth: 0.3 }); // change some options
-one.set({ variant: 'clear' }); // replace all options
+one.set({ look: 'clear' }); // replace own options
 one.retarget(otherSvg);     // move the glass to another SVG; the shape morphs
 one.refresh();              // re-read the icon and the backdrop
 one.destroy();              // remove the glass, show the SVG again
@@ -47,10 +49,15 @@ group.set({});
 group.refresh();
 group.destroy();
 
+configure({}); // reset page defaults; scopes and own options remain
+const selected: GlassLook = 'crystal';
+console.log(looks[selected]); // readonly recipe
 isSupported(); // false without WebGL2
 ```
 
-`auto()` watches the DOM: icons added later become glass, removed ones are cleaned up, `data-glass="off"` opts out. Providers (`auto` scopes) nest; an inner one inherits the outer options and overrides them.
+`auto()` watches the DOM: icons added later become glass, removed ones are cleaned up, `data-glass="off"` opts out. Providers and `auto({ root })` scopes inherit from the nearest enclosing scope by DOM ancestry. Changing an outer scope updates its descendants.
+
+`configure(options)` replaces page defaults beneath every scope and updates existing and future icons. It accepts every glass option, including `look`; `configure({})` resets this layer. It does not start discovery. Importing glassity remains safe during server rendering.
 
 ### React
 
@@ -71,7 +78,7 @@ const ref = useRef<SVGSVGElement>(null);
 useGlass(ref, { variant: 'clear' });
 ```
 
-Options are props. `GlassProvider` also takes `selector`, `as`, `className`, `style`; it renders a wrapper `div` that does not affect layout. The files carry `'use client'`.
+Options are props. `GlassProvider` also takes `selector`, `scope`, `as`, `className`, `style`. Its default wrapper uses `display: contents`, including with `className` alone; `style` can give it a layout. `<GlassProvider scope="document" look="frosted">` renders no wrapper, only context and children, and discovers icons across the document, including portals. Document providers share one controller until the last unmounts. Their selectors are combined; when options conflict, the last-mounted document provider wins. Removing it restores the remaining providers’ values. `useGlass` follows the ref if a render changes its target element. The files carry `'use client'`.
 
 Next.js: `lucide-react` drops `data-*` props inside Server Components. Mark icons in client components, use a provider `selector`, or import `glassity/auto` from a `'use client'` file rendered in the root layout.
 
@@ -154,14 +161,16 @@ Browser-only mixins. Add `glassity` to the asset server's `allowPackages`. For s
 | `data-glass` | Glass with the shared options |
 | `data-glass="clear"` | Pick a variant: `regular`, `clear`, `identity` |
 | `data-glass="off"` | Leave this icon alone |
+| `data-glass-look="crystal"` | Pick a named look |
 | `data-glass-depth="0.3"`, `data-glass-tile`, `data-glass-light-angle="-30"` | Any option, kebab-case; a bare attribute is `true` |
 
 ## Options
 
-All optional. Lengths are fractions of the icon's box, so a look holds at any size. Precedence: provider options, then attributes on the icon, then options passed to `glassify`/`Glass`.
+All optional. Lengths are fractions of the icon's box, so a look holds at any size. Explicit option precedence: `configure()` page defaults, outer scope, inner scope, attributes on the icon, then options passed to `glassify`/`Glass`. Later layers win; `undefined` does not override. The selected look's recipe sits below all explicit options. For example, `configure({ depth: 0.2 })` keeps depth at 0.2 even under an inner `look: 'crystal'`.
 
 | Option | Default | Range | Effect |
 |---|---|---|---|
+| `look` | `'default'` | `default`, `clear`, `frosted`, `crystal`, `tinted`, `bold` | Named recipe below explicit options; changing looks drops the previous recipe |
 | `variant` | `'regular'` | `regular`, `clear`, `identity` | `clear` presets: frost 0, saturation 1.1, contrast 1, tintOpacity 0.04, dim `auto`, dispersion 0.5. `identity` leaves the SVG as is |
 | `profile` | `'squircle'` | `squircle`, `circle`, `lip`, `dome` | Edge cross-section. `dome`: a glass ball traced through both surfaces; magnifies, and from depth about 0.3 shows the page upside down. Best on a round tile |
 | `tile` | `false` | boolean | Rounded glass plate filling the SVG's box; the icon becomes a white glass mark on it |
@@ -211,19 +220,21 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 
 ## Recipes
 
+Use a named `look` instead of copying its recipe. `looks` is a readonly record exported from `glassity`; `GlassLook` is its name type. `look: 'default'` has no recipe overrides. A handle or controller can switch with `.update({ look: 'clear' })` without retaining values from the previous recipe. Explicitly set options remain; use `.set({ look: 'clear' })` to replace them too.
+
 | Look | Options |
 |---|---|
-| Clear Apple-like glass | `{ variant: 'clear' }` |
-| Frosted | `{ frost: 0.8, tintOpacity: 0.32, dispersion: 0.1, shine: 0.8 }` |
-| Crystal | `{ variant: 'clear', depth: 0.34, curvature: 1.7, dispersion: 1.3, shine: 1.6 }` |
-| Bold, thin icon sets | `{ weight: 0.03 }` or `{ weight: 0.04, depth: 0.22 }` |
+| Clear Apple-like glass | `{ look: 'clear' }` → variant `clear` |
+| Frosted | `{ look: 'frosted' }` → frost 0.8, tintOpacity 0.32, dispersion 0.1, shine 0.8 |
+| Crystal | `{ look: 'crystal' }` → variant `clear`, depth 0.34, curvature 1.7, dispersion 1.3, shine 1.6 |
+| Bold, thin icon sets | `{ look: 'bold' }` → weight 0.05, depth 0.22 |
 | App icon tiles (dock) | `{ tile: true, interactive: true }` |
 | Round glass buttons | `{ tile: true, tileRadius: 0.5, profile: 'circle', bevel: 0.5, depth: 0.3, weight: 0.02 }` |
 | Glass ball lens | `{ tile: true, tileRadius: 0.5, profile: 'dome', variant: 'clear', depth: 0.6, weight: 0.02 }` |
 | Over a video | `backdrop: videoElement` (React: the element from a ref) |
 | Morph between icons | Swap the paths inside the same `<svg>`, swap the child of `<Glass>`, or `handle.retarget(newSvg)` |
 | Show and hide | `visible: false` / `true` (or `data-glass-visible="false"`) |
-| Tinted glass | `{ tint: '#4f8cff', tintOpacity: 0.35 }` |
+| Tinted glass | `{ look: 'tinted' }` → tint `#2f6bef`, tintOpacity 0.55 |
 
 Playground links carry settings after `#`: keys that are option names are options (`depth=0.3&tile=true&variant=clear`). `bg`, `layout`, `set`, `lib`, `icon`, `size`, `compare` only describe the playground.
 

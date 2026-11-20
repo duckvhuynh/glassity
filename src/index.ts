@@ -3,7 +3,8 @@ import type { GlassOptions } from './options';
 import { awaitingHydration, findSvg, outsideZones, OWN, whenSettled } from './dom';
 
 export type { GlassHandle } from './engine';
-export type { BackdropSource, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
+export { looks } from './options';
+export type { BackdropSource, GlassLook, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
 
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
@@ -41,6 +42,16 @@ export function glassify(target: Element, options: GlassOptions = {}): GlassHand
     return inert;
   }
   return outsideZones(() => wrap(getEngine().mount(svg, options, null)));
+}
+
+/** Replace the page defaults and update existing icons. Pass {} to reset them. Safe during SSR. */
+export function configure(options: GlassOptions): void {
+  if (!isBrowser) return;
+  outsideZones(() => {
+    const engine = getEngine();
+    engine.scopes.configure(options);
+    engine.configure();
+  });
 }
 
 /** Calls made later on a handle also leave any zone.js zone. */
@@ -102,6 +113,7 @@ function startAuto(options: AutoOptions): GlassController {
   if (rootElement) rootElement.setAttribute(ROOT, '');
 
   let destroyed = false;
+  let started = false;
   let queued = false;
   let retry = 0;
   let retryDelay = 100;
@@ -110,6 +122,8 @@ function startAuto(options: AutoOptions): GlassController {
     queued = true;
     queueMicrotask(scan);
   };
+  engine.scopes.add(scope, () => { if (started) schedule(); });
+  engine.configure();
 
   // Web components (Ionicons, <iconify-icon>, Shoelace) keep their <svg> in a shadow
   // root, often filled in later. The page observer cannot see inside, so each one is
@@ -135,8 +149,10 @@ function startAuto(options: AutoOptions): GlassController {
   const scan = () => {
     queued = false;
     if (destroyed) return;
+    started = true;
     // What a copied page (Turbo, swup, Barba) left behind goes first.
     engine.sweep(container);
+    engine.syncScopes();
     let hydrating = false;
     const wanted = new Set<SVGSVGElement>();
     let matches: Element[] = [];
@@ -190,12 +206,12 @@ function startAuto(options: AutoOptions): GlassController {
   // page can hydrate first (see whenSettled).
   const cancelStart = whenSettled(() => {
     if (destroyed) return;
-    observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', 'class', 'ssr'] });
+    observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', ROOT, 'class', 'ssr'] });
     scan();
   });
 
   const apply = () => {
-    for (const instance of engine.inScope(scope)) instance.configure();
+    engine.configure();
   };
 
   return {
@@ -220,7 +236,10 @@ function startAuto(options: AutoOptions): GlassController {
       for (const watcher of shadows.values()) watcher.disconnect();
       shadows.clear();
       for (const instance of engine.inScope(scope)) instance.destroy();
-      rootElement?.removeAttribute(ROOT);
+      engine.scopes.delete(scope);
+      if (rootElement && !engine.scopes.hasRoot(rootElement)) rootElement.removeAttribute(ROOT);
+      engine.configure();
+      engine.scopes.discover();
     },
   };
 }

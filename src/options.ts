@@ -1,6 +1,7 @@
 export type GlassVariant = 'regular' | 'clear' | 'identity';
 export type GlassProfile = 'squircle' | 'circle' | 'lip' | 'dome';
 export type GlassScheme = 'auto' | 'light' | 'dark';
+export type GlassLook = 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold';
 
 /**
  * What the glass refracts.
@@ -13,6 +14,8 @@ export type GlassScheme = 'auto' | 'light' | 'dark';
 export type BackdropSource = 'auto' | 'none' | string | HTMLElement;
 
 export interface GlassOptions {
+  /** Named recipe underneath explicit options. Default `default`. */
+  look?: GlassLook;
   /** `regular` keeps content legible, `clear` is see-through, `identity` leaves the SVG untouched. Default `regular`. */
   variant?: GlassVariant;
   /**
@@ -102,6 +105,7 @@ export interface GlassOptions {
 }
 
 export interface ResolvedOptions {
+  look: GlassLook;
   variant: GlassVariant;
   profile: GlassProfile;
   tile: boolean;
@@ -140,44 +144,62 @@ export interface ResolvedOptions {
   maxDpr: number;
 }
 
-const BASE: ResolvedOptions = {
-  variant: 'regular',
-  profile: 'squircle',
-  tile: false,
-  tileRadius: 0.26,
-  glyphOpacity: 0.9,
-  padding: 0,
-  strokeWidth: null,
-  weight: 0,
-  bevel: 0.09,
-  curvature: 1,
-  depth: 0.16,
-  ior: 1.5,
-  refraction: 1,
-  dispersion: 0.35,
-  bands: 6,
-  frost: 0.3,
-  saturation: 1.35,
-  brightness: 1,
-  contrast: 0.9,
-  tint: 'auto',
-  tintOpacity: 0.14,
-  dim: 0,
-  opacity: 1,
-  shine: 1,
-  rim: 1,
-  reflection: 0.6,
-  lightAngle: -45,
-  shadow: 0.3,
-  interactive: false,
-  pointerLight: true,
-  visible: true,
-  duration: 520,
-  scheme: 'auto',
-  accessibility: true,
-  backdrop: 'auto',
-  maxDpr: 2,
-};
+/** The key is the option name; defaults, limits and attribute discovery all come from this table. */
+interface OptionDescriptor<T = unknown> {
+  readonly kind: 'number' | 'boolean' | 'enum' | 'string';
+  readonly default: T;
+  readonly min?: number;
+  readonly max?: number;
+  readonly values?: readonly string[];
+  readonly round?: boolean;
+  readonly positive?: boolean;
+  readonly zero?: number;
+  readonly attribute?: boolean;
+  readonly passthrough?: boolean;
+}
+
+export const OPTION_DESCRIPTORS = {
+  look: { kind: 'enum', default: 'default', values: ['default', 'clear', 'frosted', 'crystal', 'tinted', 'bold'] },
+  variant: { kind: 'enum', default: 'regular', values: ['regular', 'clear', 'identity'] },
+  profile: { kind: 'enum', default: 'squircle', values: ['squircle', 'circle', 'lip', 'dome'] },
+  tile: { kind: 'boolean', default: false },
+  tileRadius: { kind: 'number', default: 0.26, min: 0, max: 0.5 },
+  glyphOpacity: { kind: 'number', default: 0.9, min: 0, max: 1 },
+  padding: { kind: 'number', default: 0, min: 0, max: 0.45 },
+  strokeWidth: { kind: 'number', default: null, positive: true },
+  weight: { kind: 'number', default: 0, min: -0.03, max: 0.08, zero: 0 },
+  bevel: { kind: 'number', default: 0.09, min: 0.005, max: 0.5 },
+  curvature: { kind: 'number', default: 1, min: 0, max: 4 },
+  depth: { kind: 'number', default: 0.16, min: 0, max: 2 },
+  ior: { kind: 'number', default: 1.5, min: 1, max: 2.5 },
+  refraction: { kind: 'number', default: 1, min: 0, max: 8 },
+  dispersion: { kind: 'number', default: 0.35, min: 0, max: 2 },
+  bands: { kind: 'number', default: 6, min: 1, max: 8, round: true },
+  frost: { kind: 'number', default: 0.3, min: 0, max: 1 },
+  saturation: { kind: 'number', default: 1.35, min: 0, max: 3 },
+  brightness: { kind: 'number', default: 1, min: 0, max: 3 },
+  contrast: { kind: 'number', default: 0.9, min: 0, max: 2 },
+  tint: { kind: 'string', default: 'auto' },
+  tintOpacity: { kind: 'number', default: 0.14, min: 0, max: 1 },
+  dim: { kind: 'number', default: 0, min: 0, max: 1, values: ['auto'] },
+  opacity: { kind: 'number', default: 1, min: 0, max: 1 },
+  shine: { kind: 'number', default: 1, min: 0, max: 4 },
+  rim: { kind: 'number', default: 1, min: 0, max: 4 },
+  reflection: { kind: 'number', default: 0.6, min: 0, max: 4 },
+  lightAngle: { kind: 'number', default: -45, zero: 0 },
+  shadow: { kind: 'number', default: 0.3, min: 0, max: 1 },
+  interactive: { kind: 'boolean', default: false },
+  pointerLight: { kind: 'boolean', default: true },
+  visible: { kind: 'boolean', default: true },
+  duration: { kind: 'number', default: 520, min: 0, max: 10000 },
+  scheme: { kind: 'enum', default: 'auto', values: ['auto', 'light', 'dark'] },
+  accessibility: { kind: 'boolean', default: true },
+  backdrop: { kind: 'string', default: 'auto', attribute: false, passthrough: true },
+  maxDpr: { kind: 'number', default: 2, min: 0.5, max: 4, zero: 1 },
+} as const satisfies { readonly [K in keyof ResolvedOptions]: OptionDescriptor<ResolvedOptions[K]> };
+
+export const OPTION_KEYS = Object.keys(OPTION_DESCRIPTORS) as (keyof ResolvedOptions)[];
+const BASE = Object.fromEntries(OPTION_KEYS.map((key) => [key, OPTION_DESCRIPTORS[key].default])) as unknown as ResolvedOptions;
 
 const VARIANTS: Record<GlassVariant, Partial<ResolvedOptions>> = {
   regular: {},
@@ -185,15 +207,28 @@ const VARIANTS: Record<GlassVariant, Partial<ResolvedOptions>> = {
   identity: {},
 };
 
-export const OPTION_KEYS = Object.keys(BASE) as (keyof ResolvedOptions)[];
+/** Recipes never become explicit options, so switching looks also removes the previous recipe. */
+export const looks = Object.freeze({
+  default: Object.freeze({}),
+  clear: Object.freeze({ variant: 'clear' }),
+  frosted: Object.freeze({ frost: 0.8, tintOpacity: 0.32, dispersion: 0.1, shine: 0.8 }),
+  crystal: Object.freeze({ variant: 'clear', depth: 0.34, curvature: 1.7, dispersion: 1.3, shine: 1.6 }),
+  tinted: Object.freeze({ tint: '#2f6bef', tintOpacity: 0.55 }),
+  bold: Object.freeze({ weight: 0.05, depth: 0.22 }),
+} as const satisfies Readonly<Record<GlassLook, Readonly<GlassOptions>>>);
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-
-/** A number from an option value, or `fallback` when it is not one ("deep", NaN, Infinity). */
-const num = (value: unknown, fallback: number): number => {
-  const n = typeof value === 'string' && value.trim() === '' ? NaN : +(value as number);
-  return Number.isFinite(n) ? n : fallback;
-};
+function resolveValue(descriptor: OptionDescriptor, value: unknown, fallback: unknown): unknown {
+  if (descriptor.values?.includes(value as string)) return value;
+  if (descriptor.kind === 'enum') return descriptor.default;
+  if (descriptor.kind === 'boolean') return descriptor.default === true ? value !== false : value === true;
+  if (descriptor.kind === 'string') return descriptor.passthrough || (typeof value === 'string' && value) ? value : fallback;
+  const numeric = typeof value === 'string' && value.trim() === '' ? NaN : +(value as number);
+  if (!Number.isFinite(numeric)) return fallback;
+  if (descriptor.positive) return numeric > 0 ? numeric : null;
+  const n = numeric === 0 && descriptor.zero !== undefined ? descriptor.zero : numeric;
+  const clamped = Math.min(descriptor.max ?? Infinity, Math.max(descriptor.min ?? -Infinity, n));
+  return descriptor.round ? Math.round(clamped) : clamped;
+}
 
 /** Merge option layers (later layers win; `undefined` never overrides) into a complete, clamped set. */
 export function resolveOptions(...layers: (GlassOptions | undefined | null)[]): ResolvedOptions {
@@ -205,55 +240,28 @@ export function resolveOptions(...layers: (GlassOptions | undefined | null)[]): 
       if (value !== undefined) merged[key] = value;
     }
   }
-  const variant: GlassVariant = merged.variant === 'clear' || merged.variant === 'identity' ? merged.variant : 'regular';
-  const tile = merged.tile === true;
-  const d = { ...BASE, ...VARIANTS[variant], ...(tile ? { padding: 0.22 } : null) } as ResolvedOptions;
-  const o = { ...d, ...merged, variant, tile } as ResolvedOptions;
-
-  o.profile = o.profile === 'circle' || o.profile === 'lip' || o.profile === 'dome' ? o.profile : 'squircle';
-  o.scheme = o.scheme === 'light' || o.scheme === 'dark' ? o.scheme : 'auto';
-  o.tileRadius = clamp(num(o.tileRadius, d.tileRadius as number) || 0, 0, 0.5);
-  o.glyphOpacity = clamp(num(o.glyphOpacity, d.glyphOpacity as number), 0, 1);
-  o.padding = clamp(num(o.padding, d.padding as number) || 0, 0, 0.45);
-  o.strokeWidth = num(o.strokeWidth, 0) > 0 ? num(o.strokeWidth, 0) : null;
-  o.weight = clamp(num(o.weight, d.weight as number) || 0, -0.03, 0.08);
-  o.bevel = clamp(num(o.bevel, d.bevel as number), 0.005, 0.5);
-  o.curvature = clamp(num(o.curvature, d.curvature as number), 0, 4);
-  o.depth = clamp(num(o.depth, d.depth as number), 0, 2);
-  o.ior = clamp(num(o.ior, d.ior as number), 1, 2.5);
-  o.refraction = clamp(num(o.refraction, d.refraction as number), 0, 8);
-  o.dispersion = clamp(num(o.dispersion, d.dispersion as number), 0, 2);
-  o.bands = Math.round(clamp(num(o.bands, d.bands as number) || 1, 1, 8));
-  o.frost = clamp(num(o.frost, d.frost as number), 0, 1);
-  o.saturation = clamp(num(o.saturation, d.saturation as number), 0, 3);
-  o.brightness = clamp(num(o.brightness, d.brightness as number), 0, 3);
-  o.contrast = clamp(num(o.contrast, d.contrast as number), 0, 2);
-  o.tintOpacity = clamp(num(o.tintOpacity, d.tintOpacity as number), 0, 1);
-  o.dim = o.dim === 'auto' ? 'auto' : clamp(num(o.dim, d.dim as number) || 0, 0, 1);
-  o.opacity = clamp(num(o.opacity, d.opacity as number), 0, 1);
-  o.shine = clamp(num(o.shine, d.shine as number), 0, 4);
-  o.rim = clamp(num(o.rim, d.rim as number), 0, 4);
-  o.reflection = clamp(num(o.reflection, d.reflection as number), 0, 4);
-  o.lightAngle = num(o.lightAngle, d.lightAngle as number) || 0;
-  o.shadow = clamp(num(o.shadow, d.shadow as number), 0, 1);
-  o.duration = clamp(num(o.duration, d.duration as number) || 0, 0, 10000);
-  o.maxDpr = clamp(num(o.maxDpr, d.maxDpr as number) || 1, 0.5, 4);
-  o.interactive = o.interactive === true;
-  o.pointerLight = o.pointerLight !== false;
-  o.visible = o.visible !== false;
-  o.accessibility = o.accessibility !== false;
-  o.tint = typeof o.tint === 'string' && o.tint ? o.tint : 'auto';
-  return o;
+  const look = resolveValue(OPTION_DESCRIPTORS.look, merged.look, BASE.look) as GlassLook;
+  const values = { ...looks[look], ...merged } as Record<string, unknown>;
+  const variant = resolveValue(OPTION_DESCRIPTORS.variant, values.variant, BASE.variant) as GlassVariant;
+  const tile = values.tile === true;
+  const defaults = { ...BASE, ...VARIANTS[variant], ...(tile ? { padding: 0.22 } : null) };
+  const resolved: Record<string, unknown> = {};
+  for (const key of OPTION_KEYS) {
+    resolved[key] = resolveValue(OPTION_DESCRIPTORS[key], values[key] === undefined ? defaults[key] : values[key], defaults[key]);
+  }
+  return resolved as unknown as ResolvedOptions;
 }
 
 const kebab = (key: string) => key.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
-const ATTRS = new Map(OPTION_KEYS.filter((k) => k !== 'backdrop').map((k) => ['data-glass-' + kebab(k), k]));
+const ATTRS = new Map(OPTION_KEYS.filter((key) => (OPTION_DESCRIPTORS[key] as OptionDescriptor).attribute !== false).map((key) => ['data-glass-' + kebab(key), key]));
 
-function parseValue(raw: string): unknown {
-  const v = raw.trim();
+/** Keep the established attribute coercions shared by DOM and framework adapters. */
+export function parseOptionAttribute(value: unknown, trim = true): unknown {
+  if (typeof value !== 'string') return value;
+  const v = trim ? value.trim() : value;
   if (v === '' || v === 'true') return true;
   if (v === 'false') return false;
-  if (/^-?(\d+\.?\d*|\.\d+)$/.test(v)) return parseFloat(v);
+  if (/^-?(\d+\.?\d*|\.\d+)$/.test(v.trim())) return parseFloat(v);
   return v;
 }
 
@@ -268,11 +276,11 @@ export function readAttributes(el: { getAttribute(name: string): string | null; 
   if (main != null) {
     const v = main.trim().toLowerCase();
     if (v === 'off' || v === 'false' || v === 'none') return null;
-    if (v === 'regular' || v === 'clear' || v === 'identity') out.variant = v;
+    if (OPTION_DESCRIPTORS.variant.values.includes(v as GlassVariant)) out.variant = v;
   }
   for (const name of el.getAttributeNames()) {
     const key = ATTRS.get(name);
-    if (key) out[key] = parseValue(el.getAttribute(name) ?? '');
+    if (key) out[key] = parseOptionAttribute(el.getAttribute(name) ?? '');
   }
   return out as GlassOptions;
 }

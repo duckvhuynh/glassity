@@ -4,6 +4,9 @@ import { planRaster, rasterAlpha, serializeIcon, type RasterPlan } from './core/
 import { Renderer, type BackTexture, type FieldTexture } from './gl/renderer';
 import { readAttributes, resolveOptions, type GlassOptions, type ResolvedOptions } from './options';
 import { pageColor } from './snapshot';
+import { ScopeRegistry, type Scope } from './scopes';
+
+export type { Scope } from './scopes';
 import { ensureStyles, HIDDEN, OWN } from './dom';
 
 /** Control over one glass icon. */
@@ -20,12 +23,6 @@ export interface GlassHandle {
   refresh(): void;
   /** Remove the glass and show the original SVG again. */
   destroy(): void;
-}
-
-/** Options shared by a group of icons (a provider or an `auto()` root). */
-export interface Scope {
-  root: Element | null;
-  options: GlassOptions;
 }
 
 interface Geometry {
@@ -101,6 +98,7 @@ class Instance implements GlassHandle {
   own: GlassOptions;
   scope: Scope | null;
   r: ResolvedOptions;
+  private optionLayers: GlassOptions[] = [];
 
   backdrop: Backdrop | null = null;
   private backdropSource: unknown = undefined;
@@ -177,7 +175,10 @@ class Instance implements GlassHandle {
   }
 
   private attach(svg: SVGSVGElement): void {
-    this.place();
+    // A new target (retarget) may sit elsewhere in the same parent, for example after
+    // React replaced the node: keep the canvas right after the icon it draws.
+    if (svg.parentNode && svg.nextSibling !== this.canvas) svg.after(this.canvas);
+    else this.place();
     this.observer.observe(svg, { subtree: true, childList: true, attributes: true });
     this.engine.observe(svg);
   }
@@ -228,10 +229,17 @@ class Instance implements GlassHandle {
     return this.r.variant === 'identity' || this.system.forcedColors;
   }
 
+  /** Moving an icon or a scope can change inheritance without changing its own attributes. */
+  syncScope(): void {
+    const layers = this.engine.scopes.layers(this.element);
+    if (layers.length !== this.optionLayers.length || layers.some((layer, i) => layer !== this.optionLayers[i])) this.configure();
+  }
+
   /** Resolve options from every layer and react to what changed. */
   configure(): void {
     const before = this.r;
-    this.r = resolveOptions(this.scope?.options, readAttributes(this.element) ?? undefined, this.own);
+    this.optionLayers = this.engine.scopes.layers(this.element);
+    this.r = resolveOptions(...this.optionLayers, readAttributes(this.element) ?? undefined, this.own);
     const r = this.r;
 
     const target = r.visible ? 1 : 0;
@@ -642,6 +650,7 @@ class PlainHandle implements GlassHandle {
 
 /** One per page: owns the WebGL context, the caches and the frame loop. */
 export class Engine {
+  readonly scopes = new ScopeRegistry();
   renderer: Renderer | null;
   readonly media = { reducedMotion: false, reducedTransparency: false, moreContrast: false, forcedColors: false };
   private instances = new Map<SVGSVGElement, Instance>();
@@ -681,6 +690,15 @@ export class Engine {
       watch('(prefers-contrast: more)', 'moreContrast');
       watch('(forced-colors: active)', 'forcedColors');
     }
+  }
+
+  /** Apply page or scope changes to every icon, including nested and hand-placed icons. */
+  configure(): void {
+    for (const instance of this.instances.values()) instance.configure();
+  }
+
+  syncScopes(): void {
+    for (const instance of this.instances.values()) instance.syncScope();
   }
 
   // ── instances ────────────────────────────────────────────────────────────

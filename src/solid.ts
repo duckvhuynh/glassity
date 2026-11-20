@@ -60,17 +60,22 @@ export function glass(el: Element, accessor?: Accessor<GlassOptions | true | und
 export function glassProvider(el: Element, accessor?: Accessor<AutoOptions | true | undefined>): void {
   let controller: ReturnType<typeof auto> | null = null;
   let current: GlassOptions | undefined;
+  let selector = '[data-glass]';
   onMount(() => {
-    const options = value<AutoOptions>(accessor);
-    const { root: _root, selector: _selector, ...shared } = options;
+    const { root: _root, selector: nextSelector = '[data-glass]', ...shared } = value<AutoOptions>(accessor);
+    selector = nextSelector;
     current = shared;
-    controller = auto({ ...options, root: el });
+    controller = auto({ root: el, selector, ...shared });
   });
   createEffect(() => {
-    const { root: _root, selector: _selector, ...next } = value<AutoOptions>(accessor);
-    if (!controller || !changed(current, next)) return;
+    const { root: _root, selector: nextSelector = '[data-glass]', ...next } = value<AutoOptions>(accessor);
+    if (!controller) return;
+    if (selector !== nextSelector) {
+      controller.destroy();
+      selector = nextSelector;
+      controller = auto({ root: el, selector, ...next });
+    } else if (changed(current, next)) controller.set(next);
     current = next;
-    controller.set(next);
   });
   onCleanup(() => controller?.destroy());
 }
