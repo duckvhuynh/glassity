@@ -1,4 +1,5 @@
-import { parentOf } from './dom';
+import { parentOf, SURFACE } from './dom';
+import { elementMap, type SurfaceSpace } from './surface-space';
 import { pageColor, snapshot, SnapshotBudgetError } from './snapshot';
 import { CaptureQueue } from './capture-queue';
 import { createHtmlCanvasCapture, type HtmlCanvasCapture } from './html-canvas';
@@ -26,6 +27,8 @@ export abstract class Backdrop {
 
   /** Area the source covers, in viewport CSS px. */
   abstract rect(): Rect;
+  /** Local source coordinates for surfaces inside transformed containers. */
+  space(): SurfaceSpace | null { return null; }
   /** Called once per frame before drawing; live sources bump `version` here. */
   tick(): void {}
   /** Re-read the source now. */
@@ -76,6 +79,16 @@ function fitRect(r: DOMRect, nw: number, nh: number, fit: string): Rect {
   return { x: r.left + (r.width - w) / 2, y: r.top + (r.height - h) / 2, w, h };
 }
 
+function fittedSpace(el: HTMLElement, nw: number, nh: number, fit: string): SurfaceSpace {
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  const fitted = fitRect(new DOMRect(0, 0, w, h), nw, nh, fit);
+  const map = elementMap(el, w, h, el.getBoundingClientRect());
+  const [a, b, c, d] = map.basis;
+  map.offset = [map.offset[0] + a * fitted.x + c * fitted.y, map.offset[1] + b * fitted.x + d * fitted.y];
+  return { map, width: fitted.w, height: fitted.h };
+}
+
 /** An <img>, <video> or <canvas> already on the page, used as is. */
 export class MediaBackdrop extends Backdrop {
   private lastTime = -1;
@@ -112,6 +125,10 @@ export class MediaBackdrop extends Backdrop {
 
   rect(): Rect {
     return fitRect(this.el.getBoundingClientRect(), this.width, this.height, this.fit);
+  }
+
+  space(): SurfaceSpace {
+    return fittedSpace(this.el, this.width, this.height, this.fit);
   }
 
   tick(): void {
@@ -156,6 +173,10 @@ export class UrlBackdrop extends Backdrop {
   rect(): Rect {
     const box = this.container ? this.container.getBoundingClientRect() : new DOMRect(0, 0, window.innerWidth, window.innerHeight);
     return fitRect(box, this.width, this.height, 'cover');
+  }
+
+  space(): SurfaceSpace | null {
+    return this.container instanceof HTMLElement ? fittedSpace(this.container, this.width, this.height, 'cover') : null;
   }
 }
 
@@ -306,6 +327,12 @@ export class SnapshotBackdrop extends Backdrop {
     return { x: r.left, y: r.top, w: r.width, h: r.height };
   }
 
+  space(): SurfaceSpace | null {
+    if (this.fixed || this.root) return null;
+    const { w, h } = this.area();
+    return { map: elementMap(this.el, w, h, this.el.getBoundingClientRect()), width: w, height: h };
+  }
+
   refresh(): void {
     this.schedule(0);
   }
@@ -330,6 +357,7 @@ export class SnapshotBackdrop extends Backdrop {
  */
 export function nearestSurface(el: Element): { el: Element; mode: 'background' | 'dom' } | null {
   for (let node = parentOf(el); node; node = parentOf(node)) {
+    if (node.hasAttribute(SURFACE)) continue;
     const cs = getComputedStyle(node);
     if (cs.backgroundImage && cs.backgroundImage !== 'none') return { el: node, mode: 'background' };
     const color = cs.backgroundColor;

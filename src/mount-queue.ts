@@ -1,5 +1,5 @@
 /** Start visible icons first, with a task boundary between small batches. */
-export function mountInSlices(icons: SVGSVGElement[], mount: (svg: SVGSVGElement) => void): () => void {
+export function mountInSlices<T extends Element>(icons: T[], mount: (icon: T) => void): () => void {
   const visible = new Map(icons.map((svg) => {
     const r = svg.getBoundingClientRect();
     return [svg, r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth];

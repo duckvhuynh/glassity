@@ -8,6 +8,7 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 - An engine-owned backdrop capture queue with shared requests, visible-region priority, cancellation and cooperative DOM-work slices. HTML snapshots use local regions with a refraction/blur guard instead of shrinking an entire long page into one texture.
 - Feature-detected native paint updates for existing HTML-in-Canvas drawable content. Ordinary HTML retains snapshots because browser-native drawable images are bound to their owning canvas; no wrappers or new options are required.
 - `environment: 'auto' | 'studio' | 'none'` (default `auto`), also available as `data-glass-environment` and the exported `GlassEnvironment` type. Procedural window and fill lights plus a dark horizon give flat surfaces visible reflections, tinted by the backdrop and bounded by Fresnel. Automatic mode fades them over detailed backdrops; `studio` keeps them on, `none` preserves the original reflection, and frost broadens the highlights.
+- Glass surfaces: `data-glass="surface"` or `glassify(element, { surface: true })` gives buttons, pills, toolbars and tab bars a glass background using their CSS size and per-corner border radii. Content stays ordinary DOM; inner SVGs stay plain unless explicitly marked with `data-glass`. Surfaces share the existing renderer and regional backdrops, with DPR capped at 1.5.
 - Named looks: `look: 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold'`, also available as `data-glass-look`. The readonly `looks` recipes and `GlassLook` type are exported from `glassity`. Explicit options override a recipe; switching looks does not retain the previous recipe's values.
 - `configure(options)` replaces page defaults for existing and future icons, beneath scopes and per-icon options. `configure({})` resets them.
 - `legibility: 'auto' | 'off'` (default `auto`): small icons on dark or saturated backdrops blend toward their own CSS colour, with smooth size and contrast ramps and hysteresis. Explicit tints are unchanged; `off` disables the new contrast correction.
@@ -15,6 +16,7 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 - A local Chromium performance benchmark for 50, 77 and 100 icons, with startup, idle, scrolling, pointer, theme and mount/destroy measurements, reproducible fixtures and JSON/Markdown budget reports (`npm run bench`).
 
 ### Changed
+- `GlassHandle.element` and `retarget()` now use the exported `GlassElement` union (`SVGSVGElement | HTMLElement`) to support surfaces. Narrow the element type before reading SVG-only fields.
 - One option registry supplies defaults, validation, attribute parsing and adapter option names.
 - Playground presets and real-app example look pickers use the library's named looks.
 - Small icons on dark and saturated surfaces look different by default and keep more contrast. Light neutral surfaces keep their near-black small icons. Tile glyphs use their size after padding: a default 48 px tile has a glyph of about 27 px. This sizing correction also applies with `legibility: 'off'`.

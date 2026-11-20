@@ -28,6 +28,9 @@ uniform sampler2D uBack;
 uniform vec4 uBackRect;      // backdrop x, y, w, h relative to this canvas
 uniform float uBackDensity;  // backdrop texels per CSS px
 uniform float uBackMaxLod;
+uniform vec4 uBackBasis;
+uniform vec2 uBackOffset;
+uniform float uSurface;
 
 uniform vec2 uCanvas;
 uniform vec2 uBox;
@@ -159,7 +162,7 @@ void smoothSurface(vec2 uv, inout Layer L) {
   L.g = dir;
 }
 
-vec2 backUv(vec2 p) { return (p - uBackRect.xy) / uBackRect.zw; }
+vec2 backUv(vec2 p) { return (mat2(uBackBasis.xy, uBackBasis.zw) * p + uBackOffset - uBackRect.xy) / uBackRect.zw; }
 
 vec3 sampleBack(vec2 p, float blur) {
   float lod = max(log2(max(blur * uBackDensity, 1.0)), log2(max(uBackDensity / uDpr, 1.0)));
@@ -258,6 +261,14 @@ vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflec
 }
 
 float tileDistance(vec2 c, out vec2 g) {
+  if (uSurface > 0.5) {
+    vec2 uv = (c + 0.5 * uCanvas) / uCanvas;
+    vec2 e = uFieldTexel;
+    vec2 grad = vec2(fieldAt(uv + vec2(e.x, 0.0)).r - fieldAt(uv - vec2(e.x, 0.0)).r,
+                     fieldAt(uv + vec2(0.0, e.y)).r - fieldAt(uv - vec2(0.0, e.y)).r);
+    g = dot(grad, grad) > 1e-12 ? normalize(grad) : vec2(0.0);
+    return fieldAt(uv).r * uUnit;
+  }
   vec2 halfBox = 0.5 * uBox;
   float r = min(uTileRadius, min(halfBox.x, halfBox.y));
   vec2 q = abs(c) - (halfBox - r);
@@ -288,10 +299,10 @@ float shadowSeen(vec2 q) {
 vec3 plate(vec2 q, float aa, float dim, float bright, vec3 ambient, float grain, float glow, bool contact, out Layer tile) {
   vec2 tg;
   float tsd = tileDistance(q - 0.5 * uCanvas, tg);
-  tile = makeLayer(tsd, tg, 0.5 * min(uBox.x, uBox.y), uTileBevel, aa);
+  tile = makeLayer(tsd, tg, 0.5 * min(uBox.x, uBox.y), uTileBevel, uSurface > 0.5 ? max(aa, 0.6 * uFieldTexel.x * uCanvas.x) : aa);
   vec3 body = refracted(q, tile, uFrost * uLens);
   body = grade(body, dim, mix(uTint, vec3(1.0), uTintAuto), uTintOpacity);
-  if (contact) {
+  if (contact && uSurface < 0.5) {
     float d = fieldAt((q - gShadowShift * 0.5) / uCanvas).r * uUnit;
     body *= 1.0 - (0.22 + 0.2 * bright) * min(uShadow / 0.3, 1.5) * uGlyphOpacity * (1.0 - smoothstep(-0.01 * uUnit, 0.05 * uUnit, d)) * uLens;
   }
@@ -356,15 +367,18 @@ void main() {
 
     // The mark is a second layer of glass on the plate: it lenses the plate behind it
     // through its own curved surface, under a white, frosted body. Only tiny marks turn dark.
-    Layer seen;
-    vec3 bend = refract(vec3(0.0, 0.0, -1.0), glyph.n, 1.0 / uIor);
-    vec2 lensed = p + bend.xy / max(-bend.z, 0.3) * (glyph.h + 0.06 * uUnit) * uRefr;
-    vec3 through = plate(lensed, aa, dim, bright, ambient, grain, glow, false, seen);
-    vec3 face = mix(mix(through, vec3(1.0), 0.35), mix(vec3(1.0), ink, small), 0.55 + 0.4 * small);
-    vec3 mark = lit(face, glyph, ambient, 1.0, glow, uRefl * 0.6, bright);
-    // Keep the plate optical; only its mark needs the small-icon contrast floor.
-    if (uLegibilityAmount > 0.0) mark = mix(clamp(mark, 0.0, 1.0), uLegibilityColor, uLegibilityAmount * uLens);
-    color = mix(body, mark, glyph.cover * uGlyphOpacity * uLens);
+    color = body;
+    if (uSurface < 0.5) {
+      Layer seen;
+      vec3 bend = refract(vec3(0.0, 0.0, -1.0), glyph.n, 1.0 / uIor);
+      vec2 lensed = p + bend.xy / max(-bend.z, 0.3) * (glyph.h + 0.06 * uUnit) * uRefr;
+      vec3 through = plate(lensed, aa, dim, bright, ambient, grain, glow, false, seen);
+      vec3 face = mix(mix(through, vec3(1.0), 0.35), mix(vec3(1.0), ink, small), 0.55 + 0.4 * small);
+      vec3 mark = lit(face, glyph, ambient, 1.0, glow, uRefl * 0.6, bright);
+      // Keep the plate optical; only its mark needs the small-icon contrast floor.
+      if (uLegibilityAmount > 0.0) mark = mix(clamp(mark, 0.0, 1.0), uLegibilityColor, uLegibilityAmount * uLens);
+      color = mix(body, mark, glyph.cover * uGlyphOpacity * uLens);
+    }
     cover = tile.cover;
 
     vec2 sg;
@@ -374,7 +388,7 @@ void main() {
     if (uHighContrast > 0.5) {
       vec3 plate = mix(vec3(0.04), vec3(1.0), bright);
       vec3 line = mix(vec3(1.0), vec3(0.0), bright);
-      color = mix(plate, line, max(glyph.cover, 1.0 - smoothstep(1.0, 1.5, tile.d)));
+      color = mix(plate, line, max(uSurface > 0.5 ? 0.0 : glyph.cover, 1.0 - smoothstep(1.0, 1.5, tile.d)));
     }
   } else {
     vec3 body = refracted(p, glyph, uFrost * uLens);
