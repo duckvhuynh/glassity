@@ -393,6 +393,7 @@ npm test           # geometry and options unit tests
 npx playwright install chromium firefox webkit   # once
 npm run test:e2e   # browser tests on Chromium, Firefox and WebKit (after a build)
 npm run test:compat # the packed package in 12 framework apps (after a build)
+npm run bench      # local Chromium performance matrix and budget reports (not CI)
 npm run demo:build # bundles the React demo
 npm run demo       # test pages: http://localhost:4173/  and  /demo/react.html
 npm --prefix site/examples ci   # once, for the real-app examples
@@ -412,6 +413,8 @@ What is done and what comes next is in [ROADMAP.md](ROADMAP.md); releases are in
 The workflow uses [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers): no token or secret is stored, and npm attaches provenance. It has to be set up once on npmjs.com, after the package exists: glassity → Settings → Trusted publishing → GitHub Actions, with owner `duckvhuynh`, repository `glassity`, workflow `release.yml`, and direct `npm publish` allowed.
 
 `npm publish` by hand also works (that is how the first version gets onto npm): `prepublishOnly` runs the typecheck, the unit tests and the build first.
+
+Performance fixtures, measurement definitions and desktop targets are documented in [bench/README.md](bench/README.md). `npm run bench` builds the checkout and writes median-of-three JSON and Markdown reports under `bench/results/`.
 
 ## Contributing
 

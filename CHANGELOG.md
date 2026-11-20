@@ -4,6 +4,9 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Added
+- A local Chromium performance benchmark for 50, 77 and 100 icons, with startup, idle, scrolling, pointer, theme and mount/destroy measurements, reproducible fixtures and JSON/Markdown budget reports (`npm run bench`).
+
 ## [0.3.5] - 2026-11-20
 
 ### Fixed
