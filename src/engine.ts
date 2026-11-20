@@ -108,6 +108,8 @@ class Instance implements GlassHandle {
   private previous: Geometry | null = null;
   private geometryKey = '';
   private token = 0;
+  /** Counts prepare() calls, so an older one that finishes reading the SVG late cannot win. */
+  private request = 0;
   private sizeTimer = 0;
   private mutationQueued = false;
 
@@ -213,9 +215,13 @@ class Instance implements GlassHandle {
     });
   }
 
-  /** The system settings this icon follows; all off when `accessibility` is false. */
+  /**
+   * The system settings this icon follows; all off when `accessibility` is false,
+   * except forced colours: a High Contrast user's colours always win over the glass.
+   */
   get system(): Engine['media'] {
-    return this.r.accessibility ? this.engine.media : NO_PREFERENCES;
+    if (this.r.accessibility) return this.engine.media;
+    return this.engine.media.forcedColors ? { ...NO_PREFERENCES, forcedColors: true } : NO_PREFERENCES;
   }
 
   get inert(): boolean {
@@ -318,10 +324,13 @@ class Instance implements GlassHandle {
     const rect = this.element.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return; // not laid out yet; the resize observer calls again
     const plan = planRaster(rect.width, rect.height, this.engine.dpr(this.r.maxDpr), this.r.weight);
+    const request = ++this.request;
     let source: string;
     try {
       source = await serializeIcon(this.element, this.r.strokeWidth);
-      if (this.destroyed) return;
+      // A newer call started while this one read the SVG (its references can load
+      // slowly): that one has the current icon, so this result is dropped.
+      if (this.destroyed || request !== this.request) return;
     } catch (error) {
       console.warn('glassity: could not read this SVG; it is left as it is.', this.element, error);
       return;
@@ -604,13 +613,20 @@ class Instance implements GlassHandle {
 /** Stand-in handle when WebGL2 is missing: the SVG stays, with a soft highlight. */
 class PlainHandle implements GlassHandle {
   private undo: (() => void) | null;
-  constructor(public element: SVGSVGElement) {
+  constructor(
+    private engine: Engine,
+    public element: SVGSVGElement,
+    public scope: Scope | null = null,
+  ) {
     this.undo = applyBevel(element);
   }
   update(): void {}
   set(): void {}
+  configure(): void {}
   retarget(svg: SVGSVGElement): void {
+    if (svg === this.element) return;
     this.undo?.();
+    this.engine.renamePlain(this.element, svg, this);
     this.element = svg;
     this.undo = applyBevel(svg);
   }
@@ -618,6 +634,9 @@ class PlainHandle implements GlassHandle {
   destroy(): void {
     this.undo?.();
     this.undo = null;
+    // Unregister like a glass instance does, so the icon can be mounted again and
+    // a controller's cleanup finds it.
+    this.engine.forgetPlain(this);
   }
 }
 
@@ -681,7 +700,8 @@ export class Engine {
     }
     if (!this.renderer) {
       let handle = this.plain.get(svg);
-      if (!handle) this.plain.set(svg, (handle = new PlainHandle(svg)));
+      if (handle) handle.scope = scope ?? handle.scope;
+      else this.plain.set(svg, (handle = new PlainHandle(this, svg, scope)));
       return handle;
     }
     this.listen();
@@ -700,15 +720,27 @@ export class Engine {
    * scan later drops them (they now sit inside the provider) and nobody puts them back.
    */
   claim(svg: SVGSVGElement, scope: Scope): void {
+    const plain = this.plain.get(svg);
+    if (plain) plain.scope = scope;
     const instance = this.instances.get(svg);
     if (!instance || instance.scope === scope) return;
     instance.scope = scope;
     instance.configure();
   }
 
-  /** Every glass that belongs to `scope`. */
-  inScope(scope: Scope): Instance[] {
-    return [...this.instances.values()].filter((instance) => instance.scope === scope);
+  /** Every glass that belongs to `scope`, including plain stand-ins where WebGL2 is missing. */
+  inScope(scope: Scope): (Instance | PlainHandle)[] {
+    const all: (Instance | PlainHandle)[] = [...this.instances.values(), ...this.plain.values()];
+    return all.filter((handle) => handle.scope === scope);
+  }
+
+  renamePlain(from: SVGSVGElement, to: SVGSVGElement, handle: PlainHandle): void {
+    if (this.plain.get(from) === handle) this.plain.delete(from);
+    this.plain.set(to, handle);
+  }
+
+  forgetPlain(handle: PlainHandle): void {
+    if (this.plain.get(handle.element) === handle) this.plain.delete(handle.element);
   }
 
   rename(from: SVGSVGElement, to: SVGSVGElement, instance: Instance): void {

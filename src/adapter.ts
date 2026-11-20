@@ -1,4 +1,4 @@
-import { optionsKey, type GlassOptions } from './options';
+import { OPTION_KEYS, optionsKey, type GlassOptions } from './options';
 
 /**
  * Small helpers shared by the framework adapters (Vue, Svelte, Solid). They live
@@ -13,13 +13,8 @@ export function changed(previous: GlassOptions | undefined, next: GlassOptions |
 
 const camel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 
-/** Every option name, for picking options out of a bag of attributes. */
-const NAMES = new Set([
-  'variant', 'profile', 'tile', 'tileRadius', 'glyphOpacity', 'padding', 'strokeWidth', 'weight', 'bevel', 'curvature', 'depth',
-  'ior', 'refraction', 'dispersion', 'bands', 'frost', 'saturation', 'brightness', 'contrast', 'tint', 'tintOpacity',
-  'dim', 'opacity', 'shine', 'rim', 'reflection', 'lightAngle', 'shadow', 'interactive', 'pointerLight', 'visible',
-  'duration', 'scheme', 'accessibility', 'backdrop', 'maxDpr',
-]);
+/** Every option name (from the defaults), for picking options out of a bag of attributes. */
+const NAMES = new Set<string>(OPTION_KEYS);
 
 /**
  * Read glass options from attributes as a template writes them: `tile` (present,

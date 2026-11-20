@@ -189,6 +189,12 @@ export const OPTION_KEYS = Object.keys(BASE) as (keyof ResolvedOptions)[];
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+/** A number from an option value, or `fallback` when it is not one ("deep", NaN, Infinity). */
+const num = (value: unknown, fallback: number): number => {
+  const n = typeof value === 'string' && value.trim() === '' ? NaN : +(value as number);
+  return Number.isFinite(n) ? n : fallback;
+};
+
 /** Merge option layers (later layers win; `undefined` never overrides) into a complete, clamped set. */
 export function resolveOptions(...layers: (GlassOptions | undefined | null)[]): ResolvedOptions {
   const merged: Record<string, unknown> = {};
@@ -201,36 +207,37 @@ export function resolveOptions(...layers: (GlassOptions | undefined | null)[]): 
   }
   const variant: GlassVariant = merged.variant === 'clear' || merged.variant === 'identity' ? merged.variant : 'regular';
   const tile = merged.tile === true;
-  const o = { ...BASE, ...VARIANTS[variant], ...(tile ? { padding: 0.22 } : null), ...merged, variant, tile } as ResolvedOptions;
+  const d = { ...BASE, ...VARIANTS[variant], ...(tile ? { padding: 0.22 } : null) } as ResolvedOptions;
+  const o = { ...d, ...merged, variant, tile } as ResolvedOptions;
 
   o.profile = o.profile === 'circle' || o.profile === 'lip' || o.profile === 'dome' ? o.profile : 'squircle';
   o.scheme = o.scheme === 'light' || o.scheme === 'dark' ? o.scheme : 'auto';
-  o.tileRadius = clamp(+o.tileRadius || 0, 0, 0.5);
-  o.glyphOpacity = clamp(+o.glyphOpacity, 0, 1);
-  o.padding = clamp(+o.padding || 0, 0, 0.45);
-  o.strokeWidth = o.strokeWidth == null || !(+o.strokeWidth > 0) ? null : +o.strokeWidth;
-  o.weight = clamp(+o.weight || 0, -0.03, 0.08);
-  o.bevel = clamp(+o.bevel, 0.005, 0.5);
-  o.curvature = clamp(+o.curvature, 0, 4);
-  o.depth = clamp(+o.depth, 0, 2);
-  o.ior = clamp(+o.ior, 1, 2.5);
-  o.refraction = clamp(+o.refraction, 0, 8);
-  o.dispersion = clamp(+o.dispersion, 0, 2);
-  o.bands = Math.round(clamp(+o.bands || 1, 1, 8));
-  o.frost = clamp(+o.frost, 0, 1);
-  o.saturation = clamp(+o.saturation, 0, 3);
-  o.brightness = clamp(+o.brightness, 0, 3);
-  o.contrast = clamp(+o.contrast, 0, 2);
-  o.tintOpacity = clamp(+o.tintOpacity, 0, 1);
-  o.dim = o.dim === 'auto' ? 'auto' : clamp(+o.dim || 0, 0, 1);
-  o.opacity = clamp(+o.opacity, 0, 1);
-  o.shine = clamp(+o.shine, 0, 4);
-  o.rim = clamp(+o.rim, 0, 4);
-  o.reflection = clamp(+o.reflection, 0, 4);
-  o.lightAngle = +o.lightAngle || 0;
-  o.shadow = clamp(+o.shadow, 0, 1);
-  o.duration = clamp(+o.duration || 0, 0, 10000);
-  o.maxDpr = clamp(+o.maxDpr || 1, 0.5, 4);
+  o.tileRadius = clamp(num(o.tileRadius, d.tileRadius as number) || 0, 0, 0.5);
+  o.glyphOpacity = clamp(num(o.glyphOpacity, d.glyphOpacity as number), 0, 1);
+  o.padding = clamp(num(o.padding, d.padding as number) || 0, 0, 0.45);
+  o.strokeWidth = num(o.strokeWidth, 0) > 0 ? num(o.strokeWidth, 0) : null;
+  o.weight = clamp(num(o.weight, d.weight as number) || 0, -0.03, 0.08);
+  o.bevel = clamp(num(o.bevel, d.bevel as number), 0.005, 0.5);
+  o.curvature = clamp(num(o.curvature, d.curvature as number), 0, 4);
+  o.depth = clamp(num(o.depth, d.depth as number), 0, 2);
+  o.ior = clamp(num(o.ior, d.ior as number), 1, 2.5);
+  o.refraction = clamp(num(o.refraction, d.refraction as number), 0, 8);
+  o.dispersion = clamp(num(o.dispersion, d.dispersion as number), 0, 2);
+  o.bands = Math.round(clamp(num(o.bands, d.bands as number) || 1, 1, 8));
+  o.frost = clamp(num(o.frost, d.frost as number), 0, 1);
+  o.saturation = clamp(num(o.saturation, d.saturation as number), 0, 3);
+  o.brightness = clamp(num(o.brightness, d.brightness as number), 0, 3);
+  o.contrast = clamp(num(o.contrast, d.contrast as number), 0, 2);
+  o.tintOpacity = clamp(num(o.tintOpacity, d.tintOpacity as number), 0, 1);
+  o.dim = o.dim === 'auto' ? 'auto' : clamp(num(o.dim, d.dim as number) || 0, 0, 1);
+  o.opacity = clamp(num(o.opacity, d.opacity as number), 0, 1);
+  o.shine = clamp(num(o.shine, d.shine as number), 0, 4);
+  o.rim = clamp(num(o.rim, d.rim as number), 0, 4);
+  o.reflection = clamp(num(o.reflection, d.reflection as number), 0, 4);
+  o.lightAngle = num(o.lightAngle, d.lightAngle as number) || 0;
+  o.shadow = clamp(num(o.shadow, d.shadow as number), 0, 1);
+  o.duration = clamp(num(o.duration, d.duration as number) || 0, 0, 10000);
+  o.maxDpr = clamp(num(o.maxDpr, d.maxDpr as number) || 1, 0.5, 4);
   o.interactive = o.interactive === true;
   o.pointerLight = o.pointerLight !== false;
   o.visible = o.visible !== false;

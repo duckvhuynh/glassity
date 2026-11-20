@@ -12,6 +12,7 @@ import {
   type RefObject,
 } from 'react';
 import { auto, glassify, type BackdropSource, type GlassController, type GlassHandle, type GlassOptions } from './index';
+import { OPTION_KEYS } from './options';
 
 export type { BackdropSource, GlassHandle, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './index';
 
@@ -20,12 +21,8 @@ export interface GlassProps extends Omit<GlassOptions, 'backdrop'> {
   backdrop?: BackdropSource | RefObject<HTMLElement | null>;
 }
 
-const OPTION_NAMES = [
-  'variant', 'profile', 'tile', 'tileRadius', 'glyphOpacity', 'padding', 'strokeWidth', 'bevel', 'curvature', 'depth',
-  'ior', 'refraction', 'dispersion', 'bands', 'frost', 'saturation', 'brightness', 'contrast', 'tint', 'tintOpacity',
-  'dim', 'opacity', 'shine', 'rim', 'reflection', 'lightAngle', 'shadow', 'interactive', 'pointerLight', 'visible',
-  'duration', 'scheme', 'accessibility', 'backdrop', 'maxDpr',
-] as const;
+// Every option, from the defaults themselves, so a new option cannot be forgotten here.
+const OPTION_NAMES = OPTION_KEYS;
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 

@@ -78,12 +78,18 @@ function prepareSandbox(): Promise<boolean> {
   frame.style.cssText = 'position:fixed;left:-9999px;top:0;width:10px;height:10px;border:0;visibility:hidden;pointer-events:none';
   sandbox = frame;
   sandboxReady = new Promise<boolean>((resolve) => {
+    // Settles once: whichever comes first, the frame loading or the watchdog. Before,
+    // the watchdog also fired after a successful load and turned the sandbox off.
+    let settled = false;
     const done = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(watchdog);
       sandboxUsable = ok && !!frame.contentDocument?.body;
       resolve(sandboxUsable);
     };
     frame.addEventListener('load', () => done(true), { once: true });
-    setTimeout(() => done(false), 1500); // blocked by a content policy: write full styles instead
+    const watchdog = setTimeout(() => done(false), 1500); // blocked by a content policy: write full styles instead
     frame.srcdoc = '<!doctype html><html><body></body></html>';
     document.documentElement.appendChild(frame);
   });

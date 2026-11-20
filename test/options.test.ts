@@ -49,6 +49,32 @@ describe('resolveOptions', () => {
     expect(o.profile).toBe('squircle');
   });
 
+  it('falls back to the default for values that are not numbers', () => {
+    const d = resolveOptions();
+    const o = resolveOptions({ depth: 'deep', ior: 'x', glyphOpacity: 'a', shine: NaN, frost: Infinity, lightAngle: 'up', maxDpr: '' } as never);
+    expect(o.depth).toBe(d.depth);
+    expect(o.ior).toBe(d.ior);
+    expect(o.glyphOpacity).toBe(d.glyphOpacity);
+    expect(o.shine).toBe(d.shine);
+    expect(o.frost).toBe(d.frost);
+    expect(o.lightAngle).toBe(d.lightAngle);
+    expect(o.maxDpr).toBe(d.maxDpr);
+  });
+
+  it('never resolves a numeric option to NaN or Infinity', () => {
+    const garbage = ['x', NaN, Infinity, -Infinity, '', {}] as const;
+    const numeric = Object.entries(resolveOptions()).filter(([, v]) => typeof v === 'number').map(([k]) => k);
+    expect(numeric.length).toBeGreaterThan(20);
+    for (const value of garbage) {
+      const o = resolveOptions(Object.fromEntries(numeric.map((k) => [k, value])) as never) as unknown as Record<string, unknown>;
+      for (const key of numeric) expect(Number.isFinite(o[key]), `${key} = ${String(value)}`).toBe(true);
+    }
+  });
+
+  it('reads a non-numeric attribute as the default', () => {
+    expect(resolveOptions(readAttributes(el({ 'data-glass-depth': 'deep' })) ?? undefined).depth).toBe(resolveOptions().depth);
+  });
+
   it('accepts the dome profile', () => {
     expect(resolveOptions({ profile: 'dome' }).profile).toBe('dome');
   });

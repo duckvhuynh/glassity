@@ -336,6 +336,17 @@ test.describe('system settings', () => {
     const visible = await page.locator(CANVAS).evaluateAll((all) => all.filter((canvas) => (canvas as HTMLElement).style.visibility === 'visible').length);
     expect(visible).toBe(0);
   });
+
+  test('forced colours win even with accessibility: false', async ({ page }) => {
+    await open(page);
+    await page.evaluate(() => {
+      window.controller = window.glassity.auto({ accessibility: false });
+    });
+    await page.waitForTimeout(400);
+    await expect(page.locator('#a')).toHaveCSS('opacity', '1');
+    const visible = await page.locator(CANVAS).evaluateAll((all) => all.filter((canvas) => (canvas as HTMLElement).style.visibility === 'visible').length);
+    expect(visible).toBe(0);
+  });
 });
 
 test('without WebGL2 the icon stays a plain SVG with a highlight', async ({ page }) => {
@@ -355,6 +366,24 @@ test('without WebGL2 the icon stays a plain SVG with a highlight', async ({ page
   await expect(page.locator('#a')).toHaveCSS('opacity', '1');
   await expect(page.locator('#a')).toHaveAttribute('filter', /url\(#glassity-bevel-/);
   await expect(page.locator(CANVAS)).toHaveCount(0);
+
+  // The controller owns its plain stand-ins too: destroying it removes the highlight,
+  // and the icons can be picked up again afterwards.
+  await page.evaluate(() => window.controller.destroy());
+  await expect(page.locator('#a')).not.toHaveAttribute('filter', /glassity-bevel/);
+  await page.evaluate(() => {
+    window.controller = window.glassity.auto();
+  });
+  await expect(page.locator('#a')).toHaveAttribute('filter', /url\(#glassity-bevel-/);
+
+  // A single handle: destroy, then glassify the same icon again.
+  await page.evaluate(() => {
+    window.controller.destroy();
+    const svg = document.querySelector<SVGSVGElement>('#a')!;
+    window.glassity.glassify(svg).destroy();
+    window.handle = window.glassity.glassify(svg);
+  });
+  await expect(page.locator('#a')).toHaveAttribute('filter', /url\(#glassity-bevel-/);
   expect(errors).toEqual([]);
 });
 
