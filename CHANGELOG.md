@@ -4,6 +4,8 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-11-20
+
 ### Fixed
 - React: `weight` on `<GlassProvider>` and `<Glass>` was ignored. Every adapter now takes its option names from the defaults, so no option can be left out again.
 - An icon that changed twice quickly could end up showing the older shape: a slow first read of the SVG no longer overwrites a newer one.
@@ -126,7 +128,8 @@ First release.
 - Follows reduced motion, reduced transparency, increased contrast and forced colours.
 - Without WebGL2, icons stay plain SVG with a soft highlight.
 
-[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.5...HEAD
+[0.3.5]: https://github.com/duckvhuynh/glassity/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/duckvhuynh/glassity/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/duckvhuynh/glassity/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/duckvhuynh/glassity/compare/v0.3.1...v0.3.2
