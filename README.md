@@ -86,12 +86,12 @@ No other package is needed. The framework adapters (`glassity/react`, `glassity/
 Paste this into Claude Code, Cursor, Codex, Copilot or any coding agent:
 
 ```text
-Set up glassity for me. Fetch https://raw.githubusercontent.com/duckvhuynh/glassity/main/get-started.md and follow it.
+Set up glassity for me. Fetch https://cdn.jsdelivr.net/npm/glassity@0.3/get-started.md and follow it.
 ```
 
 The agent reads [get-started.md](get-started.md): it finds your framework and icon library, installs glassity, wires it in, marks a few icons and checks that the glass shows. [skills/glassity/SKILL.md](skills/glassity/SKILL.md) is the full reference written for agents (every option, recipe and fix); the guide offers to save it in your project so the agent knows glassity next time. Both files also ship in the npm package.
 
-> glassity is at 0.1. The API may change before 1.0; the [changelog](CHANGELOG.md) lists every change, and [Limits](#limits) lists what it does not do yet.
+> glassity is at 0.3. The API may change before 1.0; the [changelog](CHANGELOG.md) lists every change, and [Limits](#limits) lists what it does not do yet.
 
 ## Use
 
@@ -247,7 +247,7 @@ one.destroy();
 ### Script tag
 
 ```html
-<script src="https://unpkg.com/glassity"></script>
+<script src="https://unpkg.com/glassity@0.3"></script>
 <svg data-glass ...>...</svg>
 ```
 
@@ -299,7 +299,7 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `visible` | `true` | Show or hide. The glass materialises by bending light in and out |
 | `duration` | `520` | Materialise and morph time, ms |
 | `scheme` | `'auto'` | `auto` reads the backdrop under the icon; `dark` / `light` force it |
-| `accessibility` | `true` | Follow the system's accessibility settings (see below) |
+| `accessibility` | `true` | Follow the system's accessibility settings (see below). Forced colours always apply |
 | `backdrop` | `'auto'` | What the glass refracts (see below) |
 | `maxDpr` | `2` | Upper limit for the device pixel ratio |
 
@@ -322,13 +322,13 @@ Or say what to refract:
 
 ## Compatibility
 
-What has been run, and what is known not to work. The [compatibility suite](compat/README.md) installs the packed package into Vue, Svelte, Solid and Preact apps and checks them in Chromium, Firefox and WebKit; the [browser tests](e2e) cover the cases below.
+What has been run, and what is known not to work. The [compatibility suite](compat/README.md) installs the packed package into twelve framework apps (Vue, Svelte, Solid, Preact, Angular 21 and 22, Next.js, Nuxt, SvelteKit, Astro, React Router and Remix 3) and checks them in Chromium and WebKit; the [browser tests](e2e) cover the cases below in Chromium, Firefox and WebKit.
 
 **Frameworks**
 
 | | |
 |---|---|
-| React 18/19, Vue 3, Svelte 5, Solid, Preact | Adapters, checked from the packed package |
+| React 19, Vue 3, Svelte 5, Solid, Preact | Adapters, checked from the packed package. React 18 is in the supported range but not in the suite |
 | Next.js 16, Nuxt 4, SvelteKit 3, React Router 8 (the successor of Remix 2) | Checked end to end (Nuxt also with a `hydrate-on-visible` component that hydrates on scroll): production build, server HTML, hydration, then the same interactions, with both the adapters and `glassity/auto`. The server HTML carries no glass; no hydration warning appears |
 | Astro 7 | Checked the same way, with a React island and static markup. Islands that hydrate late (`client:visible`, `client:idle`) are left alone until they have hydrated, then their icons become glass |
 | Other server rendering | Importing glassity on the server is safe. `auto()` waits until the page has loaded and gone idle, and skips icons that React, an Astro island or a lazily hydrated Vue component (`hydrateOnVisible` and the other strategies, Nuxt's `hydrate-on-*`) has not hydrated yet |
@@ -371,7 +371,7 @@ With `accessibility: true` (default) glassity follows the system:
 | Reduce motion | No pointer light, no bounce, transitions are instant |
 | Reduce transparency | Frostier, more tinted glass. On Windows this is on when "Transparency effects" is off |
 | More contrast | Solid black or white icons |
-| Forced colours | Glass is off; the plain SVG shows |
+| Forced colours | Glass is off; the plain SVG shows. This applies even with `accessibility: false` |
 
 Without WebGL2 the icon stays a plain SVG with a soft highlight.
 

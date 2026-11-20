@@ -591,7 +591,7 @@ function code(): string {
       const variant = state.options.variant ? `="${state.options.variant}"` : '';
       const n = own ? 1 : list.length;
       const svgs = Array.from({ length: n }, () => `<svg data-glass${variant}${attrs} viewBox="…">…</svg>`).join('\n');
-      return `<script src="https://unpkg.com/glassity"></script>\n\n${svgs}${more ? '\n<!-- … -->' : ''}`;
+      return `<script src="https://unpkg.com/glassity@${__VERSION__.split('.').slice(0, 2).join('.')}"></script>\n\n${svgs}${more ? '\n<!-- … -->' : ''}`;
     }
     case 'js': {
       const obj = o.length ? `{ ${o.map(([k, v]) => `${k}: ${typeof v === 'string' ? `'${v}'` : num(v)}`).join(', ')} }` : '';

@@ -9,7 +9,7 @@ glassity turns inline SVG icons into liquid glass with WebGL2. It reads the outl
 
 - Package: `glassity` on npm. ESM and CommonJS, types for every `moduleResolution`. No runtime dependencies.
 - Playground with every option: https://duckvhuynh.github.io/glassity/
-- Setup guide for agents: https://raw.githubusercontent.com/duckvhuynh/glassity/main/get-started.md
+- Setup guide for agents: https://cdn.jsdelivr.net/npm/glassity@0.3/get-started.md
 
 ## How it works, in one paragraph
 
@@ -27,7 +27,7 @@ Each glass icon gets a `<canvas data-glassity-canvas>` inserted right after its 
 | `glassity/solid` | `glass`, `glassProvider` directives |
 | `glassity/angular` | `provideGlassity`, `injectGlass`, `injectGlassProvider` |
 | `glassity/remix` | `glass`, `glassProvider` mixins (Remix 3) |
-| `https://unpkg.com/glassity` | Script-tag build: `window.glassity` and page-wide auto mode |
+| `https://unpkg.com/glassity@0.3` | Script-tag build: `window.glassity` and page-wide auto mode |
 
 ### Core API
 
@@ -195,7 +195,7 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `visible` | `true` | boolean | Hide or show; the glass materialises by bending light in and out |
 | `duration` | `520` | 0 to 10000 ms | Materialise and morph time |
 | `scheme` | `'auto'` | `auto`, `light`, `dark` | `auto` reads the backdrop under each icon; force for a known page colour |
-| `accessibility` | `true` | boolean | Follow reduced motion, reduced transparency, more contrast, forced colours |
+| `accessibility` | `true` | boolean | Follow reduced motion, reduced transparency, more contrast, forced colours. `false` ignores them except forced colours, which always win |
 | `backdrop` | `'auto'` | see below | What the glass refracts |
 | `maxDpr` | `2` | 0.5 to 4 | Cap on device pixel ratio (cost) |
 
@@ -253,7 +253,7 @@ Playground links carry settings after `#`: keys that are option names are option
 | No `canvas[data-glassity-canvas]` | Setup did not run in the browser, or no `data-glass`. Check the import is client-side |
 | `data-glass` not on the `<svg>` | The component drops props (lucide-react in a Server Component). Client component or provider `selector` |
 | Flat, invisible glass | Nothing behind it: use a gradient or image background, `tile: true`, or a bigger icon |
-| Small icons on a white bar turned pale grey | Expected: glass under about 40 px on plain light backgrounds has little to show. Leave them plain (`data-glass="off"`), make them bigger, or use `tile: true` |
+| Small icons on a white bar turned pale grey | Expected for icons from about 28 to 40 px on plain light backgrounds: below 28 px glassity turns them dark so they stay readable, but larger ones stay light glass with little to show. Leave them plain (`data-glass="off"`), make them bigger, or use `tile: true` |
 | Very frosted and tinted | The OS asks for reduced transparency. Intended; `accessibility: false` only for testing |
 | Plain icon | No WebGL2: `isSupported()` is false; the fallback is the plain SVG |
 | Part of the icon missing | External `<use>` sprite without CORS, or a reference that does not resolve |

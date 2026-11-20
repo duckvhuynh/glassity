@@ -6,7 +6,7 @@ Follow the steps below in order. Keep the change small: add glassity, mark a few
 
 - Repository: https://github.com/duckvhuynh/glassity
 - Playground (every option, live): https://duckvhuynh.github.io/glassity/
-- Full reference for agents: https://raw.githubusercontent.com/duckvhuynh/glassity/main/skills/glassity/SKILL.md
+- Full reference for agents: https://cdn.jsdelivr.net/npm/glassity@0.3/skills/glassity/SKILL.md
 
 This guide is enough to set glassity up. Open the full reference only when you need an option or a behaviour this guide does not cover.
 
@@ -241,7 +241,7 @@ To make a whole icon set glass without touching every icon, give the provider a 
 
 If the person did not say which icons, choose icons that will look like glass, using these two rules:
 
-- **Size: 40 px or more.** Smaller icons have little room for the bevel and the bending, and lose contrast.
+- **Size: 40 px or more.** Smaller icons have little room for the bevel and the bending, and lose contrast. (Under about 28 px glassity turns icons dark on light pages so they stay readable, but they look less like glass.)
 - **Something behind them: a photo, a gradient, a colourful section.** Glass shows what is behind it, so over plain white or plain black it has little to show.
 
 Good first choices: feature or category icons in a hero, a dock or toolbar over a colourful background, icons on cards with an image. Five to ten icons is a good start.
@@ -309,7 +309,7 @@ Each glass icon gets a `<canvas data-glassity-canvas>` right after its `<svg>`, 
 
 ## 7. Teach yourself for later
 
-The skill file is a complete reference: every option, recipe and edge case, written for agents. Ask the person once, for example: "Should I save the glassity reference in the project, so I know how to use it next time?" If yes, copy it **word for word**, not a summary: from `node_modules/glassity/skills/glassity/SKILL.md` (glassity 0.3.2 and later), or download it with `curl -fsSL https://raw.githubusercontent.com/duckvhuynh/glassity/main/skills/glassity/SKILL.md -o <path>`. Save it to:
+The skill file is a complete reference: every option, recipe and edge case, written for agents. Ask the person once, for example: "Should I save the glassity reference in the project, so I know how to use it next time?" If yes, copy it **word for word**, not a summary: from `node_modules/glassity/skills/glassity/SKILL.md` (glassity 0.3.2 and later), or download it with `curl -fsSL https://cdn.jsdelivr.net/npm/glassity@0.3/skills/glassity/SKILL.md -o <path>`. Save it to:
 
 - Claude Code: `.claude/skills/glassity/SKILL.md`
 - Cursor: `.cursor/rules/glassity.mdc` (keep the text; Cursor reads the front matter as rule metadata)

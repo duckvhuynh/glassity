@@ -4,7 +4,20 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Fixed
+- React: `weight` on `<GlassProvider>` and `<Glass>` was ignored. Every adapter now takes its option names from the defaults, so no option can be left out again.
+- An icon that changed twice quickly could end up showing the older shape: a slow first read of the SVG no longer overwrites a newer one.
+- HTML backdrops: the snapshot helper switched itself off 1.5 s after starting, which sent every later snapshot down a slower path.
+- Without WebGL2, the plain stand-ins are now owned by their controller: destroying it removes their highlight, and the icons can be picked up again.
+- An option value that is not a number (`data-glass-depth="deep"`, `NaN`) now falls back to its default instead of making the glass draw nothing.
+- `accessibility: false` no longer overrides forced colours (High Contrast mode): the plain icon always shows there.
+
+### Changed
+- Releases publish to npm only after the full CI (unit, browser and framework tests) passes on the tagged commit. CI also builds the playground on pull requests.
+
 ### Documentation
+- The agent prompt, the setup guide and the script tag point at the published 0.3 files (jsDelivr and unpkg) instead of `main`.
+- Corrected the version note, the compatibility claims (twelve framework apps, Chromium and WebKit; React 19 checked) and the small-icon size advice (28 px turns dark, 40 px recommended).
 - The playground's real-app examples have Glass and Profile pickers: switch every icon in a demo between looks (clear, frosted, crystal, tinted, bold) and edge profiles, live.
 
 ## [0.3.4] - 2026-11-18
