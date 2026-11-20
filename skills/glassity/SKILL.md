@@ -154,12 +154,36 @@ Browser-only mixins. Add `glassity` to the asset server's `allowPackages`. For s
 - React Router framework mode: `import 'glassity/auto'` in `app/root` or a route module.
 - No build: `<script src="https://unpkg.com/glassity@0.3"></script>` (pin the current version) and `data-glass` on icons. `window.glassity.controller.update({...})` changes the page-wide options.
 
+## Glass surfaces
+
+`data-glass="surface"` turns an HTML container's background into a glass slab. Use existing `button`, `nav` or `div` elements for pills, toolbars and tab bars; no wrapper or backdrop declaration is required. CSS supplies its size and border radius, including per-corner elliptical radii, and resizing updates the slab. Content remains ordinary DOM above the canvas: text selection, focus rings, links and click targets keep working.
+
+```html
+<button data-glass="surface" style="border-radius: 999px">Save</button>
+<nav data-glass="surface" data-glass-look="frosted" style="border-radius: 24px">
+  <button><svg viewBox="0 0 24 24">…</svg> Home</button>
+</nav>
+```
+
+```ts
+const panel = glassify(element, { surface: true, look: 'clear', frost: 0.2 });
+panel.update({ tint: '#92b5ff', tintOpacity: 0.2 });
+panel.destroy();
+```
+
+For surfaces, `handle.element` is the original host. `GlassHandle.element` and `retarget(target)` use the exported `GlassElement = SVGSVGElement | HTMLElement` type. Retargeting accepts an HTML surface or an SVG; existing SVG calls continue to work.
+
+Replaced elements and native controls (`input`, `img`, `video`, `canvas`, `select`, `textarea`) cannot host the rendering canvas and remain unchanged.
+
+React and Vue providers discover `data-glass="surface"` through the existing attribute workflow; the `glassity/auto` import works too. Include `[data-glass]` in a custom provider selector. SVGs inside surfaces stay plain unless they explicitly carry `data-glass`, including when a broad selector would otherwise pick them up. Material options (`look`, `frost`, `tint`, `depth`, and the lighting controls) apply to the slab. Icon geometry options (`tileRadius`, `padding`, `strokeWidth`, `glyphOpacity`) do not restyle its DOM children. Surfaces cap DPR at 1.5 or a lower `maxDpr` and reuse the region's backdrop.
+
 ## Attributes
 
 | Attribute | Effect |
 |---|---|
 | `data-glass` | Glass with the shared options |
 | `data-glass="clear"` | Pick a variant: `regular`, `clear`, `identity` |
+| `data-glass="surface"` | Glass background for an HTML element; preserve ordinary DOM content |
 | `data-glass="off"` | Leave this icon alone |
 | `data-glass-look="crystal"` | Pick a named look |
 | `data-glass-depth="0.3"`, `data-glass-tile`, `data-glass-light-angle="-30"` | Any option, kebab-case; a bare attribute is `true` |
@@ -173,6 +197,7 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `look` | `'default'` | `default`, `clear`, `frosted`, `crystal`, `tinted`, `bold` | Named recipe below explicit options; changing looks drops the previous recipe |
 | `variant` | `'regular'` | `regular`, `clear`, `identity` | `clear` presets: frost 0, saturation 1.1, contrast 1, tintOpacity 0.04, dim `auto`, dispersion 0.5. `identity` leaves the SVG as is |
 | `profile` | `'squircle'` | `squircle`, `circle`, `lip`, `dome` | Edge cross-section. `dome`: a glass ball traced through both surfaces; magnifies, and from depth about 0.3 shows the page upside down. Best on a round tile |
+| `surface` | `false` | boolean | Glass slab filling an HTML container's CSS box, with its computed corner radii and content on top |
 | `tile` | `false` | boolean | Rounded glass plate filling the SVG's box; the icon becomes a glass mark on it |
 | `tileRadius` | `0.26` | 0 to 0.5 | Plate corner radius; `0.5` is a circle on a square box |
 | `glyphOpacity` | `0.9` | 0 to 1 | How solid the mark is on a plate |
@@ -207,7 +232,7 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `scheme` | `'auto'` | `auto`, `light`, `dark` | `auto` reads the backdrop under each icon; force for a known page colour |
 | `accessibility` | `true` | boolean | Follow reduced motion, reduced transparency, more contrast, forced colours. `false` ignores them except forced colours, which always win |
 | `backdrop` | `'auto'` | see below | What the glass refracts |
-| `maxDpr` | `2` | 0.5 to 4 | Cap on device pixel ratio (cost) |
+| `maxDpr` | `2` | 0.5 to 4 | Cap on device pixel ratio (cost); surfaces also cap it at 1.5 |
 
 ### Small icons and CSS colour
 
@@ -268,7 +293,7 @@ Playground links carry settings after `#`: keys that are option names are option
 ## Limits
 
 - Icon fonts are not supported (no SVG to read).
-- Rotation and skew of the icon, or of the canvas's ancestors, are not followed; translation and scale are.
+- Rotation and skew of SVG icons, or of their canvas ancestors, are not followed; translation and scale are. Surfaces follow their own and their ancestors' 2D scale, rotation and skew. Under 3D or perspective transforms the surface follows the DOM, but backdrop sampling remains planar.
 - Multicolour SVGs are used for their outline only.
 - HTML snapshots are pictures: web fonts, cross-origin images without CORS, pseudo-elements and iframes may be missing.
 - Real Safari on macOS and iOS has not been checked; WebKit builds pass the test suite.

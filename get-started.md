@@ -248,6 +248,19 @@ Good first choices: feature or category icons in a hero, a dock or toolbar over 
 
 Small toolbar and tab icons can use the defaults without wrappers or backdrop declarations. Small icons on dark and saturated surfaces now look different: glassity uses their CSS `color` to keep contrast and respects its alpha, so dimmed icons stay dimmer. The size is measured after padding; a 48 px tile with default padding has a glyph of about 27 px. Check readability in both active and inactive states.
 
+### Buttons, pills, toolbars and tab bars
+
+For a glass background behind ordinary content, put `data-glass="surface"` on an existing HTML container such as a `button`, `nav` or `div`. Keep its CSS size and `border-radius`; individual and elliptical corner radii are read automatically. The setup from step 3 also discovers these surfaces, including through React and Vue providers. If you use a custom selector, include `[data-glass]`.
+
+```html
+<button data-glass="surface" style="border-radius: 999px">Save</button>
+<nav data-glass="surface" data-glass-look="frosted" style="border-radius: 24px">
+  <!-- Existing links, labels and icons stay here. -->
+</nav>
+```
+
+Replaced elements and native controls (`input`, `img`, `video`, `canvas`, `select`, `textarea`) cannot host the rendering canvas and remain unchanged. No wrapper or explicit backdrop is needed for supported containers. Labels stay selectable, buttons stay clickable, and focus rings stay visible. Inner SVGs stay plain unless they carry `data-glass` explicitly, even with a provider selector that matches all SVGs. For a single element in code, use `glassify(element, { surface: true, look: 'clear' })`. Material options apply to the slab; CSS continues to style the children. Large surfaces cap DPR at 1.5, or a lower `maxDpr`.
+
 ## 5. Pick a look
 
 Keep the Default look unless the person asked for a style. Make one adjustment on your own: thin outline icon sets (Lucide, Feather, Tabler, Heroicons outline, Iconoir) look better a little bolder, so add `weight: 0.03`.
@@ -296,7 +309,7 @@ await page.waitForFunction(() => document.querySelector('canvas[data-glassity-ca
 await page.evaluate(() => document.querySelectorAll('canvas[data-glassity-canvas]').length); // > 0: glass is on
 ```
 
-Each glass icon gets a `<canvas data-glassity-canvas>` right after its `<svg>`, and the `<svg>` gets `data-glassity-hidden` (it stays in the page, invisible).
+Each glass icon gets a `<canvas data-glassity-canvas>` right after its `<svg>`, and the `<svg>` gets `data-glassity-hidden` (it stays in the page, invisible). A surface instead keeps its content visible above its canvas. Check that a surface follows a resize and its CSS corner radii, and that its buttons, text selection and keyboard focus still work.
 
 - With a headless browser (Playwright, Puppeteer), launch Chromium with `--enable-unsafe-swiftshader --ignore-gpu-blocklist`. Without a GPU it otherwise has no WebGL2, finds no glass, and the check fails although the setup is right. Console warnings like "GPU stall due to ReadPixels" come from that software renderer and are harmless.
 - Look at the result too, in a screenshot if you can. Check small icons on white, dark and saturated surfaces, including an active tab or button. Small automatic icons use near-black ink on light neutral surfaces and their CSS `color` on other surfaces; larger icons remain more transparent. To follow CSS colour at any size, use `{ tint: 'currentColor', tintOpacity: 0.55 }`, or choose an explicit tint such as `{ tint: '#ffffff', tintOpacity: 0.4 }`.

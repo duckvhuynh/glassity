@@ -23,6 +23,9 @@ export interface DrawParams {
   back: BackTexture;
   backRect: [number, number, number, number];
   backDensity: number;
+  /** Surface pixels map through the host's CSS transforms into viewport space. */
+  backMap?: { basis: [number, number, number, number]; offset: [number, number] };
+  surface?: number;
   canvas: [number, number];
   box: [number, number];
   unit: number;
@@ -71,6 +74,7 @@ const UNIFORMS = [
   'uOpacity', 'uShine', 'uRim', 'uRefl', 'uShadow', 'uLight', 'uScheme', 'uLens', 'uTouch', 'uTile',
   'uTileRadius', 'uTileBevel', 'uGlyphOpacity', 'uHighContrast', 'uSeed', 'uWeight',
   'uGlyphSize', 'uLegibilityColor', 'uLegibilityAmount',
+  'uSurface', 'uBackBasis', 'uBackOffset',
 ] as const;
 
 type UniformName = (typeof UNIFORMS)[number];
@@ -383,6 +387,11 @@ export class Renderer {
     gl.uniform1f(u.uMorph, p.morph);
     gl.uniform2f(u.uFieldTexel, 1 / p.fieldA.w, 1 / p.fieldA.h);
     gl.uniform4f(u.uBackRect, p.backRect[0], p.backRect[1], p.backRect[2], p.backRect[3]);
+    const basis = p.backMap?.basis ?? [1, 0, 0, 1];
+    const offset = p.backMap?.offset ?? [0, 0];
+    gl.uniform4f(u.uBackBasis, basis[0], basis[1], basis[2], basis[3]);
+    gl.uniform2f(u.uBackOffset, offset[0], offset[1]);
+    gl.uniform1f(u.uSurface, p.surface ?? 0);
     gl.uniform1f(u.uBackDensity, p.backDensity);
     gl.uniform1f(u.uBackMaxLod, p.back.maxLod);
     gl.uniform2f(u.uCanvas, p.canvas[0], p.canvas[1]);

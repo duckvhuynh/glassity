@@ -177,7 +177,7 @@ function cloneTree(node: Node, job: CloneJob, isRoot: boolean): Node | null {
   }
 
   let style = styleText(el);
-  if (isRoot) style += 'margin:0;position:relative;inset:auto;transform:none;box-sizing:border-box;' + `width:${(el as HTMLElement).offsetWidth}px;height:${(el as HTMLElement).offsetHeight}px;`;
+  if (isRoot) style += 'margin:0;position:relative;inset:auto;transform:none;translate:none;rotate:none;scale:none;zoom:1;box-sizing:border-box;' + `width:${(el as HTMLElement).offsetWidth}px;height:${(el as HTMLElement).offsetHeight}px;`;
   if (style.includes('url(')) job.pending.push(inlineUrls(style).then((inlined) => copy.setAttribute('style', inlined)));
   copy.setAttribute('style', style);
   copy.removeAttribute('class');

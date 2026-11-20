@@ -1,8 +1,10 @@
 import { getEngine, type GlassHandle, type Scope } from './engine';
-import type { GlassOptions } from './options';
-import { awaitingHydration, findSvg, outsideZones, OWN, whenSettled } from './dom';
+import { readAttributes, resolveOptions, type GlassOptions } from './options';
+import { canHostSurface, plainOnSurface, surfaceTarget, type GlassElement } from './surface';
+import { awaitingHydration, findSvg, outsideZones, OWN, SURFACE, whenSettled } from './dom';
 
 export type { GlassHandle } from './engine';
+export type { GlassElement } from './surface';
 export { looks } from './options';
 export type { BackdropSource, GlassLook, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
 
@@ -23,7 +25,7 @@ const inert: GlassHandle = {
 };
 
 /**
- * Turn one SVG into glass.
+ * Turn one SVG or an HTML element's background into glass.
  *
  * ```js
  * import { glassify } from 'glassity';
@@ -32,13 +34,17 @@ const inert: GlassHandle = {
  * glass.destroy();
  * ```
  *
- * @param target an `<svg>`, or an element that contains one (also in its open shadow root)
+ * @param target an SVG (or its host), or an HTML element with `surface: true` / `data-glass="surface"`
  */
 export function glassify(target: Element, options: GlassOptions = {}): GlassHandle {
   if (!isBrowser) return inert;
-  const svg = findSvg(target);
+  if (target instanceof HTMLElement && (options.surface ?? readAttributes(target)?.surface) && !canHostSurface(target)) {
+    console.warn('glassity: surfaces need an HTML container that can paint children, such as a button, nav or div.', target);
+    return inert;
+  }
+  const svg = surfaceTarget(target, options) ? target : findSvg(target);
   if (!svg) {
-    console.warn('glassity: no <svg> found. Pass an <svg> element, or an element that contains one.', target);
+    console.warn('glassity: no <svg> found. Pass an <svg>, its host, or an HTML element with { surface: true }.', target);
     return inert;
   }
   return outsideZones(() => wrap(getEngine().mount(svg, options, null)));
@@ -51,6 +57,7 @@ export function configure(options: GlassOptions): void {
     const engine = getEngine();
     engine.scopes.configure(options);
     engine.configure();
+    engine.scopes.discover();
   });
 }
 
@@ -154,7 +161,7 @@ function startAuto(options: AutoOptions): GlassController {
     engine.sweep(container);
     engine.syncScopes();
     let hydrating = false;
-    const wanted = new Set<SVGSVGElement>();
+    const wanted = new Set<GlassElement>();
     let matches: Element[] = [];
     try {
       matches = Array.from(container.querySelectorAll(selector));
@@ -169,7 +176,10 @@ function startAuto(options: AutoOptions): GlassController {
       const flag = match.getAttribute('data-glass')?.trim().toLowerCase();
       if (flag === 'off' || flag === 'false' || flag === 'none') continue;
       if (match.shadowRoot || match.localName.includes('-')) watchShadow(match);
-      const svg = findSvg(match);
+      const resolved = resolveOptions(...engine.scopes.layers(match), readAttributes(match));
+      if (resolved.surface && match instanceof HTMLElement && !canHostSurface(match)) continue;
+      const svg = surfaceTarget(match, resolved) ? match : findSvg(match);
+      if (svg instanceof SVGSVGElement && plainOnSurface(svg)) continue;
       if (!svg || svg.getAttribute('data-glass')?.trim().toLowerCase() === 'off') continue;
       // Not hydrated yet: look again shortly. An icon already glass keeps its glass.
       if (!engine.get(svg) && awaitingHydration(svg)) {
@@ -177,6 +187,10 @@ function startAuto(options: AutoOptions): GlassController {
         continue;
       }
       wanted.add(svg);
+    }
+    // A surface selected by options may not have a DOM marker until this scan mounts it.
+    for (const target of wanted) {
+      if (target instanceof SVGSVGElement && !target.hasAttribute('data-glass') && [...wanted].some((surface) => surface instanceof HTMLElement && surface.contains(target))) wanted.delete(target);
     }
     // React's marks cannot be observed, so look again, less often the longer it takes
     // (an island that hydrates on scroll may wait indefinitely).
@@ -206,12 +220,13 @@ function startAuto(options: AutoOptions): GlassController {
   // page can hydrate first (see whenSettled).
   const cancelStart = whenSettled(() => {
     if (destroyed) return;
-    observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', ROOT, 'class', 'ssr'] });
+    observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', 'data-glass-surface', SURFACE, ROOT, 'class', 'ssr'] });
     scan();
   });
 
   const apply = () => {
     engine.configure();
+    if (started) schedule();
   };
 
   return {

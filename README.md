@@ -259,12 +259,41 @@ one.destroy();
 <svg data-glass ...>...</svg>
 ```
 
-### Per-icon attributes
+### Glass surfaces
+
+Put `data-glass="surface"` on an HTML container such as a `button`, `nav` or `div` to turn its background into glass. Use it for pills, toolbars and tab bars. Its existing CSS sets the size and border radius, including different or elliptical radii at each corner. Labels, links, selection, focus rings and click targets stay ordinary DOM above the glass. No wrapper or backdrop declaration is needed.
+
+```html
+<button data-glass="surface" style="border-radius: 999px">Save</button>
+<nav data-glass="surface" data-glass-look="frosted" style="border-radius: 24px">
+  <button><svg viewBox="0 0 24 24">…</svg> Home</button>
+  <button><svg viewBox="0 0 24 24">…</svg> Search</button>
+</nav>
+```
+
+The same attributes work inside React and Vue `GlassProvider` components, or with the `glassity/auto` import. If you use a custom selector, include `[data-glass]` to discover the surfaces too. Icons inside a surface stay plain even when a broad selector matches them; add `data-glass` to an inner SVG explicitly if it should also be glass.
+
+```ts
+const surface = glassify(document.querySelector('#toolbar')!, {
+  surface: true, look: 'clear', frost: 0.2,
+});
+surface.update({ tint: '#92b5ff', tintOpacity: 0.2 });
+surface.destroy(); // restore the element
+```
+
+A surface handle's `element` is the original host. `GlassHandle.element` and `retarget(target)` use the exported `GlassElement` type (`SVGSVGElement | HTMLElement`), so a handle can target an HTML surface or an SVG; existing SVG calls continue to work. Code reading SVG-only fields from `handle.element` should first narrow it with `instanceof SVGSVGElement`.
+
+Replaced elements and native controls (`input`, `img`, `video`, `canvas`, `select`, `textarea`) cannot host the rendering canvas and remain unchanged.
+
+Material options such as `look`, `frost`, `tint` and `depth` apply to the slab. CSS controls its geometry and the content; icon options such as `tileRadius`, `padding`, `strokeWidth` and `glyphOpacity` do not style the DOM children. Surface DPR is capped at 1.5 (or a lower `maxDpr`) to bound the cost of large controls, and surfaces in the same region share their backdrop.
+
+### Per-element attributes
 
 | Attribute | Effect |
 |---|---|
 | `data-glass` | Make this icon glass with the shared options |
 | `data-glass="clear"` | Pick a variant (`regular`, `clear`, `identity`) |
+| `data-glass="surface"` | Glass background for an element; keep its content as DOM |
 | `data-glass="off"` | Leave this icon alone |
 | `data-glass-look="frosted"` | Pick a named look |
 | `data-glass-depth="0.3"`, `data-glass-tile`, … | Any option below, in kebab-case |
@@ -298,6 +327,7 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `look` | `'default'` | Named recipe: `default`, `clear`, `frosted`, `crystal`, `tinted`, or `bold`. Explicit options override it |
 | `variant` | `'regular'` | `regular` keeps content legible; `clear` is see-through; `identity` leaves the SVG untouched |
 | `profile` | `'squircle'` | Cross-section of the edge: `squircle`, `circle`, `lip`, or `dome`, a ball of glass that magnifies and, with `depth` from about 0.3, shows the page upside down. Best on a round tile |
+| `surface` | `false` | Glass background for an HTML container, sized and rounded by its CSS; content stays on top |
 | `tile` | `false` | Put the icon on a rounded glass plate that fills the SVG's box |
 | `tileRadius` | `0.26` | Plate corner radius, 0 to 0.5. `0.5` makes a round button |
 | `glyphOpacity` | `0.9` | How solid the icon is on a plate |
@@ -332,7 +362,7 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `scheme` | `'auto'` | `auto` reads the backdrop under the icon; `dark` / `light` force it |
 | `accessibility` | `true` | Follow the system's accessibility settings (see below). Forced colours always apply |
 | `backdrop` | `'auto'` | What the glass refracts (see below) |
-| `maxDpr` | `2` | Upper limit for the device pixel ratio |
+| `maxDpr` | `2` | Upper limit for the device pixel ratio; surfaces also cap it at 1.5 |
 
 Small icons on dark and saturated surfaces now look different by default. The adjustment follows the sampled backdrop and the icon's CSS `color`, including its alpha, with smooth size and contrast ramps. If the CSS colour itself has too little contrast, automatic mode shifts it toward contrasting light or dark ink. Class, state and theme changes are picked up automatically. Size means the glyph after padding: a 48 px tile with the default padding has a glyph of about 27 px.
 
@@ -418,7 +448,7 @@ Without WebGL2 the icon stays a plain SVG with a soft highlight.
 ## Limits
 
 - **Snapshots are pictures, not live content.** In the HTML-snapshot case, web fonts, cross-origin images without CORS, pseudo-elements and iframes may be missing or differ. A snapshot copies at most 1500 nodes; beyond that only the CSS background is used. Use `backdrop` to choose something smaller.
-- **A canvas positioned by CSS transforms with rotation or skew** is not handled.
+- **SVG icons positioned by CSS transforms with rotation or skew** are not handled. Surfaces follow their own and their ancestors' 2D transforms, including scale, rotation and skew. Under 3D or perspective transforms the surface still follows the DOM, but backdrop sampling remains planar.
 - **Icons do not merge with each other**, and multi-layer icons are treated as one shape.
 - **Multicolour SVGs** are used for their outline only.
 - Browser tests pass on Chromium, Firefox and WebKit (Playwright builds). Real Safari on macOS and iOS has not been checked yet.
