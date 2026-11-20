@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glassity: studio lighting</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #101218; color: #e9edf5; font: 14px/1.4 Arial, sans-serif; }
+  main { width: 744px; max-width: 100%; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 500; }
+  p { margin: 0 0 16px; color: #a9b1c1; }
+  h2 { margin: 14px 0 6px; font-size: 14px; font-weight: 400; }
+  .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  figure { margin: 0; min-width: 0; }
+  figcaption { padding-bottom: 6px; color: #a9b1c1; font-size: 12px; }
+  .sample { position: relative; display: flex; align-items: center; justify-content: space-evenly; height: 144px; }
+  .dark .sample { background: #1f2430; color: #f4f6fb; }
+  .light .sample { background: #f2f4f8; color: #252b38; }
+  .photo .sample { background: #57754d url('/site/backdrops/leaves.webp') center / cover; color: #fff; }
+  svg { display: block; width: 96px; height: 96px; flex: none; }
+  @media (max-width: 650px) {
+    body { padding: 16px; }
+    .modes { gap: 8px; }
+    .sample { height: 180px; flex-direction: column; }
+    svg { width: 72px; height: 72px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Studio lighting</h1>
+  <p>Same glass, three reflection environments. Flat surfaces need no backdrop configuration.</p>
+  <section class="dark" id="dark"><h2>Flat dark · #1f2430</h2><div class="modes"></div></section>
+  <section class="light" id="light"><h2>Flat light · #f2f4f8</h2><div class="modes"></div></section>
+  <section class="photo" id="photo"><h2>Photo · local leaves image</h2><div class="modes"></div></section>
+</main>
+<script type="module">
+  import * as glassity from '/dist/index.js';
+  window.glassity = glassity;
+  window.lightingHandles = {};
+  // Lucide outlines (ISC): https://lucide.dev/icons/heart and https://lucide.dev/icons/search
+  const shapes = {
+    filled: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+    stroke: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  };
+  for (const surface of ['dark', 'light', 'photo']) {
+    const row = document.querySelector('#' + surface + ' .modes');
+    for (const environment of ['none', 'auto', 'studio']) {
+      const figure = document.createElement('figure');
+      const caption = document.createElement('figcaption');
+      caption.textContent = environment;
+      const sample = document.createElement('div');
+      sample.className = 'sample';
+      for (const [kind, shape] of Object.entries(shapes)) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.id = surface + '-' + environment + '-' + kind;
+        for (const [name, value] of Object.entries({
+          viewBox: '0 0 24 24', width: 96, height: 96,
+          fill: kind === 'filled' ? 'currentColor' : 'none',
+          stroke: kind === 'stroke' ? 'currentColor' : 'none',
+          'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+          'data-glass': '', 'data-glass-environment': environment,
+          'aria-label': kind === 'filled' ? 'Heart' : 'Search', role: 'img',
+        })) svg.setAttribute(name, String(value));
+        svg.innerHTML = shape;
+        sample.append(svg);
+      }
+      figure.append(caption, sample);
+      row.append(figure);
+    }
+  }
+  // Stable on load for screenshots; all optical controls keep their defaults.
+  for (const svg of document.querySelectorAll('svg[data-glass]')) {
+    window.lightingHandles[svg.id] = glassity.glassify(svg, { duration: 0, pointerLight: false, accessibility: false });
+  }
+</script>
+</body>
+</html>

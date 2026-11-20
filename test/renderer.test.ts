@@ -20,7 +20,7 @@ function fixture(maxTextureSize = 8192) {
     getShaderInfoLog: vi.fn(() => 'compile failed'), attachShader: vi.fn(), linkProgram: vi.fn(),
     getProgramParameter: vi.fn((_program?: unknown, _name?: number) => true), getProgramInfoLog: vi.fn(() => 'link failed'),
     createVertexArray: vi.fn<() => object | null>(resource), deleteVertexArray: vi.fn(),
-    getUniformLocation: vi.fn(resource), disable: vi.fn(), pixelStorei: vi.fn(),
+    getUniformLocation: vi.fn((_program: object, _name: string) => resource()), disable: vi.fn(), pixelStorei: vi.fn(),
     getParameter: vi.fn(() => maxTextureSize), getError: vi.fn(() => 0),
     isContextLost: vi.fn(() => lost),
     getExtension: vi.fn<() => { COMPLETION_STATUS_KHR: number } | null>(() => null),
@@ -77,7 +77,7 @@ function params(field: FieldTexture, back: BackTexture): DrawParams {
     bevel: 0, curvature: 0, depth: 0, ior: 1.5, refraction: 0, dispersion: 0,
     bands: 0, frost: 0, saturation: 1, brightness: 1, contrast: 1,
     tint: [0, 0, 0], tintAuto: 0, tintOpacity: 0, dim: 0, opacity: 1,
-    shine: 0, rim: 0, reflection: 0, shadow: 0, light: [0, 0], scheme: 0,
+    shine: 0, rim: 0, reflection: 0, environment: 'auto', shadow: 0, light: [0, 0], scheme: 0,
     lens: 0, touch: [0, 0, 0], tile: 0, tileRadius: 0, tileBevel: 0,
     weight: 0, glyphOpacity: 0, highContrast: 0, seed: 0,
     glyphSize: 24, legibilityColor: [0, 0, 0], legibilityAmount: 0,
@@ -86,6 +86,24 @@ function params(field: FieldTexture, back: BackTexture): DrawParams {
 
 beforeEach(() => { vi.spyOn(console, 'warn').mockImplementation(() => {}); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+describe('renderer lighting', () => {
+  it('uploads the environment mode on every draw, including switching it off again', () => {
+    const f = fixture();
+    const renderer = f.create();
+    const field = renderer.createField(new Float32Array(16), 4, 2);
+    const back = renderer.uploadBack(null, source(), 8, 4);
+    const p = params(field, back);
+    const locationIndex = f.gl.getUniformLocation.mock.calls.findIndex(([, name]) => name === 'uEnvironment');
+    expect(locationIndex).toBeGreaterThanOrEqual(0);
+    const location = f.gl.getUniformLocation.mock.results[locationIndex].value;
+    for (const [environment, value] of [['none', 0], ['studio', 2], ['auto', 1], ['none', 0]] as const) {
+      f.gl.uniform1i.mockClear();
+      expect(renderer.draw(f.ctx as unknown as CanvasRenderingContext2D, 24, 24, { ...p, environment })).toBe(true);
+      expect(f.gl.uniform1i).toHaveBeenCalledWith(location, value);
+    }
+  });
+});
 
 describe('renderer texture ownership', () => {
   it('counts RG16F and every rectangular mip level, then releases each texture once', () => {

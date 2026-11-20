@@ -1,6 +1,7 @@
 export type GlassVariant = 'regular' | 'clear' | 'identity';
 export type GlassProfile = 'squircle' | 'circle' | 'lip' | 'dome';
 export type GlassScheme = 'auto' | 'light' | 'dark';
+export type GlassEnvironment = 'auto' | 'studio' | 'none';
 export type GlassLook = 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold';
 
 /**
@@ -77,6 +78,8 @@ export interface GlassOptions {
   rim?: number;
   /** Strength of the reflected surroundings. Default `0.6`. */
   reflection?: number;
+  /** Procedural studio reflections: auto strengthens flat backdrops, studio always enables them, none keeps only the original reflection. Default auto. */
+  environment?: GlassEnvironment;
   /** Direction the light comes from, in degrees clockwise from the top. Default `-45` (top left). */
   lightAngle?: number;
   /** Strength of the drop shadow, 0–1. Default `0.3`. */
@@ -135,6 +138,7 @@ export interface ResolvedOptions {
   shine: number;
   rim: number;
   reflection: number;
+  environment: GlassEnvironment;
   lightAngle: number;
   shadow: number;
   interactive: boolean;
@@ -190,6 +194,7 @@ export const OPTION_DESCRIPTORS = {
   shine: { kind: 'number', default: 1, min: 0, max: 4 },
   rim: { kind: 'number', default: 1, min: 0, max: 4 },
   reflection: { kind: 'number', default: 0.6, min: 0, max: 4 },
+  environment: { kind: 'enum', default: 'auto', values: ['auto', 'studio', 'none'] },
   lightAngle: { kind: 'number', default: -45, zero: 0 },
   shadow: { kind: 'number', default: 0.3, min: 0, max: 1 },
   interactive: { kind: 'boolean', default: false },

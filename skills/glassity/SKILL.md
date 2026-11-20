@@ -162,6 +162,7 @@ Browser-only mixins. Add `glassity` to the asset server's `allowPackages`. For s
 | `data-glass="clear"` | Pick a variant: `regular`, `clear`, `identity` |
 | `data-glass="off"` | Leave this icon alone |
 | `data-glass-look="crystal"` | Pick a named look |
+| `data-glass-environment="studio"` | Keep studio reflections on over any backdrop |
 | `data-glass-depth="0.3"`, `data-glass-tile`, `data-glass-light-angle="-30"` | Any option, kebab-case; a bare attribute is `true` |
 
 ## Options
@@ -198,6 +199,7 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `shine` | `1` | 0 to 4 | Specular highlight |
 | `rim` | `1` | 0 to 4 | Thin light along the edge |
 | `reflection` | `0.6` | 0 to 4 | Fresnel reflection of the surroundings |
+| `environment` | `'auto'` | `auto`, `studio`, `none` | Procedural studio reflections: `auto` strengthens flat surfaces and fades over detail, `studio` always enables them, `none` keeps the original ambient reflection |
 | `lightAngle` | `-45` | degrees | Light direction, clockwise from the top |
 | `shadow` | `0.3` | 0 to 1 | Drop shadow; also the dark outline that draws glass on white pages |
 | `interactive` | `false` | boolean | Swell, bounce and glow when pressed |
@@ -222,6 +224,12 @@ glassify(svg, { legibility: 'off' });
 
 `currentColor` explicitly follows the SVG's computed `color` at any size. All explicit tints bypass automatic legibility and retain the chosen `tintOpacity`. Providers accept the same options; attributes are `data-glass-tint="currentColor"` and `data-glass-legibility="off"`.
 
+### Lighting on flat surfaces
+
+`environment: 'auto'` needs no setup: a broad window, softer opposite fill and dark horizon reflect from the glass on plain surfaces. Their colour follows the low-frequency backdrop colour, and their strength fades with backdrop detail so photos keep essentially the same look. Fresnel bounds the reflections; `reflection` scales them and `frost` broadens their highlights. `environment: 'studio'` keeps the lights on even over photos. `environment: 'none'` disables only these added lights, preserving the original reflection; `reflection: 0` disables reflected surroundings altogether.
+
+Use the option on any provider, `glassify(svg, { environment: 'studio' })`, or `data-glass-environment="studio"`. No extra wrapper or backdrop declaration is needed. The `GlassEnvironment` type is exported from `glassity`.
+
 ### Backdrop
 
 | Value | Refracts |
@@ -242,6 +250,10 @@ Use a named `look` instead of copying its recipe. `looks` is a readonly record e
 | Frosted | `{ look: 'frosted' }` → frost 0.8, tintOpacity 0.32, dispersion 0.1, shine 0.8 |
 | Crystal | `{ look: 'crystal' }` → variant `clear`, depth 0.34, curvature 1.7, dispersion 1.3, shine 1.6 |
 | Bold, thin icon sets | `{ look: 'bold' }` → weight 0.05, depth 0.22 |
+| Flat dashboards and solid buttons | Default `{ environment: 'auto' }`; no backdrop setup needed |
+| Studio lights over any backdrop | `{ environment: 'studio' }` |
+| Soft studio highlights | `{ environment: 'studio', frost: 0.6 }` |
+| Original ambient reflection only | `{ environment: 'none' }` |
 | App icon tiles (dock) | `{ tile: true, interactive: true }` |
 | Round glass buttons | `{ tile: true, tileRadius: 0.5, profile: 'circle', bevel: 0.5, depth: 0.3, weight: 0.02 }` |
 | Glass ball lens | `{ tile: true, tileRadius: 0.5, profile: 'dome', variant: 'clear', depth: 0.6, weight: 0.02 }` |
@@ -279,7 +291,7 @@ Playground links carry settings after `#`: keys that are option names are option
 |---|---|
 | No `canvas[data-glassity-canvas]` | Setup did not run in the browser, or no `data-glass`. Check the import is client-side |
 | `data-glass` not on the `<svg>` | The component drops props (lucide-react in a Server Component). Client component or provider `selector` |
-| Flat, invisible glass | Check the icon's CSS `color` contrasts with its surface and `legibility` is `auto`. Larger glass needs detail behind it: use a gradient or image background, `tile: true`, or a bigger icon |
+| Flat, invisible glass | Check the icon's CSS `color` contrasts with its surface and `legibility` is `auto`. Leave `environment: 'auto'` for flat surfaces, or choose `studio` to keep its highlights on; `reflection: 0` removes them |
 | Small icons on a white bar turned pale grey | Expected for icons from about 28 to 40 px on plain light backgrounds: below 28 px glassity turns them dark so they stay readable, but larger ones stay light glass with little to show. Leave them plain (`data-glass="off"`), make them bigger, or use `tile: true` |
 | Very frosted and tinted | The OS asks for reduced transparency. Intended; `accessibility: false` only for testing |
 | Plain icon | No WebGL2: `isSupported()` is false; the fallback is the plain SVG |
