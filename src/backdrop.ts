@@ -3,7 +3,7 @@ import { elementMap, type SurfaceSpace } from './surface-space';
 import { pageColor, snapshot, SnapshotBudgetError } from './snapshot';
 import { CaptureQueue } from './capture-queue';
 import { createHtmlCanvasCapture, type HtmlCanvasCapture } from './html-canvas';
-import { captureRegion, type CaptureRegion } from './capture-region';
+import { captureRegion, intersects, type CaptureRegion } from './capture-region';
 
 export interface Rect {
   x: number;
@@ -302,6 +302,15 @@ export class SnapshotBackdrop extends Backdrop {
     const region = this.options.region;
     return !!region && captureRegion({ x: rect.left + scrollX, y: rect.top + scrollY, w: rect.width, h: rect.height },
       this.options.maxSize, devicePixelRatio).key !== region.key;
+  }
+
+  /** True when this capture may hold `element`'s paint: it is inside the captured DOM and region. */
+  covers(element: Element): boolean {
+    if (this.mode !== 'dom' || this.disposed || !this.el.contains(element)) return false;
+    const region = this.options.region;
+    if (!region) return true;
+    const box = element.getBoundingClientRect();
+    return intersects(region, { x: box.left + scrollX, y: box.top + scrollY, w: box.width, h: box.height });
   }
 
   keepLast(previous: SnapshotBackdrop): void {

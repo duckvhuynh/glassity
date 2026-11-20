@@ -14,6 +14,21 @@ async function drawn(page: Page, count: number): Promise<void> {
   }, count);
 }
 
+/**
+ * Snapshots arrive through the capture queue, after a first draw that may use the page
+ * colour. Wait until every backdrop holds its real capture and has been drawn.
+ */
+async function captured(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const key = Object.getOwnPropertySymbols(globalThis).find((key) => key.description?.startsWith('glassity.engine@'))!;
+    const engine = (globalThis as unknown as Record<symbol, Engine>)[key] as unknown as {
+      instances: Map<Element, { drawnVersion: number; backdrop: { busy?: boolean; version: number } | null }>;
+    };
+    return [...engine.instances.values()].every(({ backdrop, drawnVersion }) =>
+      !!backdrop && !backdrop.busy && backdrop.version > 1 && drawnVersion === backdrop.version);
+  });
+}
+
 async function redEnergy(page: Page): Promise<number> {
   return page.locator('#two-default + canvas').evaluate((el) => {
     const canvas = el as HTMLCanvasElement;
@@ -126,6 +141,8 @@ test('layer textures recover after context loss and are released after disposal'
     const renderer = (globalThis as unknown as Record<symbol, Engine>)[key].renderer!;
     return { state: renderer.state, bytes: renderer.textureBytes };
   });
+  // Compare settled allocations, not a backdrop that is still being read.
+  await captured(page);
   const before = await rendererState();
   expect(before.bytes).toBeGreaterThan(0);
   await page.evaluate(() => {
@@ -144,6 +161,7 @@ test('layer textures recover after context loss and are released after disposal'
     (window as unknown as { loseExt: WEBGL_lose_context }).loseExt.restoreContext();
   });
   await drawn(page, 8);
+  await captured(page);
   await expect.poll(rendererState).toEqual(before);
   await page.evaluate(() => window.controller.destroy());
   await expect(page.locator('canvas[data-glassity-canvas]')).toHaveCount(0);

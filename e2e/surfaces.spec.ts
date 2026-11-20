@@ -163,34 +163,32 @@ test('a reused backdrop omits a newly mounted surface own background and label',
     slab.scrollIntoView();
   });
   await waitForGlass(page, { count: 6 });
-  // Establish that the shared snapshot really contains the ordinary red element first.
-  const previousPixel = await page.evaluate(() => {
-    const source = window.glassityTest!.instance('#exclusion-anchor')!.backdrop!.source as HTMLCanvasElement;
-    const wall = document.getElementById('exclusion-wall')!;
-    const slab = document.getElementById('exclusion')!;
-    const outer = wall.getBoundingClientRect();
-    const inner = slab.getBoundingClientRect();
-    const scaleX = source.width / wall.offsetWidth;
-    const scaleY = source.height / wall.offsetHeight;
-    return Array.from(source.getContext('2d')!.getImageData(
-      Math.floor((inner.left - outer.left + 12) * scaleX),
-      Math.floor((inner.top - outer.top + 40) * scaleY), 1, 1,
+  // A capture may cover a local region rather than the whole wall: map through its rect.
+  const backdropPixel = (selector: string) => page.evaluate((selector) => {
+    const backdrop = window.glassityTest!.instance(selector)!.backdrop as unknown as { source: HTMLCanvasElement; rect(): { x: number; y: number; w: number; h: number } };
+    const rect = backdrop.rect();
+    const inner = document.getElementById('exclusion')!.getBoundingClientRect();
+    return Array.from(backdrop.source.getContext('2d')!.getImageData(
+      Math.floor((inner.left - rect.x + 12) * backdrop.source.width / rect.w),
+      Math.floor((inner.top - rect.y + 40) * backdrop.source.height / rect.h), 1, 1,
     ).data);
-  });
+  }, selector);
+  // Establish that the existing snapshot really contains the ordinary red element first.
+  const previousPixel = await backdropPixel('#exclusion-anchor');
   expect(previousPixel[0]).toBeGreaterThan(240);
   expect(previousPixel[1]).toBeLessThan(15);
   expect(previousPixel[2]).toBeLessThan(15);
-  const reused = await page.evaluate(() => {
-    const backdrop = window.glassityTest!.instance('#exclusion-anchor')!.backdrop;
+  await page.evaluate(() => {
     window.handle = window.glassity.glassify(document.getElementById('exclusion')!, {
       surface: true, duration: 0, pointerLight: false, accessibility: false,
       depth: 0, refraction: 0, frost: 0, tintOpacity: 0, shine: 0, rim: 0, reflection: 0,
       shadow: 0, saturation: 1, brightness: 1, contrast: 1, dim: 0,
     });
-    return window.glassityTest!.instance('#exclusion')!.backdrop === backdrop;
   });
-  expect(reused).toBe(true);
   await waitForGlass(page, { count: 7 });
+  // Every capture that held the slab's paint is read again without it, reused or not.
+  for (const selector of ['#exclusion-anchor', '#exclusion'])
+    await expect.poll(async () => (await backdropPixel(selector)).slice(0, 3)).toEqual([20, 60, 120]);
   const [pixel] = await samples(page, '#exclusion', [[120, 40]]);
   for (const [channel, expected] of [20, 60, 120].entries()) expect(Math.abs(pixel[channel] - expected)).toBeLessThan(12);
   expect(pixel[3]).toBeGreaterThan(245);

@@ -225,7 +225,7 @@ class Instance implements GlassHandle {
 
   private attach(svg: GlassElement): void {
     // An HTML element is a surface unless it is marked as text.
-    const isText = svg instanceof HTMLElement && !!textTarget(svg, this.own.text);
+    const isText = this.isText(svg);
     this.surface = svg instanceof HTMLElement && !isText ? new SurfaceLayer(svg, this.canvas) : null;
     this.surfaceShape = '';
     this.surfaceMap = undefined;
@@ -238,6 +238,13 @@ class Instance implements GlassHandle {
     this.observer.observe(svg, { subtree: true, childList: true, attributes: true, characterData: true });
     if (svg instanceof HTMLElement) this.stopFonts = watchTextFonts(svg.ownerDocument, () => this.refresh());
     this.engine.observe(svg);
+  }
+
+  /** Text is chosen by every layer (page, scope, attributes, own), as glassify() and auto() choose it. */
+  private isText(svg: GlassElement): svg is HTMLElement {
+    if (!(svg instanceof HTMLElement)) return false;
+    const text = resolveOptions(...this.engine.scopes.layers(svg), readAttributes(svg) ?? undefined, this.own).text;
+    return !!textTarget(svg, text);
   }
 
   private detach(): void {
@@ -869,7 +876,7 @@ class Instance implements GlassHandle {
   }
 
   retarget(svg: GlassElement): void {
-    if (svg === this.element || this.destroyed || (svg instanceof HTMLElement && !canHostSurface(svg) && !textTarget(svg, this.own.text))) return;
+    if (svg === this.element || this.destroyed || (svg instanceof HTMLElement && !canHostSurface(svg) && !this.isText(svg))) return;
     this.motionSequence?.controller.cancel();
     if (!this.surface && (svg instanceof HTMLElement || this.element instanceof HTMLElement)) {
       this.request++;
@@ -1061,8 +1068,21 @@ export class Engine {
     this.listen();
     const instance = new Instance(this, svg, options, scope);
     this.instances.set(svg, instance);
-    if (svg instanceof HTMLElement) instance.backdrop?.refresh(); // omit this newly owned slab from a reused snapshot
+    if (svg instanceof HTMLElement) this.recaptureAround(svg, instance);
     return instance;
+  }
+
+  /**
+   * Existing captures were taken while this element still painted as ordinary DOM. Its
+   * own backdrop may be reused, and with local regions other cells of the same container
+   * may also hold its paint: re-read every one that covers it so no glass refracts it.
+   */
+  private recaptureAround(element: HTMLElement, instance: Instance): void {
+    const stale = new Set<Backdrop>();
+    if (instance.backdrop) stale.add(instance.backdrop);
+    for (const other of this.instances.values())
+      if (other.backdrop instanceof SnapshotBackdrop && other.backdrop.covers(element)) stale.add(other.backdrop);
+    for (const backdrop of stale) backdrop.refresh();
   }
 
   get(svg: GlassElement): GlassHandle | undefined {
