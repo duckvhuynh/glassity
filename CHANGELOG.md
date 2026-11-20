@@ -14,6 +14,7 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 - Seekable morph sequences through `handle.sequence(shapes, { duration, loop, autoplay })`, with preloaded SVG elements or markup, `play()`, `pause()`, `seek()`, `cancel()`, `ready` and `finished` promises. Interruptions retain the visible blend; reduced-motion playback jumps to the end while manual seeking remains available.
 - `interaction: 'none' | 'subtle' | 'bouncy'` (default `subtle` when interactive): hover and focus-visible highlights, pointer and Enter/Space press feedback, and a touch light that spreads to nearby glass within about 120 px. Reduced motion disables swell and spreading light.
 - A motion fixture with a heart → star → check scrubber and interactive tiles, plus sequence, interaction and touch-light regression tests.
+- Glass text and icon-font glyphs: `data-glass="text"` or `glassify(element, { text: true })`. Browser-rendered masks preserve typography, ligatures, horizontal RTL and wrapped headings, wait for fonts and update with font, content and layout changes. Original text stays accessible and selectable. Each source is capped at 512 UTF-16 code units, eight rendered lines and 64 descendant elements; over-limit sources stay plain.
 - Named looks: `look: 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold'`, also available as `data-glass-look`. The readonly `looks` recipes and `GlassLook` type are exported from `glassity`. Explicit options override a recipe; switching looks does not retain the previous recipe's values.
 - `configure(options)` replaces page defaults for existing and future icons, beneath scopes and per-icon options. `configure({})` resets them.
 - `legibility: 'auto' | 'off'` (default `auto`): small icons on dark or saturated backdrops blend toward their own CSS colour, with smooth size and contrast ramps and hysteresis. Explicit tints are unchanged; `off` disables the new contrast correction.
@@ -22,6 +23,7 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ### Changed
 - `GlassHandle.element` and `retarget()` now use the exported `GlassElement` union (`SVGSVGElement | HTMLElement`) to support surfaces. Narrow the element type before reading SVG-only fields.
+- `GlassHandle.element` and `retarget()` accept HTML text elements as well as SVGs. Text uses font size for raster detail and small-glyph legibility; `strokeWidth` remains SVG-only.
 - One option registry supplies defaults, validation, attribute parsing and adapter option names.
 - Playground presets and real-app example look pickers use the library's named looks.
 - Small icons on dark and saturated surfaces look different by default and keep more contrast. Light neutral surfaces keep their near-black small icons. Tile glyphs use their size after padding: a default 48 px tile has a glyph of about 27 px. This sizing correction also applies with `legibility: 'off'`.

@@ -4,7 +4,7 @@
 
 # glassity
 
-Liquid glass for the SVG icons you already use.
+Liquid glass for the SVG icons, headings and wordmarks you already use.
 
 [![npm](https://img.shields.io/npm/v/glassity.svg)](https://www.npmjs.com/package/glassity)
 [![CI](https://github.com/duckvhuynh/glassity/actions/workflows/ci.yml/badge.svg)](https://github.com/duckvhuynh/glassity/actions/workflows/ci.yml)
@@ -287,6 +287,34 @@ Replaced elements and native controls (`input`, `img`, `video`, `canvas`, `selec
 
 Material options such as `look`, `frost`, `tint` and `depth` apply to the slab. CSS controls its geometry and the content; icon options such as `tileRadius`, `padding`, `strokeWidth` and `glyphOpacity` do not style the DOM children. Surface DPR is capped at 1.5 (or a lower `maxDpr`) to bound the cost of large controls, and surfaces in the same region share their backdrop.
 
+### Text and icon fonts
+
+Use the same provider or `glassity/auto` import, then mark an existing text element. No wrapper or backdrop declaration is needed:
+
+```html
+<h1 data-glass="text">Made of light</h1>
+<span class="material-symbols-outlined" data-glass="text">home</span>
+```
+
+Keep your font's usual CSS, including its `@font-face` rule and ligature settings. The browser renders the text with its computed styles, preserving wrapped lines, ligatures, letter-spacing and horizontal RTL text. glassity waits for `document.fonts.ready` and updates the mask when fonts finish loading, the text changes or its layout changes. Small text uses the same automatic legibility policy as small icons, based on its font size.
+
+For one element in code:
+
+```ts
+import { glassify } from 'glassity';
+
+const title = document.querySelector<HTMLElement>('#wordmark')!;
+const glass = glassify(title, { text: true, look: 'clear' });
+glass.update({ depth: 0.25 });
+glass.destroy();
+```
+
+The original text stays in the DOM, selectable and available to screen readers. Only its visual opacity is hidden once the glass is ready. Printing, forced colours and unavailable WebGL2 show the original. All glass appearance options apply; `strokeWidth` remains specific to stroked SVGs. `GlassHandle.element` and `retarget(element)` use the exported `GlassElement` type (`HTMLElement | SVGSVGElement`). In React, `useGlass(ref, { text: true })` and `<Glass text>` also work; marking text inside the existing provider remains the simplest setup.
+
+Use real text nodes and inline formatting. Horizontal text, including RTL, supports translation and positive axis-aligned scale. Vertical writing, rotation, skew, perspective and reflection leave the original visible.
+
+Text is intended for short headings, wordmarks and icon-font glyphs: **at most 512 UTF-16 code units, eight rendered lines and 64 descendant elements per source**. Over-limit content stays ordinary text; it is never truncated. Web fonts need readable CSS `@font-face` rules and font files that can be fetched from the same origin or with CORS. Usable font `src` alternatives are retained if another alternative fails. If no source can be embedded or resolved locally, the original text remains visible. FontFace API-only fonts and glyphs supplied only by `::before`/`::after` are outside this text source.
+
 ### Per-element attributes
 
 | Attribute | Effect |
@@ -294,6 +322,7 @@ Material options such as `look`, `frost`, `tint` and `depth` apply to the slab. 
 | `data-glass` | Make this icon glass with the shared options |
 | `data-glass="clear"` | Pick a variant (`regular`, `clear`, `identity`) |
 | `data-glass="surface"` | Glass background for an element; keep its content as DOM |
+| `data-glass="text"` | Make this element's text or icon-font glyph glass |
 | `data-glass="off"` | Leave this icon alone |
 | `data-glass-look="frosted"` | Pick a named look |
 | `data-glass-environment="studio"` | Keep studio reflections on, including over photos |
@@ -397,7 +426,7 @@ Try the sequence scrubber and interactive tiles at `/e2e/fixtures/motion.html` a
 
 ## Options
 
-Every option is optional. Sizes are fractions of the icon's box, so icons of any size keep the same look.
+Every option is optional. Sizes are fractions of the icon's box; text uses its font size as the reference so long headings keep the same look.
 
 | Option | Default | What it does |
 |---|---|---|
@@ -405,7 +434,8 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `layers` | `false` | Render explicitly marked `g[data-glass-layer]` groups separately, bottom to top; at most four |
 | `colors` | `'default'` | `source` uses each layer's SVG fill or stroke as its tint; layered icons only |
 | `appearance` | `'default'` | Layered icon treatment: `default`, `dark`, `clear`, or `tinted` |
-| `variant` | `'regular'` | `regular` keeps content legible; `clear` is see-through; `identity` leaves the SVG untouched |
+| `text` | `false` | Read an HTML element's text instead of looking for an SVG; `data-glass="text"` enables it declaratively |
+| `variant` | `'regular'` | `regular` keeps content legible; `clear` is see-through; `identity` leaves the source untouched |
 | `profile` | `'squircle'` | Cross-section of the edge: `squircle`, `circle`, `lip`, or `dome`, a ball of glass that magnifies and, with `depth` from about 0.3, shows the page upside down. Best on a round tile |
 | `surface` | `false` | Glass background for an HTML container, sized and rounded by its CSS; content stays on top |
 | `tile` | `false` | Put the icon on a rounded glass plate that fills the SVG's box |
@@ -515,7 +545,7 @@ What has been run, and what is known not to work. The [compatibility suite](comp
 | Sprite sheets: `<use href="#id">`, `<use href="icons.svg#id">` | Works: the referenced symbol is copied in. An external sheet must be same-origin or allow CORS |
 | Gradients, masks, clip paths defined in another SVG | Works: copied in |
 | Web components with an open shadow root (Ionicons, `<iconify-icon>`, Shoelace) | Works: put `data-glass` on the element. A closed shadow root cannot be read |
-| Icon fonts (Material Symbols, Font Awesome webfont) | Not supported: there is no SVG to read |
+| Text and icon fonts (including Material Symbols ligatures) | Use `data-glass="text"` on the element containing the text or glyph. Fonts must be available through readable `@font-face` rules or installed system fonts; pseudo-element-only glyphs are not supported |
 
 **Living with other libraries**
 
@@ -530,7 +560,7 @@ glassity draws the icon and the page snapshot as images, so `img-src` must allow
 
 ## Accessibility
 
-The original SVG is kept (invisible) under the glass, so its accessible name, role, focus and pointer events are unchanged. The canvas is `aria-hidden` and ignores the pointer.
+The original SVG or text element is kept (invisible) under the glass, so its accessible name, role, focus and pointer events are unchanged. Text remains selectable. The canvas is `aria-hidden` and ignores the pointer.
 
 With `accessibility: true` (default) glassity follows the system:
 
@@ -545,6 +575,7 @@ Without WebGL2 the icon stays a plain SVG with a soft highlight.
 
 ## Limits
 
+- **Text is for short content.** At most 512 UTF-16 code units, eight rendered lines and 64 descendant elements per source; longer content stays plain. Horizontal text supports translation and positive axis-aligned scale; vertical writing, rotation, skew, perspective and reflection stay plain. Fonts that cannot be embedded and pseudo-element-only glyphs stay outside the text source.
 - **Snapshots are pictures, not live content.** In the HTML-snapshot case, web fonts, cross-origin images without CORS, pseudo-elements and iframes may be missing or differ. A snapshot copies at most 1500 nodes; beyond that only the CSS background is used. Use `backdrop` to choose something smaller.
 - **SVG icons positioned by CSS transforms with rotation or skew** are not handled. Surfaces follow their own and their ancestors' 2D transforms, including scale, rotation and skew. Under 3D or perspective transforms the surface still follows the DOM, but backdrop sampling remains planar.
 - **Icons do not merge with each other.** Within one SVG, opt-in layered icons support up to four marked glass bodies.

@@ -1,11 +1,11 @@
 ---
 name: glassity
-description: Use when adding, styling, animating or debugging liquid-glass SVG icons with the glassity library (data-glass attributes, GlassProvider, Glass, glassify, auto, glassity/react, glassity/vue, glassity/svelte, glassity/solid, glassity/angular, glassity/remix, glassity/auto). Covers setup in every framework, all options with defaults and ranges, recipes for common looks, server rendering, accessibility and troubleshooting.
+description: Use when adding, styling, animating or debugging liquid-glass SVG icons, text and icon fonts with the glassity library (data-glass attributes, GlassProvider, Glass, glassify, auto, glassity/react, glassity/vue, glassity/svelte, glassity/solid, glassity/angular, glassity/remix, glassity/auto). Covers setup in every framework, all options with defaults and ranges, recipes for common looks, server rendering, accessibility and troubleshooting.
 ---
 
 # glassity
 
-glassity turns inline SVG icons into liquid glass with WebGL2. It reads the outline of an `<svg>`, builds a distance field from it, and draws the icon as a lens that refracts what is behind it, with dispersion at the rim, frost, a specular highlight that follows the pointer and a soft shadow. The original `<svg>` stays in the DOM (hidden with an attribute), so its accessible name, focus and clicks are unchanged. Without WebGL2 the plain icon shows.
+glassity turns inline SVG icons and short text into liquid glass with WebGL2. It reads the outline of an `<svg>`, builds a distance field from it, and draws the icon as a lens that refracts what is behind it, with dispersion at the rim, frost, a specular highlight that follows the pointer and a soft shadow. The original `<svg>` stays in the DOM (hidden with an attribute), so its accessible name, focus and clicks are unchanged. Without WebGL2 the plain icon shows.
 
 - Package: `glassity` on npm. ESM and CommonJS, types for every `moduleResolution`. No runtime dependencies.
 - Playground with every option: https://duckvhuynh.github.io/glassity/
@@ -89,6 +89,21 @@ Enable interaction with `interactive: true`. `interaction: 'subtle'` is the defa
 Press deformation changes shape coordinates in the shader, leaving backdrop lookups in screen space. Each press sends a short-lived touch light to nearby glass within about 120 px, fading with distance and time. Reduced motion disables the swell and spreading light while keeping static feedback. Keep the existing DOM: no interaction wrapper or backdrop declaration is needed.
 
 The local `e2e/fixtures/motion.html` fixture has a heart → star → check scrubber, playback controls and near/far tiles for review.
+
+### Text and icon fonts
+
+The existing provider, `auto()` or `glassity/auto` discovers `data-glass="text"` without another wrapper or backdrop setting:
+
+```html
+<h1 data-glass="text">Made of light</h1>
+<span class="material-symbols-outlined" data-glass="text">home</span>
+```
+
+For a single element, use `glassify(element, { text: true, look: 'clear' })`. `GlassHandle.element` and `retarget(element)` use the exported `GlassElement = HTMLElement | SVGSVGElement`; narrow the type before accessing SVG-only properties. React also supports `useGlass(ref, { text: true })` and `<Glass text>`; prefer marking text inside the existing provider when individual handles are unnecessary. All glass appearance options apply. `strokeWidth` only applies to SVG strokes.
+
+Text is rasterised through the browser with computed typography and embedded web fonts. It preserves ligatures, letter-spacing, horizontal RTL and wrapped line layout. Raster resolution and the small-glyph legibility policy follow font size rather than the heading's overall width. It waits for `document.fonts.ready` and updates after font loading, content changes and layout changes. The original text stays selectable and accessible under the pointer-transparent canvas, hidden only by the same opacity marker used for SVGs. Destroy, printing, forced colours and unavailable WebGL2 show the original.
+
+Limits per text source: **512 UTF-16 code units, eight rendered lines, 64 descendant elements**. Exceeding a cap leaves the entire source plain; do not truncate it. Use real text nodes and inline formatting in short headings, wordmarks or glyphs, not long paragraphs. Translation and positive axis-aligned scale work; vertical writing, rotation, skew, perspective and reflection deliberately leave the original visible. Use installed system fonts or CSS `@font-face` with readable rules and same-origin/CORS-enabled font files. Usable font `src` alternatives survive failures in other alternatives. If no source can be embedded or resolved locally, the original remains visible. FontFace API-only fonts and glyphs only in `::before`/`::after` are not supported by this source.
 
 ### React
 
@@ -215,6 +230,7 @@ React and Vue providers discover `data-glass="surface"` through the existing att
 | `data-glass` | Glass with the shared options |
 | `data-glass="clear"` | Pick a variant: `regular`, `clear`, `identity` |
 | `data-glass="surface"` | Glass background for an HTML element; preserve ordinary DOM content |
+| `data-glass="text"` | Use the element's text or icon-font glyph as the shape |
 | `data-glass="off"` | Leave this icon alone |
 | `data-glass-look="crystal"` | Pick a named look |
 | `data-glass-environment="studio"` | Keep studio reflections on over any backdrop |
@@ -267,6 +283,7 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `layers` | `false` | boolean | Explicit `g[data-glass-layer]` groups become separate glass bodies; first four in document order |
 | `colors` | `'default'` | `default`, `source` | Use each layer's first solid SVG fill or stroke as its tint |
 | `appearance` | `'default'` | `default`, `dark`, `clear`, `tinted` | Layered app-icon treatment; plain icons are unchanged |
+| `text` | `false` | boolean | Use an HTML text element instead of looking for an SVG; also enabled by `data-glass="text"` |
 | `variant` | `'regular'` | `regular`, `clear`, `identity` | `clear` presets: frost 0, saturation 1.1, contrast 1, tintOpacity 0.04, dim `auto`, dispersion 0.5. `identity` leaves the SVG as is |
 | `profile` | `'squircle'` | `squircle`, `circle`, `lip`, `dome` | Edge cross-section. `dome`: a glass ball traced through both surfaces; magnifies, and from depth about 0.3 shows the page upside down. Best on a round tile |
 | `surface` | `false` | boolean | Glass slab filling an HTML container's CSS box, with its computed corner radii and content on top |
@@ -366,8 +383,8 @@ Playground links carry settings after `#`: keys that are option names are option
 ## Behaviour to know
 
 - **Server rendering.** Importing glassity on the server is safe; nothing runs there. `auto()` waits for DOM readiness and a bounded idle period and skips icons that React, Astro islands or lazily hydrated Vue components have not hydrated yet, so there are no hydration warnings.
-- **Hiding.** The SVG gets `data-glassity-hidden` and a constructed stylesheet sets its opacity to 0. Frameworks rewriting `style` cannot make it reappear. Printing shows the original icons.
-- **Accessibility.** Keep the icon's own `aria-label`/`role` (or `aria-hidden` when decorative). The canvas is `aria-hidden` and ignores the pointer. Reduced motion stops pointer light, swell and spreading touch light; sequence playback jumps to the end but seeking still works; reduced transparency makes the glass frostier; more contrast makes it solid; forced colours show the plain SVG.
+- **Hiding.** The SVG or text element gets `data-glassity-hidden` and a constructed stylesheet sets its opacity to 0. Frameworks rewriting `style` cannot make it reappear. Printing shows the original icons.
+- **Accessibility.** Keep the icon's own `aria-label`/`role` (or `aria-hidden` when decorative). The canvas is `aria-hidden` and ignores the pointer. Reduced motion stops the pointer light and bounce; reduced transparency makes the glass frostier; more contrast makes it solid; forced colours show the plain SVG.
 - **Colour.** The SVG supplies the outline by default; layered icons with `colors: 'source'` use one solid fill or stroke tint per layer. Small automatic icons on dark or saturated surfaces also use the icon's computed CSS `color`. For a chosen colour at any size, use `tint` (including `currentColor`) with `tintOpacity`.
 - **Light pages.** Glass stays light on white (as Apple's); it is drawn by its own refracted shadow and a thin contour. Small glyphs (under about 28 px after padding) flip to dark ink.
 - **Performance.** One WebGL context; icons redraw only when something changes (pointer, animation, backdrop). Off-screen icons are skipped. `bands` and `maxDpr` are the cost knobs.
@@ -376,7 +393,8 @@ Playground links carry settings after `#`: keys that are option names are option
 
 ## Limits
 
-- Icon fonts are not supported (no SVG to read).
+- Text sources are limited to 512 UTF-16 code units, eight rendered lines and 64 descendant elements. Over-limit text stays plain. Horizontal text supports translation and positive axis-aligned scale. Vertical writing, rotation, skew, perspective and reflection leave the original visible; glyphs supplied only by pseudo-elements are outside this source.
+- Text web fonts need readable CSS `@font-face` rules and embeddable font files (same-origin or CORS). FontFace API-only fonts and unreadable remote rules cannot be reproduced; keep the original visible.
 - Rotation and skew of SVG icons, or of their canvas ancestors, are not followed; translation and scale are. Surfaces follow their own and their ancestors' 2D scale, rotation and skew. Under 3D or perspective transforms the surface follows the DOM, but backdrop sampling remains planar.
 - Multicolour SVGs use their outline unless layered mode and `colors: 'source'` are enabled. Layers have one solid tint each; gradients and patterns are not colour textures.
 - Layered icons use at most four marked groups. Extra marked groups and unmarked artwork outside layers are omitted; layer changes do not morph between outlines.
@@ -393,6 +411,7 @@ Playground links carry settings after `#`: keys that are option names are option
 | Small icons on a white bar turned pale grey | Expected for icons from about 28 to 40 px on plain light backgrounds: below 28 px glassity turns them dark so they stay readable, but larger ones stay light glass with little to show. Leave them plain (`data-glass="off"`), make them bigger, or use `tile: true` |
 | Very frosted and tinted | The OS asks for reduced transparency. Intended; `accessibility: false` only for testing |
 | Plain icon | No WebGL2: `isSupported()` is false; the fallback is the plain SVG |
+| Text stays plain | Check the text/line/element caps and console warnings. The font must be installed or available through readable `@font-face` CSS with same-origin/CORS font files |
 | Part of the icon missing | External `<use>` sprite without CORS, or a reference that does not resolve |
 | Glass in the wrong place after an animation | Rotation or skew is not followed; animate opacity, translate or scale instead |
 | Images blocked | Add `blob:` and `data:` to `img-src` |

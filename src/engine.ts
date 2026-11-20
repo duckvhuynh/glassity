@@ -20,19 +20,21 @@ import { FieldSequence, captureFrame } from './motion/fields';
 import { SequenceTimeline, type SequenceController, type SequenceOptions, type SequenceShape } from './motion/sequence';
 import { InteractionState } from './motion/interaction';
 import { TouchLight } from './motion/touch-light';
+import { prepareText, textTarget, type TextSource } from './text';
+import { watchTextFonts } from './text-fonts';
 
 export type { Scope } from './scopes';
 import { ensureStyles, HIDDEN, OWN, SURFACE, SURFACE_ACTIVE, parentOf } from './dom';
 
 /** Control over one glass icon or HTML surface. */
 export interface GlassHandle {
-  /** The SVG or HTML surface this glass is drawn for. */
+  /** The SVG, HTML surface or text element this glass is drawn for. */
   readonly element: GlassElement;
   /** Change some options; the rest keep their current values. */
   update(options: GlassOptions): void;
   /** Replace all options given in code (attributes and provider options still apply). */
   set(options: GlassOptions): void;
-  /** Move to another SVG or HTML surface; shapes morph when their boxes match. */
+  /** Move to another SVG, HTML surface or text element; shapes morph when their boxes match. */
   retarget(svg: GlassElement): void;
   /** Re-read the icon and the backdrop. */
   refresh(): void;
@@ -77,7 +79,8 @@ function lightVector(degrees: number): [number, number] {
 let bevelId = 0;
 
 /** Without WebGL2 the icon stays a plain SVG with a soft highlight, so nothing disappears. */
-function applyBevel(svg: SVGSVGElement): () => void {
+function applyBevel(svg: GlassElement): () => void {
+  if (!(svg instanceof SVGSVGElement)) return () => {};
   const ns = 'http://www.w3.org/2000/svg';
   const id = 'glassity-bevel-' + ++bevelId;
   const node = (name: string, attributes: Record<string, string>, ...children: Element[]) => {
@@ -136,6 +139,7 @@ class Instance implements GlassHandle {
   /** Counts prepare() calls, so an older one that finishes reading the SVG late cannot win. */
   private request = 0;
   private sizeTimer = 0;
+  private stopFonts: (() => void) | null = null;
   private mutationQueued = false;
   styleDirty = true;
   private surroundingsDirty = true;
@@ -149,6 +153,7 @@ class Instance implements GlassHandle {
   private legibilitySample = '';
 
 
+  private textScale: readonly [number, number] = [1, 1];
   private left = 0;
   private top = 0;
   private lens = 0;
@@ -219,7 +224,9 @@ class Instance implements GlassHandle {
   }
 
   private attach(svg: GlassElement): void {
-    this.surface = svg instanceof HTMLElement ? new SurfaceLayer(svg, this.canvas) : null;
+    // An HTML element is a surface unless it is marked as text.
+    const isText = svg instanceof HTMLElement && !!textTarget(svg, this.own.text);
+    this.surface = svg instanceof HTMLElement && !isText ? new SurfaceLayer(svg, this.canvas) : null;
     this.surfaceShape = '';
     this.surfaceMap = undefined;
     this.surfaceBackRect = undefined;
@@ -228,12 +235,15 @@ class Instance implements GlassHandle {
     // React replaced the node: keep the canvas right after the icon it draws.
     if (!this.surface && svg.parentNode && svg.nextSibling !== this.canvas) svg.after(this.canvas);
     else this.place();
-    this.observer.observe(svg, { subtree: true, childList: true, attributes: true });
+    this.observer.observe(svg, { subtree: true, childList: true, attributes: true, characterData: true });
+    if (svg instanceof HTMLElement) this.stopFonts = watchTextFonts(svg.ownerDocument, () => this.refresh());
     this.engine.observe(svg);
   }
 
   private detach(): void {
     this.observer.disconnect();
+    this.stopFonts?.();
+    this.stopFonts = null;
     this.engine.unobserve(this.element);
     this.showSvg();
     this.surface?.destroy();
@@ -251,7 +261,7 @@ class Instance implements GlassHandle {
         // It does not change the shape; only its opacity is carried over to the glass.
         if (record.attributeName === 'style') {
           this.syncOpacity();
-          continue;
+          if (this.element instanceof SVGSVGElement) continue;
         }
         // Something removed our marker (a framework replacing all attributes): put it back.
         if (record.attributeName === HIDDEN) {
@@ -279,7 +289,7 @@ class Instance implements GlassHandle {
   }
 
   get inert(): boolean {
-    return this.r.variant === 'identity' || this.system.forcedColors || (!!this.surface && !this.r.surface);
+    return this.r.variant === 'identity' || this.system.forcedColors || (!!this.surface && !this.r.surface) || (this.element instanceof HTMLElement && !this.surface && !this.r.text);
   }
 
   /** Moving an icon or a scope can change inheritance without changing its own attributes. */
@@ -339,6 +349,10 @@ class Instance implements GlassHandle {
   styleChanged(surroundings: boolean): void {
     this.styleDirty = true;
     this.surroundingsDirty ||= surroundings;
+    if (this.element instanceof HTMLElement) {
+      clearTimeout(this.sizeTimer);
+      this.sizeTimer = window.setTimeout(() => void this.prepare(), 60);
+    }
   }
 
   /** Read event-invalidated colour and surroundings before the frame writes. */
@@ -398,11 +412,17 @@ class Instance implements GlassHandle {
     const request = ++this.request;
     this.place();
     const rect = this.element.getBoundingClientRect();
-    if (rect.width < 2 || rect.height < 2) return; // not laid out yet; the resize observer calls again
-    const layers = this.surface ? [] : parseLayers(this.element as SVGSVGElement, this.r);
+    if (rect.width < 2 || rect.height < 2) {
+      if (this.element instanceof HTMLElement && !this.surface) {
+        this.request++;
+        this.clearText();
+      }
+      return; // not laid out yet; the resize observer calls again
+    }
+    const layers = this.surface || this.element instanceof HTMLElement ? [] : parseLayers(this.element as SVGSVGElement, this.r);
     const weight = Math.max(this.r.weight, ...layers.map((layer) => layer.options.weight));
     const surface = this.surface?.measure();
-    const plan = planRaster(surface?.width ?? rect.width, surface?.height ?? rect.height, this.engine.dpr(this.surface ? Math.min(1.5, this.r.maxDpr) : this.r.maxDpr), weight);
+    let plan: RasterPlan = planRaster(surface?.width ?? rect.width, surface?.height ?? rect.height, this.engine.dpr(this.surface ? Math.min(1.5, this.r.maxDpr) : this.r.maxDpr), weight);
     const padding = this.surface ? 0 : this.r.padding;
     if (layers.length) {
       ++this.token;
@@ -433,13 +453,19 @@ class Instance implements GlassHandle {
       return;
     }
     let source: string;
+    let text: TextSource | undefined;
     try {
-      source = surface?.source ?? await serializeIcon(this.element as SVGSVGElement, this.r.strokeWidth);
-      // A newer call started while this one read the SVG (its references can load
-      // slowly): that one has the current icon, so this result is dropped.
+      if (surface) source = surface.source;
+      else if (this.element instanceof HTMLElement) {
+        text = await prepareText(this.element, this.engine.dpr(this.r.maxDpr), this.r.weight, this.engine.renderer?.maxTextureSize ?? 2048);
+        ({ source, plan } = text);
+      } else source = await serializeIcon(this.element, this.r.strokeWidth);
+      // A newer read owns the current content (a slow SVG reference, a font or layout change).
       if (this.destroyed || request !== this.request) return;
     } catch (error) {
-      console.warn('glassity: could not read this SVG; it is left as it is.', this.element, error);
+      if (this.destroyed || request !== this.request) return;
+      if (this.element instanceof HTMLElement && !this.surface) this.clearText();
+      console.warn('glassity: could not read this source; it is left as it is.', this.element, error);
       return;
     }
     const key = `${plan.gw}x${plan.gh}|${plan.cssW}x${plan.cssH}|${padding}|${source}`;
@@ -471,11 +497,12 @@ class Instance implements GlassHandle {
 
     let geometry: Geometry;
     try {
-      geometry = await this.engine.acquireGeometry(key, source, plan, padding);
+      geometry = await this.engine.acquireGeometry(key, source, plan, padding, text ? () => text!.raster(padding) : undefined);
     } catch (error) {
       if (token === this.token) {
         this.geometryKey = '';
-        console.warn('glassity: could not rasterize this SVG; it is left as it is.', this.element, error);
+        if (this.element instanceof HTMLElement && !this.surface) this.clearText();
+        console.warn('glassity: could not rasterize this source; it is left as it is.', this.element, error);
       }
       return;
     }
@@ -495,7 +522,7 @@ class Instance implements GlassHandle {
       this.geometry = this.previous = null;
       this.showSvg();
       this.canvas.style.visibility = 'hidden';
-      console.warn('glassity: this SVG draws nothing that glassity can read (an unresolved <use> or url(#…)?), so it is left as it is.', this.element);
+      console.warn('glassity: this source draws nothing that glassity can read, so it is left as it is.', this.element);
       return;
     }
 
@@ -513,8 +540,9 @@ class Instance implements GlassHandle {
       this.morph = 1;
     }
     this.geometry = geometry;
-    this.canvas.style.width = plan.cssW + 'px';
-    this.canvas.style.height = plan.cssH + 'px';
+    this.textScale = text?.parentScale ?? [1, 1];
+    this.canvas.style.width = plan.cssW / this.textScale[0] + 'px';
+    this.canvas.style.height = plan.cssH / this.textScale[1] + 'px';
     this.surface?.position(plan);
     this.dirty = true;
     this.engine.requestFrame();
@@ -538,7 +566,18 @@ class Instance implements GlassHandle {
     }
   }
 
-  /** The element's box changed size. */
+  /** A failed text update must reveal the current DOM, not keep an obsolete word. */
+  private clearText(): void {
+    this.token++;
+    this.geometryKey = '';
+    this.blank = true;
+    this.engine.releaseGeometry(this.geometry);
+    this.engine.releaseGeometry(this.previous);
+    this.geometry = this.previous = null;
+    this.suspend();
+  }
+
+  /** The source's box changed size. */
   resized(): void {
     this.styleChanged(true);
     clearTimeout(this.sizeTimer);
@@ -563,8 +602,8 @@ class Instance implements GlassHandle {
       const dx = rect.left + rect.width / 2 - (this.canvasRect.left + this.canvasRect.width / 2);
       const dy = rect.top + rect.height / 2 - (this.canvasRect.top + this.canvasRect.height / 2);
       if (Math.abs(dx) > 0.2 || Math.abs(dy) > 0.2) {
-        this.left += dx;
-        this.top += dy;
+        this.left += dx / this.textScale[0];
+        this.top += dy / this.textScale[1];
         this.canvas.style.left = this.left + 'px';
         this.canvas.style.top = this.top + 'px';
       }
@@ -830,8 +869,12 @@ class Instance implements GlassHandle {
   }
 
   retarget(svg: GlassElement): void {
-    if (svg === this.element || this.destroyed || (svg instanceof HTMLElement && !canHostSurface(svg))) return;
+    if (svg === this.element || this.destroyed || (svg instanceof HTMLElement && !canHostSurface(svg) && !textTarget(svg, this.own.text))) return;
     this.motionSequence?.controller.cancel();
+    if (!this.surface && (svg instanceof HTMLElement || this.element instanceof HTMLElement)) {
+      this.request++;
+      this.clearText();
+    }
     const wasRevealed = this.revealed;
     this.detach();
     this.engine.rename(this.element, svg, this);
@@ -1082,7 +1125,7 @@ export class Engine {
       if (!this.instances.has(el as GlassElement)) { el.removeAttribute(SURFACE); el.removeAttribute(SURFACE_ACTIVE); }
     }
     for (const el of Array.from(root.querySelectorAll(`[${HIDDEN}]`)))
-      if (!(el instanceof SVGSVGElement && this.instances.has(el))) el.removeAttribute(HIDDEN);
+      if (!this.instances.has(el as GlassElement)) el.removeAttribute(HIDDEN);
   }
 
   /** True for nodes glassity writes to itself. */
@@ -1262,10 +1305,10 @@ export class Engine {
 
   // ── geometry cache ───────────────────────────────────────────────────────
 
-  async acquireGeometry(key: string, source: string, plan: RasterPlan, padding: number): Promise<Geometry> {
+  async acquireGeometry(key: string, source: string, plan: RasterPlan, padding: number, raster?: () => Promise<Uint8ClampedArray>): Promise<Geometry> {
     let entry = this.geometries.get(key);
     if (!entry) {
-      const pending = rasterAlpha(source, plan, padding).then(async (alpha) => {
+      const pending = (raster ? raster() : rasterAlpha(source, plan, padding)).then(async (alpha) => {
         let opaque = false;
         for (let i = 0; i < alpha.length && !opaque; i++) opaque = alpha[i] > 127;
         return {
