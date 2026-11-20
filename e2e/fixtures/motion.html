@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glassity motion</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #10141f; color: #fff; font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 800px; margin: auto; padding: 28px; }
+  h1 { margin: 0 0 8px; font-size: 28px; }
+  h2 { font-size: 18px; margin: 24px 0 12px; }
+  p { color: #c4cddd; margin: 0 0 16px; }
+  .surface { border-radius: 22px; background: repeating-linear-gradient(115deg, #ffffff22 0 2px, transparent 2px 24px), linear-gradient(120deg, #245a84, #5a3c79 50%, #83554d); }
+  .sequence { height: 220px; display: grid; place-items: center; }
+  #morph { width: 140px; height: 140px; }
+  .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+  .controls button { border: 1px solid #536073; border-radius: 8px; background: #263145; color: inherit; padding: 7px 14px; font: inherit; cursor: pointer; }
+  #scrub { flex: 1; min-width: 100px; }
+  #progress { min-width: 4ch; font-variant-numeric: tabular-nums; }
+  .tiles { display: flex; align-items: center; gap: 16px; height: 120px; padding: 24px; }
+  .tile { border: 0; padding: 0; background: none; color: inherit; display: inline-flex; cursor: pointer; flex: none; }
+  .tile svg { width: 64px; height: 64px; }
+  .tile:focus-visible { outline: 2px solid #d9eaff; outline-offset: 8px; border-radius: 18px; }
+  #far-button { margin-left: 156px; }
+  #status { font-size: 13px; min-height: 20px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Motion in glass</h1>
+  <p>Scrub a heart into a star and a check. Press a tile or focus it and use Enter or Space.</p>
+  <div class="surface sequence">
+    <svg id="morph" role="img" aria-label="Heart, star and check morph" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21 3.5 12.5C-2 6.5 5 0 12 6c7-6 14 .5 8.5 6.5Z"/></svg>
+  </div>
+  <div class="controls">
+    <label for="scrub">Shape</label>
+    <input id="scrub" type="range" min="0" max="1" step="0.001" value="0">
+    <output id="progress" for="scrub">0%</output>
+    <button id="play" type="button">Play</button>
+    <button id="pause" type="button">Pause</button>
+    <button id="cancel" type="button">Cancel</button>
+  </div>
+  <div id="status" role="status">Loading shapes…</div>
+  <h2>Touch light</h2>
+  <p>The next tile catches the light. The distant tile stays still.</p>
+  <div class="surface tiles">
+    <button class="tile" id="touch-button" type="button" aria-label="Press subtle tile">
+      <svg id="touch" data-glass data-glass-tile data-glass-interactive aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21 3.5 12.5C-2 6.5 5 0 12 6c7-6 14 .5 8.5 6.5Z"/></svg>
+    </button>
+    <button class="tile" id="near-button" type="button" aria-label="Press bouncy tile">
+      <svg id="near" data-glass data-glass-tile data-glass-interactive data-glass-interaction="bouncy" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z"/></svg>
+    </button>
+    <button class="tile" id="far-button" type="button" aria-label="Press distant tile">
+      <svg id="far" data-glass data-glass-tile data-glass-interactive aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></svg>
+    </button>
+  </div>
+</main>
+<script type="module">
+  import * as glassity from '/dist/index.js';
+  window.glassity = glassity;
+  const icon = document.querySelector('#morph');
+  const shapes = [
+    icon.outerHTML,
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="black"><path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z"/></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="black" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 16 7 7L27 8"/></svg>',
+  ];
+  glassity.configure({ duration: 0, pointerLight: false, shadow: 0 });
+  const handle = glassity.glassify(icon);
+  const tiles = glassity.auto({ root: document.querySelector('.tiles') });
+  const motion = window.motion = { handle, shapes, tiles, sequence: null, ready: null };
+  const scrub = document.querySelector('#scrub');
+  const progress = document.querySelector('#progress');
+  const status = document.querySelector('#status');
+  let playing = false;
+  let cancelled = false;
+  const display = () => {
+    scrub.value = String(motion.sequence.progress);
+    progress.textContent = Math.round(motion.sequence.progress * 100) + '%';
+    if (motion.sequence.progress === 1) playing = false;
+    if (playing) requestAnimationFrame(display);
+  };
+  const makeSequence = () => {
+    cancelled = false;
+    motion.sequence = handle.sequence(shapes, { duration: 1800, autoplay: false });
+    motion.sequence.finished.then((result) => {
+      playing = false;
+      status.textContent = result === 'completed' ? 'Complete. Scrub back or play again.' : 'Cancelled at the current shape.';
+      display();
+    });
+    return motion.sequence.ready;
+  };
+  motion.ready = makeSequence();
+  motion.ready.then(() => { status.textContent = 'Ready. Drag the slider or press Play.'; }).catch((error) => { status.textContent = error.message; });
+  scrub.addEventListener('input', async () => {
+    playing = false;
+    if (cancelled) await makeSequence();
+    motion.sequence.pause();
+    motion.sequence.seek(Number(scrub.value));
+    display();
+    status.textContent = 'Paused at ' + progress.textContent;
+  });
+  document.querySelector('#play').addEventListener('click', async () => {
+    if (cancelled) await makeSequence();
+    playing = true;
+    motion.sequence.play();
+    status.textContent = 'Playing';
+    display();
+  });
+  document.querySelector('#pause').addEventListener('click', () => {
+    playing = false;
+    motion.sequence.pause();
+    display();
+    status.textContent = 'Paused at ' + progress.textContent;
+  });
+  document.querySelector('#cancel').addEventListener('click', () => {
+    playing = false;
+    cancelled = true;
+    motion.sequence.cancel();
+    display();
+  });
+</script>
+</body>
+</html>

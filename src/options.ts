@@ -4,6 +4,7 @@ export type GlassScheme = 'auto' | 'light' | 'dark';
 export type GlassEnvironment = 'auto' | 'studio' | 'none';
 export type GlassAppearance = 'default' | 'dark' | 'clear' | 'tinted';
 export type GlassColors = 'default' | 'source';
+export type GlassInteraction = 'none' | 'subtle' | 'bouncy';
 export type GlassLook = 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold';
 
 /**
@@ -97,6 +98,8 @@ export interface GlassOptions {
 
   /** Swell, bounce and glow when pressed. Default `false`. */
   interactive?: boolean;
+  /** Press and highlight preset when interactive is true. Default `subtle`. */
+  interaction?: GlassInteraction;
   /** Let the highlight follow the pointer. Default `true`. */
   pointerLight?: boolean;
   /** Show or hide the glass. It materialises by bending light in and out. Default `true`. */
@@ -156,6 +159,7 @@ export interface ResolvedOptions {
   lightAngle: number;
   shadow: number;
   interactive: boolean;
+  interaction: GlassInteraction;
   pointerLight: boolean;
   visible: boolean;
   duration: number;
@@ -216,6 +220,7 @@ export const OPTION_DESCRIPTORS = {
   lightAngle: { kind: 'number', default: -45, zero: 0 },
   shadow: { kind: 'number', default: 0.3, min: 0, max: 1 },
   interactive: { kind: 'boolean', default: false },
+  interaction: { kind: 'enum', default: 'subtle', values: ['none', 'subtle', 'bouncy'] },
   pointerLight: { kind: 'boolean', default: true },
   visible: { kind: 'boolean', default: true },
   duration: { kind: 'number', default: 520, min: 0, max: 10000 },
