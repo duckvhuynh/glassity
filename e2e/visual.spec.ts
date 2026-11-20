@@ -44,6 +44,7 @@ test('glass matches the golden images', async ({ page }) => {
   await waitForGlass(page, { count: CELLS.length + 12 });
 
   for (const cell of CELLS) await expect.soft(page.locator('#' + cell)).toHaveScreenshot(cell + '.png', TOLERANCE);
-  await expect.soft(page.locator('#matrix')).toHaveScreenshot('small-icons.png', TOLERANCE);
+  // The small icons are few pixels each: a looser ratio would let a legibility change through.
+  await expect.soft(page.locator('#matrix')).toHaveScreenshot('small-icons.png', { ...TOLERANCE, maxDiffPixelRatio: 0.004 });
   expect(errors).toEqual([]);
 });
