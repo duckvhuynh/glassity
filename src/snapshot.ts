@@ -1,4 +1,5 @@
 import { parentOf } from './dom';
+import { cachedLoad, LruCache } from './core/lru';
 /**
  * Turn a piece of the page into pixels so the glass has something to refract.
  * The browser has no "read what is behind me" API, so the element (or only its
@@ -15,29 +16,25 @@ const BACKGROUND = [
 /** Thrown when an element has more nodes than a snapshot is allowed to copy. */
 export class SnapshotBudgetError extends Error {}
 
-const dataUrls = new Map<string, Promise<string | null>>();
+const dataUrls = new LruCache<string, Promise<string | null>>(64);
 
 function toDataUrl(url: string): Promise<string | null> {
-  let pending = dataUrls.get(url);
-  if (!pending) {
-    pending = fetch(url)
-      .then((response) => (response.ok ? response.blob() : Promise.reject(new Error(String(response.status)))))
-      .then(
-        (blob) =>
-          new Promise<string | null>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
-          }),
-      )
-      .catch(() => {
-        console.warn(`glassity: could not read "${url}" for the backdrop (blocked by CORS?). It is left out.`);
-        return null;
-      });
-    dataUrls.set(url, pending);
-  }
-  return pending;
+  return cachedLoad(dataUrls, url, () => fetch(url)
+    .then((response) => (response.ok ? response.blob() : Promise.reject(new Error(String(response.status)))))
+    .then(
+      (blob) =>
+        new Promise<string | null>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => resolve(null);
+          reader.onabort = () => resolve(null);
+          reader.readAsDataURL(blob);
+        }),
+    )
+    .catch(() => {
+      console.warn(`glassity: could not read "${url}" for the backdrop (blocked by CORS?). It is left out.`);
+      return null;
+    }));
 }
 
 /** Replace every url(...) in a CSS value with an inlined data URL; unreadable ones become `none`. */
@@ -58,7 +55,7 @@ async function inlineUrls(css: string): Promise<string> {
 let sandbox: HTMLIFrameElement | null = null;
 let sandboxReady: Promise<boolean> | null = null;
 let sandboxUsable = false;
-const defaults = new Map<string, Map<string, string>>();
+const defaults = new LruCache<string, Map<string, string>>(128);
 
 /**
  * A hidden, empty document used to learn each tag's default styles.

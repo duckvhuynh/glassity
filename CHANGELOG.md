@@ -4,6 +4,10 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Fixed
+- GPU failures and context loss show the original SVGs until glass can draw again. Restoring the context rebuilds resources from retained pixels and geometry; failed uploads keep the previous texture and backdrops retry with backoff.
+- Direct image, video and canvas backdrops are downscaled to fit the texture budget. Texture storage is released once, and snapshot and external sprite caches now have bounded sizes.
+
 ## [0.3.5] - 2026-11-20
 
 ### Fixed

@@ -42,6 +42,11 @@ interface BackState {
   texture: BackTexture | null;
   version: number;
   failed: boolean;
+  failures: number;
+  retryAt: number;
+  generation: number;
+  source: TexImageSource | null;
+  sourceKey: string;
 }
 
 const PRESS_HOSTS = 'button,a,[role="button"],summary,label';
@@ -317,6 +322,13 @@ class Instance implements GlassHandle {
     this.revealed = false;
   }
 
+  /** Keep the original visible until a complete GPU draw succeeds again. */
+  suspend(): void {
+    this.showSvg();
+    this.canvas.style.visibility = 'hidden';
+    this.dirty = true;
+  }
+
   /** Rasterize the icon and build its distance field. Cheap when nothing changed. */
   private async prepare(): Promise<void> {
     if (this.destroyed || this.inert) return;
@@ -474,7 +486,7 @@ class Instance implements GlassHandle {
     const originX = rect.left + rect.width / 2 - plan.cssW / 2;
     const originY = rect.top + rect.height / 2 - plan.cssH / 2;
     const relation = `${(back.x - originX).toFixed(1)},${(back.y - originY).toFixed(1)},${back.w.toFixed(1)},${back.h.toFixed(1)}`;
-    if (relation !== this.relation || this.backdrop.version !== this.drawnVersion) this.dirty = true;
+    if (relation !== this.relation || this.backdrop.version !== this.drawnVersion || engine.backdropNeedsRetry(this.backdrop, now)) this.dirty = true;
     if (!this.dirty) return animating;
 
     if (this.lens <= 0 && this.lensTo <= 0) {
@@ -507,7 +519,7 @@ class Instance implements GlassHandle {
       morph: this.previous ? this.morph : 0,
       back: backTexture.texture,
       backRect: backTexture.neutral ? [-50000, -50000, 100000, 100000] : [back.x - originX, back.y - originY, back.w, back.h],
-      backDensity: backTexture.neutral ? 0.00002 : this.backdrop.width / Math.max(back.w, 1),
+      backDensity: backTexture.neutral ? 0.00002 : backTexture.texture.w / Math.max(back.w, 1),
       canvas: [plan.cssW, plan.cssH],
       box: [plan.boxW, plan.boxH],
       unit: plan.unit,
@@ -546,7 +558,10 @@ class Instance implements GlassHandle {
       highContrast: moreContrast ? 1 : 0,
       seed: this.seed,
     });
-    if (!ok) return animating;
+    if (!ok) {
+      this.suspend();
+      return animating;
+    }
 
     this.dirty = false;
     this.relation = relation;
@@ -587,7 +602,10 @@ class Instance implements GlassHandle {
 
   refresh(): void {
     this.geometryKey = '';
-    this.backdrop?.refresh();
+    if (this.backdrop) {
+      this.engine.retryBackdrop(this.backdrop);
+      this.backdrop.refresh();
+    }
     this.configure();
   }
 
@@ -646,7 +664,7 @@ export class Engine {
   readonly media = { reducedMotion: false, reducedTransparency: false, moreContrast: false, forcedColors: false };
   private instances = new Map<SVGSVGElement, Instance>();
   private plain = new Map<SVGSVGElement, PlainHandle>();
-  private geometries = new Map<string, Promise<Geometry>>();
+  private geometries = new Map<string, { pending: Promise<Geometry>; refs: number }>();
   private backdrops = new WeakMap<object, Map<string, Backdrop>>();
   private backdropHomes = new WeakMap<Backdrop, { owner: object; key: string }>();
   private backStates = new WeakMap<Backdrop, BackState>();
@@ -666,7 +684,19 @@ export class Engine {
 
   constructor() {
     this.renderer = Renderer.create();
-    if (this.renderer) this.renderer.onrestore = () => this.invalidate();
+    if (this.renderer) {
+      this.renderer.onstatechange = () => {
+        if (this.renderer?.state === 'ready') return;
+        cancelAnimationFrame(this.raf);
+        this.raf = 0;
+        clearTimeout(this.watch);
+        this.last = 0;
+        for (const instance of this.instances.values()) instance.suspend();
+      };
+      // Geometry keeps its float field and backdrops retain their source pixels.
+      // The next draw uploads them into the new generation before hiding the SVG.
+      this.renderer.onrestore = () => this.invalidate();
+    }
     if (typeof matchMedia === 'function') {
       const watch = (query: string, key: keyof Engine['media']) => {
         const list = matchMedia(query);
@@ -750,7 +780,11 @@ export class Engine {
 
   forget(instance: Instance): void {
     if (this.instances.get(instance.element) === instance) this.instances.delete(instance.element);
-    if (!this.instances.size) this.unlisten();
+    if (!this.instances.size) {
+      this.unlisten();
+      this.renderer?.release(this.neutral?.texture ?? null);
+      this.neutral = null;
+    }
   }
 
   /**
@@ -788,7 +822,7 @@ export class Engine {
   // ── frame loop ───────────────────────────────────────────────────────────
 
   readonly requestFrame = (): void => {
-    if (!this.raf && this.instances.size) this.raf = requestAnimationFrame(this.frame);
+    if (!this.raf && this.instances.size && this.renderer?.ready) this.raf = requestAnimationFrame(this.frame);
   };
 
   invalidate(): void {
@@ -798,6 +832,7 @@ export class Engine {
 
   private readonly frame = (now: number): void => {
     this.raf = 0;
+    if (!this.renderer?.ready) return;
     const dt = Math.min(0.05, this.last ? (now - this.last) / 1000 : 0.016);
     this.last = now;
 
@@ -825,7 +860,13 @@ export class Engine {
     let again = live;
     for (const instance of active) {
       const back = instance.backdrop ? rects.get(instance.backdrop) ?? null : null;
-      again = instance.step(now, dt, back) || again;
+      try {
+        again = instance.step(now, dt, back) || again;
+      } catch (error) {
+        this.renderer.fail(error);
+        return;
+      }
+      if (!this.renderer.ready) return;
     }
     // Layout can move an icon without any event (a sibling grows, a CSS transition
     // runs). Once movement is seen it is followed every frame for a moment; when
@@ -915,9 +956,9 @@ export class Engine {
   // ── geometry cache ───────────────────────────────────────────────────────
 
   async acquireGeometry(key: string, source: string, plan: RasterPlan, padding: number): Promise<Geometry> {
-    let pending = this.geometries.get(key);
-    if (!pending) {
-      pending = rasterAlpha(source, plan, padding).then((alpha) => {
+    let entry = this.geometries.get(key);
+    if (!entry) {
+      const pending = rasterAlpha(source, plan, padding).then((alpha) => {
         let opaque = false;
         for (let i = 0; i < alpha.length && !opaque; i++) opaque = alpha[i] > 127;
         return {
@@ -929,16 +970,29 @@ export class Engine {
           texture: null,
         };
       });
-      this.geometries.set(key, pending);
-      pending.catch(() => this.geometries.delete(key));
+      entry = { pending, refs: 0 };
+      this.geometries.set(key, entry);
+      pending.catch(() => {
+        if (this.geometries.get(key)?.pending === pending) this.geometries.delete(key);
+      });
     }
-    const geometry = await pending;
-    geometry.refs++;
-    return geometry;
+    // Reserve before yielding: the last owner may unmount while this await resumes.
+    entry.refs++;
+    try {
+      const geometry = await entry.pending;
+      geometry.refs++;
+      return geometry;
+    } catch (error) {
+      entry.refs--;
+      throw error;
+    }
   }
 
   releaseGeometry(geometry: Geometry | null): void {
-    if (!geometry || --geometry.refs > 0) return;
+    if (!geometry || geometry.refs <= 0) return;
+    geometry.refs--;
+    const entry = this.geometries.get(geometry.key);
+    if ((entry ? --entry.refs : geometry.refs) > 0) return;
     this.geometries.delete(geometry.key);
     this.renderer?.release(geometry.texture);
     geometry.texture = null;
@@ -989,35 +1043,70 @@ export class Engine {
   }
 
   releaseBackdrop(backdrop: Backdrop | null): void {
-    if (!backdrop || --backdrop.refs > 0) return;
+    if (!backdrop || backdrop.refs <= 0 || --backdrop.refs > 0) return;
     const home = this.backdropHomes.get(backdrop);
     if (home) this.backdrops.get(home.owner)?.delete(home.key);
     this.renderer?.release(this.backStates.get(backdrop)?.texture ?? null);
     this.backStates.delete(backdrop);
+    this.backdropHomes.delete(backdrop);
+    backdrop.onchange = null;
     backdrop.dispose();
+  }
+
+  /** Explicit refresh is allowed to retry immediately, even if the pixels did not change. */
+  retryBackdrop(backdrop: Backdrop): void {
+    const state = this.backStates.get(backdrop);
+    if (!state) return;
+    state.version = -1;
+    state.failures = 0;
+    state.retryAt = 0;
+  }
+
+  backdropNeedsRetry(backdrop: Backdrop, now: number): boolean {
+    const state = this.backStates.get(backdrop);
+    return !!state?.failed && now >= state.retryAt;
   }
 
   /** The GPU texture for a backdrop, uploaded again only when its pixels changed. */
   backTexture(backdrop: Backdrop): { texture: BackTexture; neutral: boolean } {
     const renderer = this.renderer!;
+    if (!renderer.ready) throw new Error('glassity: WebGL2 is unavailable');
     let state = this.backStates.get(backdrop);
-    if (!state) this.backStates.set(backdrop, (state = { texture: null, version: -1, failed: false }));
-    if (backdrop.source && !state.failed) {
-      const stale = !state.texture || state.texture.generation !== renderer.generation || state.version !== backdrop.version;
-      if (stale) {
-        try {
-          state.texture = renderer.uploadBack(state.texture, backdrop.source, backdrop.width, backdrop.height);
-          state.version = backdrop.version;
-        } catch (error) {
-          state.failed = true;
-          if (!this.warnedTaint) {
-            this.warnedTaint = true;
-            console.warn('glassity: the backdrop cannot be read (cross-origin without CORS?). Using a flat colour instead.', error);
-          }
+    if (!state) this.backStates.set(backdrop, (state = {
+      texture: null, version: -1, failed: false, failures: 0, retryAt: 0,
+      generation: renderer.generation, source: null, sourceKey: '',
+    }));
+    const source = backdrop.source;
+    const url = source instanceof HTMLImageElement || source instanceof HTMLVideoElement ? source.currentSrc || source.src : '';
+    const sourceKey = url + '|' + backdrop.width + 'x' + backdrop.height;
+    if (state.generation !== renderer.generation || state.source !== source || state.sourceKey !== sourceKey) {
+      this.retryBackdrop(backdrop);
+      state.generation = renderer.generation;
+      state.source = source;
+      state.sourceKey = sourceKey;
+    }
+    // Live frames change version continuously; they must not reset the failure delay.
+    const stale = !state.texture || state.texture.generation !== renderer.generation || state.version !== backdrop.version || state.failed;
+    if (source && stale && performance.now() >= state.retryAt) {
+      try {
+        state.texture = renderer.uploadBack(state.texture, source, backdrop.width, backdrop.height);
+        state.version = backdrop.version;
+        if (state.failed) this.invalidate(); // All icons sharing this backdrop need its recovered pixels.
+        state.failed = false;
+        state.failures = 0;
+        state.retryAt = 0;
+      } catch (error) {
+        if (!renderer.ready) throw error;
+        state.failed = true;
+        state.failures++;
+        state.retryAt = performance.now() + Math.min(30_000, 250 * 2 ** Math.min(state.failures - 1, 7));
+        if (!this.warnedTaint) {
+          this.warnedTaint = true;
+          console.warn('glassity: the backdrop cannot be read (cross-origin without CORS?). Keeping the last image or using a flat colour until it can be retried.', error);
         }
       }
-      if (state.texture && !state.failed) return { texture: state.texture, neutral: false };
     }
+    if (state.texture && state.texture.generation === renderer.generation) return { texture: state.texture, neutral: false };
     if (!this.neutral) this.neutral = { backdrop: new ColorBackdrop('#8a8f98'), texture: null };
     if (!this.neutral.texture || this.neutral.texture.generation !== renderer.generation)
       this.neutral.texture = renderer.uploadBack(null, this.neutral.backdrop.source!, 2, 2);
