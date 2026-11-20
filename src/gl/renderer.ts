@@ -55,6 +55,8 @@ export interface DrawParams {
   scheme: number;
   lens: number;
   touch: [number, number, number];
+  motion?: [number, number];
+  touchLight?: [number, number, number];
   tile: number;
   tileRadius: number;
   tileBevel: number;
@@ -70,7 +72,7 @@ const UNIFORMS = [
   'uBands', 'uFrost', 'uSat', 'uBright', 'uContrast', 'uTint', 'uTintAuto', 'uTintOpacity', 'uDim',
   'uOpacity', 'uShine', 'uRim', 'uRefl', 'uShadow', 'uLight', 'uScheme', 'uLens', 'uTouch', 'uTile',
   'uTileRadius', 'uTileBevel', 'uGlyphOpacity', 'uHighContrast', 'uSeed', 'uWeight',
-  'uGlyphSize', 'uLegibilityColor', 'uLegibilityAmount',
+  'uGlyphSize', 'uLegibilityColor', 'uLegibilityAmount', 'uMotion', 'uTouchLight',
 ] as const;
 
 type UniformName = (typeof UNIFORMS)[number];
@@ -417,6 +419,8 @@ export class Renderer {
     gl.uniform1f(u.uScheme, p.scheme);
     gl.uniform1f(u.uLens, p.lens);
     gl.uniform3f(u.uTouch, p.touch[0], p.touch[1], p.touch[2]);
+    gl.uniform2f(u.uMotion, p.motion?.[0] ?? 1, p.motion?.[1] ?? 0);
+    gl.uniform3f(u.uTouchLight, p.touchLight?.[0] ?? 0, p.touchLight?.[1] ?? 0, p.touchLight?.[2] ?? 0);
     gl.uniform1f(u.uTile, p.tile);
     gl.uniform1f(u.uTileRadius, p.tileRadius);
     gl.uniform1f(u.uTileBevel, p.tileBevel);

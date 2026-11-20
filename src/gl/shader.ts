@@ -60,6 +60,8 @@ uniform vec2 uLight;         // unit vector towards the light
 uniform float uScheme;       // -1 automatic, 0 dark page, 1 light page
 uniform float uLens;         // 0 = not there yet, 1 = fully materialised
 uniform vec3 uTouch;         // x, y, strength
+uniform vec2 uMotion;        // shape scale, hover/focus highlight
+uniform vec3 uTouchLight;    // nearby touch in canvas coordinates, strength
 uniform float uTile;
 uniform float uTileRadius;
 uniform float uTileBevel;
@@ -101,6 +103,8 @@ float profile(float u) {
 }
 
 vec2 fieldAt(vec2 uv) {
+  // Deform only geometry: backdrop lookups keep their screen coordinates.
+  uv = (uv - 0.5) / uMotion.x + 0.5;
   vec2 a = texture(uFieldA, uv).rg;
   if (uMorph > 0.001) {
     a = mix(a, texture(uFieldB, uv).rg, uMorph);
@@ -111,7 +115,7 @@ vec2 fieldAt(vec2 uv) {
     a.g += 0.035 * swell;
   }
   // Offsetting a distance field grows or shrinks the shape evenly, strokes and fills alike.
-  return vec2(a.r - uWeight, max(a.g + uWeight, 0.002));
+  return vec2(a.r - uWeight, max(a.g + uWeight, 0.002)) * uMotion.x;
 }
 
 Layer makeLayer(float sd, vec2 g, float thick, float bevel, float aa) {
@@ -248,12 +252,13 @@ vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflec
 }
 
 float tileDistance(vec2 c, out vec2 g) {
+  c /= uMotion.x;
   vec2 halfBox = 0.5 * uBox;
   float r = min(uTileRadius, min(halfBox.x, halfBox.y));
   vec2 q = abs(c) - (halfBox - r);
   vec2 s = vec2(c.x < 0.0 ? -1.0 : 1.0, c.y < 0.0 ? -1.0 : 1.0);
   g = s * (q.x > 0.0 && q.y > 0.0 ? normalize(q) : (q.x > q.y ? vec2(1.0, 0.0) : vec2(0.0, 1.0)));
-  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+  return (length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r) * uMotion.x;
 }
 
 // The drop shadow at q, without the part hidden under the glass itself: a crescent
@@ -312,6 +317,8 @@ void main() {
   float grain = 0.86 + 0.14 * vnoise(p * 0.09 + uSeed);
   vec2 toTouch = p - uTouch.xy;
   float glow = uTouch.z * exp(-dot(toTouch, toTouch) / (0.2 * uUnit * uUnit));
+  vec2 toLight = p - uTouchLight.xy;
+  glow += uTouchLight.z * exp(-dot(toLight, toLight) / 14400.0) + uMotion.y;
 
   // Icon surface from the distance field.
   vec2 f = fieldAt(vUv);

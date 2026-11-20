@@ -40,11 +40,11 @@ export interface InstanceInternals {
   morph: number;
   lens: number;
   lensTo: number;
-  press: number;
-  pressTarget: number;
-  pressVelocity: number;
-  glow: number;
-  glowTarget: number;
+  interaction: { scale: number; highlight: number; glow: number };
+  interactionMoving: boolean;
+  touchLightStrength: number;
+  sequenceVisual: boolean;
+  motionSequence: { frame: unknown; controller: { running: boolean } } | null;
   light: [number, number];
   lightTarget: [number, number];
   drawnVersion: number;
@@ -100,11 +100,9 @@ export function installGlassHooks(): void {
     if (i.lensTo === 0) return true; // hidden on purpose (`visible: false`)
     if (!i.revealed || i.canvas.style.visibility !== 'visible') return false;
     // A new shape is being rasterized: the key is set before the field is ready.
-    if (!i.geometry || i.geometry.key !== i.geometryKey) return false;
+    if (!i.motionSequence?.frame && (!i.geometry || (!i.sequenceVisual && i.geometry.key !== i.geometryKey))) return false;
     if (Math.abs(i.light[0] - i.lightTarget[0]) + Math.abs(i.light[1] - i.lightTarget[1]) > 0.003) return false;
-    if (Math.abs(i.pressVelocity) > 0.01 || i.glow !== i.glowTarget) return false;
-    // Under reduced motion the press is held at rest whatever its target.
-    if (!i.system.reducedMotion && i.press !== i.pressTarget) return false;
+    if (i.interactionMoving || i.touchLightStrength > 0 || i.motionSequence?.controller.running) return false;
     const b = i.backdrop;
     if (!b || !b.source || b.busy) return false;
     // A live backdrop (video, canvas) changes every frame; it is drawn within the same frame.

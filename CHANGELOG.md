@@ -5,6 +5,9 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 ## [Unreleased]
 
 ### Added
+- Seekable morph sequences through `handle.sequence(shapes, { duration, loop, autoplay })`, with preloaded SVG elements or markup, `play()`, `pause()`, `seek()`, `cancel()`, `ready` and `finished` promises. Interruptions retain the visible blend; reduced-motion playback jumps to the end while manual seeking remains available.
+- `interaction: 'none' | 'subtle' | 'bouncy'` (default `subtle` when interactive): hover and focus-visible highlights, pointer and Enter/Space press feedback, and a touch light that spreads to nearby glass within about 120 px. Reduced motion disables swell and spreading light.
+- A motion fixture with a heart → star → check scrubber and interactive tiles, plus sequence, interaction and touch-light regression tests.
 - Named looks: `look: 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold'`, also available as `data-glass-look`. The readonly `looks` recipes and `GlassLook` type are exported from `glassity`. Explicit options override a recipe; switching looks does not retain the previous recipe's values.
 - `configure(options)` replaces page defaults for existing and future icons, beneath scopes and per-icon options. `configure({})` resets them.
 - `legibility: 'auto' | 'off'` (default `auto`): small icons on dark or saturated backdrops blend toward their own CSS colour, with smooth size and contrast ramps and hysteresis. Explicit tints are unchanged; `off` disables the new contrast correction.
@@ -18,6 +21,7 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 - The real-app examples use the library's legibility policy instead of adding a tint workaround to each small icon. Their look and profile pickers still work through `data-glass-*` attributes.
 
 ### Fixed
+- Press swell deforms the shape in the shader instead of scaling the finished canvas, keeping the sampled backdrop in screen space.
 - Nested `auto()` scopes inherit options by DOM ancestry and update when an outer scope changes. Surviving controllers resume discovery when another controller on the same root is destroyed.
 - React document providers render no wrapper and share one discovery controller, including icons in portals. A provider with only `className` keeps its neutral layout, and `useGlass` follows a ref whose target changes.
 - Vue notices in-place option mutations. Solid, Angular and Remix restart discovery when the selector changes.

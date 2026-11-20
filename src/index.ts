@@ -1,10 +1,11 @@
-import { getEngine, type GlassHandle, type Scope } from './engine';
+import { inactiveSequence, getEngine, type GlassHandle, type Scope } from './engine';
 import type { GlassOptions } from './options';
 import { awaitingHydration, findSvg, outsideZones, OWN, whenSettled } from './dom';
 
+export type { SequenceController, SequenceOptions, SequenceResult, SequenceShape } from './motion/sequence';
 export type { GlassHandle } from './engine';
 export { looks } from './options';
-export type { BackdropSource, GlassLook, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
+export type { BackdropSource, GlassInteraction, GlassLook, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
 
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
@@ -19,6 +20,7 @@ const inert: GlassHandle = {
   set() {},
   retarget() {},
   refresh() {},
+  sequence(_shapes, options) { return inactiveSequence(options); },
   destroy() {},
 };
 

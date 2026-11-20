@@ -36,16 +36,16 @@ function swapShape(page: Page, shape: string): Promise<{ changed: boolean; morph
 }
 
 /** Hold the pointer down on the interactive tile and record a few frames. */
-async function pressTile(page: Page): Promise<{ transform: string; press: number; pressTarget: number }[]> {
+async function pressTile(page: Page): Promise<{ transform: string; scale: number; glow: number }[]> {
   const box = (await page.locator('#press').boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   const samples = await page.evaluate(async () => {
     const glass = window.glassityTest!.instance('#t')!;
-    const out: { transform: string; press: number; pressTarget: number }[] = [];
+    const out: { transform: string; scale: number; glow: number }[] = [];
     for (let i = 0; i < 12; i++) {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      out.push({ transform: glass.canvas.style.transform, press: glass.press, pressTarget: glass.pressTarget });
+      out.push({ transform: glass.canvas.style.transform, scale: glass.interaction.scale, glow: glass.interaction.glow });
     }
     return out;
   });
@@ -78,8 +78,8 @@ test.describe('reduce motion', () => {
 
     // No bounce: the press registers, but the glass never swells.
     const pressed = await pressTile(page);
-    expect(pressed.some((s) => s.pressTarget === 1)).toBe(true);
-    expect(pressed.every((s) => s.transform === '' && s.press === 0)).toBe(true);
+    expect(pressed.some((s) => s.glow === 1)).toBe(true);
+    expect(pressed.every((s) => s.transform === '' && s.scale === 1)).toBe(true);
 
     // Hiding is instant: the lens is gone by the next frame instead of taking 400 ms.
     const lens = await page.evaluate(async () => {
@@ -107,7 +107,7 @@ test.describe('reduce motion', () => {
     });
     await waitForGlass(page, { count: 2 });
     expect(await swapShape(page, '<rect x="4" y="4" width="16" height="16" rx="3"></rect>')).toEqual({ changed: true, morphed: true });
-    expect((await pressTile(page)).some((s) => s.transform.startsWith('scale('))).toBe(true);
+    expect((await pressTile(page)).some((s) => s.scale > 1.02)).toBe(true);
     await page.mouse.move(a.x + a.width + 30, a.y + a.height / 2);
     await page.mouse.move(a.x + a.width + 40, a.y + a.height / 2 + 10);
     await expect.poll(async () => offBase(await lightOf(page, '#a'))).toBeGreaterThan(0.05);

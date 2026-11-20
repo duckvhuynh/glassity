@@ -59,6 +59,37 @@ isSupported(); // false without WebGL2
 
 `configure(options)` replaces page defaults beneath every scope and updates existing and future icons. It accepts every glass option, including `look`; `configure({})` resets this layer. It does not start discovery. Importing glassity remains safe during server rendering.
 
+### Sequences and interaction
+
+```ts
+import { glassify, type SequenceController, type SequenceOptions, type SequenceShape } from 'glassity';
+
+const handle = glassify(svg);
+const shapes: SequenceShape[] = [heartSvg, starSvg, checkSvg]; // SVG elements or complete SVG markup strings
+const options: SequenceOptions = { duration: 1800, autoplay: false, loop: false };
+const sequence: SequenceController = handle.sequence(shapes, options);
+await sequence.ready;
+sequence.seek(0.25); // drive directly from a slider or scroll library
+sequence.play();
+sequence.pause();
+console.log(sequence.progress); // 0–1
+sequence.cancel(); // retain the currently drawn shape
+console.log(await sequence.finished); // 'completed' or 'cancelled'
+```
+
+- All shapes preload into the mounted icon's raster frame; differing viewBoxes fit that same box. The source SVG is untouched.
+- `duration` is the total sequence time in milliseconds (default `1000`), divided equally between adjacent pairs. `autoplay` defaults to `true`; `loop` defaults to `false`. A loop returns to the first shape: repeat that shape at the end for a continuous loop.
+- `seek(0–1)` draws a precise position and preserves the playing/paused state. Use `autoplay: false` when a scroll library owns the position. `play()` after completion restarts at 0; `finished` settles once for the first completion or cancellation.
+- Resizing preloads a new shared raster frame while retaining the same controller and playback position.
+- Replacing an active sequence or morph captures its visible blend as the new first keyframe. `cancel()` freezes that blend and makes the controller inactive; create another sequence to resume with new shapes.
+- Pass at least two complete SVG shapes. Await `ready` to handle invalid or empty shapes and icons without a laid-out size. Cancellation settles `ready`; `finished` reports `'cancelled'`. Without WebGL2, during SSR, with `variant: 'identity'`, or in forced colours, the controller is cancelled and the source SVG remains. Reduced motion makes `play()` jump to the final shape, including loops, while explicit seeking still works.
+
+Enable interaction with `interactive: true`. `interaction: 'subtle'` is the default; `'bouncy'` increases the spring and swell, and `'none'` disables feedback. Providers, adapters and attributes use the same option (`data-glass-interaction="bouncy"`). The existing nearest button/link host receives hover, focus-visible and press behavior; Enter/Space activates press feedback without changing the button's normal action. Disabled controls stay inactive.
+
+Press deformation changes shape coordinates in the shader, leaving backdrop lookups in screen space. Each press sends a short-lived touch light to nearby glass within about 120 px, fading with distance and time. Reduced motion disables the swell and spreading light while keeping static feedback. Keep the existing DOM: no interaction wrapper or backdrop declaration is needed.
+
+The local `e2e/fixtures/motion.html` fixture has a heart → star → check scrubber, playback controls and near/far tiles for review.
+
 ### React
 
 ```tsx
@@ -200,7 +231,8 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `reflection` | `0.6` | 0 to 4 | Fresnel reflection of the surroundings |
 | `lightAngle` | `-45` | degrees | Light direction, clockwise from the top |
 | `shadow` | `0.3` | 0 to 1 | Drop shadow; also the dark outline that draws glass on white pages |
-| `interactive` | `false` | boolean | Swell, bounce and glow when pressed |
+| `interactive` | `false` | boolean | Enable hover, focus-visible and pointer/keyboard press feedback |
+| `interaction` | `'subtle'` | `none`, `subtle`, `bouncy` | Feedback preset used when `interactive` is true |
 | `pointerLight` | `true` | boolean | Highlight follows the pointer |
 | `visible` | `true` | boolean | Hide or show; the glass materialises by bending light in and out |
 | `duration` | `520` | 0 to 10000 ms | Materialise and morph time |
@@ -258,7 +290,7 @@ Playground links carry settings after `#`: keys that are option names are option
 
 - **Server rendering.** Importing glassity on the server is safe; nothing runs there. `auto()` waits for load and idle and skips icons that React, Astro islands or lazily hydrated Vue components have not hydrated yet, so there are no hydration warnings.
 - **Hiding.** The SVG gets `data-glassity-hidden` and a constructed stylesheet sets its opacity to 0. Frameworks rewriting `style` cannot make it reappear. Printing shows the original icons.
-- **Accessibility.** Keep the icon's own `aria-label`/`role` (or `aria-hidden` when decorative). The canvas is `aria-hidden` and ignores the pointer. Reduced motion stops the pointer light and bounce; reduced transparency makes the glass frostier; more contrast makes it solid; forced colours show the plain SVG.
+- **Accessibility.** Keep the icon's own `aria-label`/`role` (or `aria-hidden` when decorative). The canvas is `aria-hidden` and ignores the pointer. Reduced motion stops pointer light, swell and spreading touch light; sequence playback jumps to the end but seeking still works; reduced transparency makes the glass frostier; more contrast makes it solid; forced colours show the plain SVG.
 - **Colour.** The SVG supplies the outline; individual fills are not reproduced. Small automatic icons on dark or saturated surfaces also use the icon's computed CSS `color`. For a chosen colour at any size, use `tint` (including `currentColor`) with `tintOpacity`.
 - **Light pages.** Glass stays light on white (as Apple's); it is drawn by its own refracted shadow and a thin contour. Small glyphs (under about 28 px after padding) flip to dark ink.
 - **Performance.** One WebGL context; icons redraw only when something changes (pointer, animation, backdrop). Off-screen icons are skipped. `bands` and `maxDpr` are the cost knobs.

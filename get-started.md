@@ -286,6 +286,25 @@ Named looks use the library's recipes, also used by the playground. Set `look` a
 
 If the person sends a playground link, its settings are in the part after `#`: every key that is an option name (`depth=0.3`, `tile=true`, `variant=clear`, …) is an option to apply. Ignore `bg`, `layout`, `set`, `lib`, `icon`, `size` and `compare`: they only describe the playground.
 
+### Motion, when requested
+
+For interactive buttons, add `interactive: true` to the provider or `data-glass-interactive` to the SVG. The default `interaction: 'subtle'` adds a gentle hover/focus-visible highlight and press swell; choose `'bouncy'` for a stronger spring or `'none'` to disable feedback. Attributes use `data-glass-interaction="bouncy"`. Enter/Space on the existing host button triggers the same press feedback. A press briefly lights nearby glass within about 120 px; no wrappers or backdrop settings are needed.
+
+For a sequence controlled by a slider or scroll library:
+
+```ts
+import { glassify } from 'glassity';
+
+const handle = glassify(svg);
+const sequence = handle.sequence([heartSvg, starSvg, checkSvg], { autoplay: false });
+await sequence.ready; // every shape preloaded; catch errors here
+sequence.seek(0.5);   // 0–1 from the slider/scroll callback
+// sequence.play(), sequence.pause(), sequence.cancel()
+// await sequence.finished -> 'completed' or 'cancelled'
+```
+
+Pass at least two shapes, as SVG elements or complete SVG markup strings. The mounted icon must have a laid-out size. `duration` is total milliseconds (default `1000`), `loop` defaults to `false` and `autoplay` to `true`. Cancelling or replacing an active sequence preserves the current blend. Reduced motion jumps playback to the end and disables spreading light and swell; manual seeking still works. Only add a sequence when the person asks for one; ordinary path changes already morph automatically.
+
 ## 6. Check that it works
 
 Start the dev server (in the background; stop it when you are done, and kill the process if the port stays taken) and open the page. glassity starts after the page has loaded and gone idle, so wait for the first glass canvas instead of checking at once:

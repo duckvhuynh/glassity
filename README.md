@@ -289,6 +289,45 @@ console.log(looks.crystal);                 // readonly recipe, shared with the 
 
 Explicit options apply in this order: page defaults from `configure()`, outer scope, inner scope, element attributes, then an icon's own options. Nested `auto({ root })` scopes inherit by DOM ancestry, and changing an outer scope updates its descendants. The selected look is a recipe beneath all these explicit options, so even an outer scope's explicit `depth` overrides a look's depth.
 
+### Seekable morph sequences
+
+Use a handle when a slider, scroll library or timeline should control the shape. Pass at least two SVG elements or complete SVG markup strings; every shape is preloaded into the same raster frame, using the mounted icon's size. Resizing reloads that frame while preserving the controller and playback position.
+
+```ts
+import { glassify, type SequenceController } from 'glassity';
+
+const handle = glassify(document.querySelector('svg')!);
+const sequence: SequenceController = handle.sequence([heartSvg, starSvg, checkSvg], {
+  duration: 1800, // total milliseconds across the sequence
+  loop: false,
+  autoplay: false,
+});
+await sequence.ready;
+sequence.seek(0.5); // star; any value from 0 to 1, also from a scroll callback
+sequence.play();
+sequence.pause();
+sequence.cancel(); // freeze the current shape
+const result = await sequence.finished; // 'completed' or 'cancelled'
+```
+
+The defaults are `duration: 1000`, `loop: false` and `autoplay: true`. Adjacent shapes get equal time, and `progress` is readable on the controller. `seek()` preserves whether playback is paused or running. `play()` after completion restarts at the beginning; `finished` settles once, for the first completion or cancellation. A cancelled controller cannot restart; create another sequence. Looping returns to the first shape; repeat the first shape at the end for a continuous loop.
+
+Starting another sequence while a morph or sequence is in progress uses the current visible blend as its first shape, so interruption does not jump. Cancelling keeps that blend too. The original SVG is unchanged. With reduced motion, `play()` jumps to the last shape, even with `loop: true`; manual `seek()` still works. `ready` rejects invalid or empty shapes and icons that have no laid-out size. Without WebGL2, during server rendering, with `variant: 'identity'`, or in forced colours, the controller is cancelled and the original SVG stays unchanged.
+
+### Interaction presets
+
+Set `interactive` on your existing icons or provider. `interaction: 'subtle'` is the default; `'bouncy'` gives a larger spring, and `'none'` disables interaction feedback. The same settings work as attributes:
+
+```html
+<button aria-label="Save">
+  <svg data-glass data-glass-interactive data-glass-interaction="bouncy" viewBox="0 0 24 24">…</svg>
+</button>
+```
+
+Hover and keyboard focus-visible gently lift the highlight. Pointer presses and Enter/Space on the host button swell the glass. The shape deforms in the shader, so the sampled backdrop stays in screen space. A press also casts a brief light onto nearby glass within about 120 px. Reduced motion keeps static feedback and disables the swell and spreading light. No extra wrapper or backdrop declaration is needed.
+
+Try the sequence scrubber and interactive tiles at `/e2e/fixtures/motion.html` after `npm run build` and `npm run demo`.
+
 ## Options
 
 Every option is optional. Sizes are fractions of the icon's box, so icons of any size keep the same look.
@@ -325,7 +364,8 @@ Every option is optional. Sizes are fractions of the icon's box, so icons of any
 | `reflection` | `0.6` | Reflected surroundings |
 | `lightAngle` | `-45` | Light direction in degrees, clockwise from the top |
 | `shadow` | `0.3` | Drop shadow |
-| `interactive` | `false` | Swell, bounce and glow when pressed |
+| `interactive` | `false` | Enable hover, focus-visible and pointer/keyboard press feedback |
+| `interaction` | `'subtle'` | `none`, `subtle` or `bouncy`; preset used when `interactive` is true |
 | `pointerLight` | `true` | The highlight follows the pointer |
 | `visible` | `true` | Show or hide. The glass materialises by bending light in and out |
 | `duration` | `520` | Materialise and morph time, ms |
@@ -408,7 +448,7 @@ With `accessibility: true` (default) glassity follows the system:
 
 | System setting | Effect |
 |---|---|
-| Reduce motion | No pointer light, no bounce, transitions are instant |
+| Reduce motion | No pointer light, swell or spreading touch light; transitions and sequence playback jump to the end. Manual sequence seeking still works |
 | Reduce transparency | Frostier, more tinted glass. On Windows this is on when "Transparency effects" is off |
 | More contrast | Solid black or white icons |
 | Forced colours | Glass is off; the plain SVG shows. This applies even with `accessibility: false` |
