@@ -20,6 +20,8 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 - Nested `auto()` scopes inherit options by DOM ancestry and update when an outer scope changes. Surviving controllers resume discovery when another controller on the same root is destroyed.
 - React document providers render no wrapper and share one discovery controller, including icons in portals. A provider with only `className` keeps its neutral layout, and `useGlass` follows a ref whose target changes.
 - Vue notices in-place option mutations. Solid, Angular and Remix restart discovery when the selector changes.
+- GPU failures and context loss show the original SVGs until glass can draw again. Restoring the context rebuilds resources from retained pixels and geometry; failed uploads keep the previous texture and backdrops retry with backoff.
+- Direct image, video and canvas backdrops are downscaled to fit the texture budget. Texture storage is released once, and snapshot and external sprite caches now have bounded sizes.
 
 ## [0.3.5] - 2026-11-20
 

@@ -1,3 +1,5 @@
+import { cachedLoad, LruCache } from './lru';
+
 /** Browser-only: turn a mounted <svg> into alpha coverage at a chosen resolution. */
 
 /** Space kept around the icon box for the shadow and the outside of the distance field, as a fraction of the box. */
@@ -48,22 +50,21 @@ const XLINK_NS = 'http://www.w3.org/1999/xlink';
 const URL_REF = /url\(\s*(['"]?)([^)'"]*?)#([^)'"\s]+)\1\s*\)/g;
 const REF_ATTRS = ['fill', 'stroke', 'clip-path', 'mask', 'filter', 'marker-start', 'marker-mid', 'marker-end', 'style'];
 
-const externalDocuments = new Map<string, Promise<Document | null>>();
+const externalDocuments = new LruCache<string, Promise<Document | null>>(32);
 
-/** Fetch and parse an external SVG file once (a sprite sheet referenced by `<use href="icons.svg#x">`). */
+/** Fetch and parse a sprite once while it remains in the bounded cache. */
 function externalDocument(url: string): Promise<Document | null> {
-  let pending = externalDocuments.get(url);
-  if (!pending) {
-    pending = fetch(url)
-      .then((response) => (response.ok ? response.text() : Promise.reject(new Error(String(response.status)))))
-      .then((text) => new DOMParser().parseFromString(text, 'image/svg+xml'))
-      .catch(() => {
-        console.warn(`glassity: could not load the sprite "${url}" (missing, or blocked by CORS).`);
-        return null;
-      });
-    externalDocuments.set(url, pending);
-  }
-  return pending;
+  return cachedLoad(externalDocuments, url, () => fetch(url)
+    .then((response) => (response.ok ? response.text() : Promise.reject(new Error(String(response.status)))))
+    .then((text) => {
+      const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+      if (doc.querySelector('parsererror')) throw new Error('Invalid SVG');
+      return doc;
+    })
+    .catch(() => {
+      console.warn(`glassity: could not load the sprite "${url}" (missing, invalid, or blocked by CORS).`);
+      return null;
+    }));
 }
 
 function hrefOf(el: Element): string | null {

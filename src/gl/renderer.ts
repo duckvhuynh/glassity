@@ -75,6 +75,8 @@ const UNIFORMS = [
 
 type UniformName = (typeof UNIFORMS)[number];
 
+type RendererState = 'ready' | 'lost' | 'restoring' | 'failed';
+
 /**
  * The single WebGL2 context shared by every icon on the page. Each icon is
  * drawn into a corner of this off-screen canvas and copied to its own 2D
@@ -89,24 +91,43 @@ export class Renderer {
   private loc = {} as Record<UniformName, WebGLUniformLocation | null>;
   /** Bumped when the context is restored: textures from older generations are gone. */
   generation = 1;
-  lost = false;
+  private status: RendererState = 'restoring';
+  private textures = new Map<WebGLTexture, number>();
+  private bytes = 0;
+  private textureLimit = 2048;
+  private staging: HTMLCanvasElement | null = null;
+  onstatechange: (() => void) | null = null;
   onrestore: (() => void) | null = null;
+
+  get state(): RendererState {
+    return this.status;
+  }
+
+  get ready(): boolean {
+    if (this.status === 'ready' && this.gl.isContextLost()) this.contextLost();
+    return this.status === 'ready';
+  }
+
+  /** Allocated texture storage, including mip levels, but not driver overhead. */
+  get textureBytes(): number {
+    return this.bytes;
+  }
 
   static create(): Renderer | null {
     if (typeof document === 'undefined') return null;
     const canvas = document.createElement('canvas');
     canvas.width = 256;
     canvas.height = 256;
-    const gl = canvas.getContext('webgl2', {
-      alpha: true,
-      premultipliedAlpha: true,
-      antialias: false,
-      depth: false,
-      stencil: false,
-      preserveDrawingBuffer: false,
-    });
-    if (!gl) return null;
     try {
+      const gl = canvas.getContext('webgl2', {
+        alpha: true,
+        premultipliedAlpha: true,
+        antialias: false,
+        depth: false,
+        stencil: false,
+        preserveDrawingBuffer: false,
+      });
+      if (!gl) return null;
       return new Renderer(canvas, gl);
     } catch (error) {
       console.warn('glassity: WebGL2 setup failed, falling back to plain SVG.', error);
@@ -117,54 +138,156 @@ export class Renderer {
   private constructor(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) {
     this.canvas = canvas;
     this.gl = gl;
-    this.init();
+    try {
+      this.init();
+      this.status = 'ready';
+    } catch (error) {
+      this.disposeGpu();
+      throw error;
+    }
     canvas.addEventListener('webglcontextlost', (event) => {
       event.preventDefault();
-      this.lost = true;
+      this.contextLost();
     });
     canvas.addEventListener('webglcontextrestored', () => {
-      this.lost = false;
+      if (this.status !== 'lost') return;
+      this.setState('restoring');
       this.generation++;
-      this.init();
-      this.onrestore?.();
+      try {
+        this.init();
+        this.setState('ready');
+        this.onrestore?.();
+      } catch (error) {
+        this.fail(error);
+      }
     });
+  }
+
+  private setState(state: RendererState): void {
+    this.status = state;
+    this.onstatechange?.();
+  }
+
+  private contextLost(): void {
+    if (this.status === 'lost') return;
+    // The browser already freed these objects. Never delete them in a new context.
+    this.textures.clear();
+    this.bytes = 0;
+    this.program = this.vao = null;
+    this.staging = null;
+    this.setState('lost');
+  }
+
+  /** A failed recovery must put every original SVG back, including offscreen icons. */
+  fail(error: unknown): void {
+    if (this.gl.isContextLost()) {
+      this.contextLost();
+      return;
+    }
+    this.disposeGpu();
+    this.setState('failed');
+    console.warn('glassity: WebGL2 recovery failed, falling back to plain SVG.', error);
+  }
+
+  private disposeGpu(): void {
+    for (const texture of this.textures.keys()) this.gl.deleteTexture(texture);
+    this.textures.clear();
+    this.bytes = 0;
+    if (this.program) this.gl.deleteProgram(this.program);
+    if (this.vao) this.gl.deleteVertexArray(this.vao);
+    this.program = this.vao = null;
+    this.staging = null;
   }
 
   private init(): void {
     const gl = this.gl;
+    const shaders: WebGLShader[] = [];
+    let program: WebGLProgram | null = null;
+    let vao: WebGLVertexArrayObject | null = null;
     const compile = (type: number, source: string) => {
-      const shader = gl.createShader(type)!;
+      const shader = gl.createShader(type);
+      if (!shader) throw new Error('glassity: could not allocate shader');
+      shaders.push(shader);
       gl.shaderSource(shader, source);
       gl.compileShader(shader);
       if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error('glassity shader: ' + gl.getShaderInfoLog(shader));
       return shader;
     };
-    const program = gl.createProgram()!;
-    gl.attachShader(program, compile(gl.VERTEX_SHADER, VERTEX));
-    gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAGMENT));
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error('glassity program: ' + gl.getProgramInfoLog(program));
-    this.program = program;
-    this.vao = gl.createVertexArray();
-    for (const name of UNIFORMS) this.loc[name] = gl.getUniformLocation(program, name);
-    gl.disable(gl.BLEND);
-    gl.disable(gl.DEPTH_TEST);
-    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    try {
+      program = gl.createProgram();
+      if (!program) throw new Error('glassity: could not allocate program');
+      gl.attachShader(program, compile(gl.VERTEX_SHADER, VERTEX));
+      gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAGMENT));
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error('glassity program: ' + gl.getProgramInfoLog(program));
+      vao = gl.createVertexArray();
+      if (!vao) throw new Error('glassity: could not allocate vertex array');
+      for (const name of UNIFORMS) this.loc[name] = gl.getUniformLocation(program, name);
+      gl.disable(gl.BLEND);
+      gl.disable(gl.DEPTH_TEST);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      this.textureLimit = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
+      this.checkError();
+      this.program = program;
+      this.vao = vao;
+    } catch (error) {
+      if (program) gl.deleteProgram(program);
+      if (vao) gl.deleteVertexArray(vao);
+      throw error;
+    } finally {
+      for (const shader of shaders) {
+        if (this.program) gl.detachShader(this.program, shader);
+        gl.deleteShader(shader);
+      }
+    }
+  }
+
+  private checkError(): void {
+    if (this.gl.isContextLost()) {
+      this.contextLost();
+      throw new Error('glassity: WebGL2 context lost');
+    }
+    const error = this.gl.getError();
+    if (error !== this.gl.NO_ERROR) throw new Error('glassity: WebGL2 error ' + error);
+  }
+
+  private allocate(): WebGLTexture {
+    if (!this.ready) throw new Error('glassity: WebGL2 is unavailable');
+    const texture = this.gl.createTexture();
+    if (!texture) {
+      this.checkError();
+      throw new Error('glassity: could not allocate texture');
+    }
+    this.textures.set(texture, 0);
+    return texture;
+  }
+
+  private account(texture: WebGLTexture, bytes: number): void {
+    this.textures.set(texture, bytes);
+    this.bytes += bytes;
   }
 
   /** Upload a two-channel float field (signed distance, thickness). */
   createField(data: Float32Array, w: number, h: number): FieldTexture {
     const gl = this.gl;
-    const texture = gl.createTexture()!;
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, w, h, 0, gl.RG, gl.FLOAT, data);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    return { texture, w, h, generation: this.generation };
+    const texture = this.allocate();
+    try {
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, w, h, 0, gl.RG, gl.FLOAT, data);
+      this.checkError();
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      this.checkError();
+      this.account(texture, w * h * 4); // RG16F: two half floats per pixel.
+      return { texture, w, h, generation: this.generation };
+    } catch (error) {
+      this.release({ texture, generation: this.generation });
+      throw error;
+    }
   }
 
   /**
@@ -173,34 +296,64 @@ export class Renderer {
    */
   uploadBack(existing: BackTexture | null, source: TexImageSource, w: number, h: number): BackTexture {
     const gl = this.gl;
-    const reuse = existing && existing.generation === this.generation;
-    const texture = reuse ? existing.texture : gl.createTexture()!;
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
-    gl.generateMipmap(gl.TEXTURE_2D);
-    if (!reuse) {
+    if (!this.ready) throw new Error('glassity: WebGL2 is unavailable');
+    if (!(w > 0 && h > 0 && Number.isFinite(w) && Number.isFinite(h))) throw new Error('glassity: empty backdrop');
+    // Use the snapshot budget for direct media too, even on GPUs with huge limits.
+    const scale = Math.min(1, Math.min(this.textureLimit, 2560) / Math.max(w, h));
+    if (scale < 1) {
+      w = Math.max(1, Math.floor(w * scale));
+      h = Math.max(1, Math.floor(h * scale));
+      const canvas = (this.staging ??= document.createElement('canvas'));
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('glassity: could not resize backdrop');
+      ctx.drawImage(source as CanvasImageSource, 0, 0, w, h);
+      source = canvas;
+    }
+    const texture = this.allocate();
+    try {
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+      this.checkError();
+      gl.generateMipmap(gl.TEXTURE_2D);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      this.checkError();
+      let bytes = 0;
+      for (let mw = w, mh = h;; mw = Math.max(1, Math.floor(mw / 2)), mh = Math.max(1, Math.floor(mh / 2))) {
+        bytes += mw * mh * 4;
+        if (mw === 1 && mh === 1) break;
+      }
+      this.account(texture, bytes);
+      this.release(existing);
+      return { texture, w, h, maxLod: Math.floor(Math.log2(Math.max(w, h, 1))), generation: this.generation };
+    } catch (error) {
+      this.release({ texture, generation: this.generation });
+      throw error;
     }
-    return { texture, w, h, maxLod: Math.floor(Math.log2(Math.max(w, h, 1))), generation: this.generation };
   }
 
   release(texture: { texture: WebGLTexture; generation: number } | null): void {
-    if (texture && texture.generation === this.generation && !this.lost) this.gl.deleteTexture(texture.texture);
+    if (!texture || texture.generation !== this.generation || !this.textures.has(texture.texture)) return;
+    this.bytes -= this.textures.get(texture.texture)!;
+    this.textures.delete(texture.texture);
+    if (!this.gl.isContextLost()) this.gl.deleteTexture(texture.texture);
   }
 
   /** Largest backdrop the GPU accepts on its longest side. */
   get maxTextureSize(): number {
-    return this.lost ? 2048 : (this.gl.getParameter(this.gl.MAX_TEXTURE_SIZE) as number);
+    return this.textureLimit;
   }
 
   /** Draw one icon and copy it into `target`. Returns false when the context is lost. */
   draw(target: CanvasRenderingContext2D, pw: number, ph: number, p: DrawParams): boolean {
-    if (this.lost || !this.program) return false;
+    if (!this.ready || !this.program) return false;
+    if ([p.fieldA, p.fieldB, p.back].some((t) => t.generation !== this.generation || !this.textures.has(t.texture))) return false;
     const gl = this.gl;
     const canvas = this.canvas;
     if (canvas.width < pw || canvas.height < ph) {
@@ -273,6 +426,9 @@ export class Renderer {
     gl.uniform1f(u.uSeed, p.seed);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    if (!this.ready) return false;
+    this.checkError();
 
     target.clearRect(0, 0, pw, ph);
     target.drawImage(canvas, 0, 0, pw, ph, 0, 0, pw, ph);
