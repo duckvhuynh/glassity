@@ -159,6 +159,10 @@ export class Renderer {
     });
   }
 
+  /** When draw() last asked for GL errors; -Infinity checks the next draw. */
+  private lastDrawCheck = -Infinity;
+  private drawCheckTimer: ReturnType<typeof setTimeout> | 0 = 0;
+
   private setState(state: RendererState): void {
     this.status = state;
     this.onstatechange?.();
@@ -166,6 +170,7 @@ export class Renderer {
 
   private contextLost(): void {
     if (this.status === 'lost') return;
+    this.lastDrawCheck = -Infinity; // check the first draw of the next context
     // The browser already freed these objects. Never delete them in a new context.
     this.textures.clear();
     this.bytes = 0;
@@ -421,7 +426,29 @@ export class Renderer {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     if (!this.ready) return false;
-    this.checkError();
+    // getError() makes the CPU wait for the GPU. After every icon, every frame, that cost
+    // most of a scrolling frame; a draw error (a broken driver, an invalid state) is still
+    // caught on the first draw and within a second after that. Uploads check every time.
+    const now = performance.now();
+    if (now - this.lastDrawCheck >= 1000) {
+      this.lastDrawCheck = now;
+      this.checkError();
+    } else if (gl.isContextLost()) {
+      this.contextLost();
+      return false;
+    } else if (!this.drawCheckTimer) {
+      // A settled page stops drawing, so check once more when the second is up.
+      this.drawCheckTimer = setTimeout(() => {
+        this.drawCheckTimer = 0;
+        if (!this.ready) return;
+        this.lastDrawCheck = performance.now();
+        try {
+          this.checkError();
+        } catch (error) {
+          if (this.ready) this.fail(error);
+        }
+      }, 1000 - (now - this.lastDrawCheck));
+    }
 
     target.clearRect(0, 0, pw, ph);
     target.drawImage(canvas, 0, 0, pw, ph, 0, 0, pw, ph);
