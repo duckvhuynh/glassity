@@ -248,19 +248,6 @@ Good first choices: feature or category icons in a hero, a dock or toolbar over 
 
 Small toolbar and tab icons can use the defaults without wrappers or backdrop declarations. Small icons on dark and saturated surfaces now look different: glassity uses their CSS `color` to keep contrast and respects its alpha, so dimmed icons stay dimmer. The size is measured after padding; a 48 px tile with default padding has a glyph of about 27 px. Check readability in both active and inactive states.
 
-### Buttons, pills, toolbars and tab bars
-
-For a glass background behind ordinary content, put `data-glass="surface"` on an existing HTML container such as a `button`, `nav` or `div`. Keep its CSS size and `border-radius`; individual and elliptical corner radii are read automatically. The setup from step 3 also discovers these surfaces, including through React and Vue providers. If you use a custom selector, include `[data-glass]`.
-
-```html
-<button data-glass="surface" style="border-radius: 999px">Save</button>
-<nav data-glass="surface" data-glass-look="frosted" style="border-radius: 24px">
-  <!-- Existing links, labels and icons stay here. -->
-</nav>
-```
-
-Replaced elements and native controls (`input`, `img`, `video`, `canvas`, `select`, `textarea`) cannot host the rendering canvas and remain unchanged. No wrapper or explicit backdrop is needed for supported containers. Labels stay selectable, buttons stay clickable, and focus rings stay visible. Inner SVGs stay plain unless they carry `data-glass` explicitly, even with a provider selector that matches all SVGs. For a single element in code, use `glassify(element, { surface: true, look: 'clear' })`. Material options apply to the slab; CSS continues to style the children. Large surfaces cap DPR at 1.5, or a lower `maxDpr`.
-
 ### Headings, wordmarks and icon-font glyphs
 
 After the same setup, mark the existing text element:

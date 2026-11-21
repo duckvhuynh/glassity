@@ -200,36 +200,12 @@ Browser-only mixins. Add `glassity` to the asset server's `allowPackages`. For s
 - React Router framework mode: `import 'glassity/auto'` in `app/root` or a route module.
 - No build: `<script src="https://unpkg.com/glassity@0.3"></script>` (pin the current version) and `data-glass` on icons. `window.glassity.controller.update({...})` changes the page-wide options.
 
-## Glass surfaces
-
-`data-glass="surface"` turns an HTML container's background into a glass slab. Use existing `button`, `nav` or `div` elements for pills, toolbars and tab bars; no wrapper or backdrop declaration is required. CSS supplies its size and border radius, including per-corner elliptical radii, and resizing updates the slab. Content remains ordinary DOM above the canvas: text selection, focus rings, links and click targets keep working.
-
-```html
-<button data-glass="surface" style="border-radius: 999px">Save</button>
-<nav data-glass="surface" data-glass-look="frosted" style="border-radius: 24px">
-  <button><svg viewBox="0 0 24 24">…</svg> Home</button>
-</nav>
-```
-
-```ts
-const panel = glassify(element, { surface: true, look: 'clear', frost: 0.2 });
-panel.update({ tint: '#92b5ff', tintOpacity: 0.2 });
-panel.destroy();
-```
-
-For surfaces, `handle.element` is the original host. `GlassHandle.element` and `retarget(target)` use the exported `GlassElement = SVGSVGElement | HTMLElement` type. Retargeting accepts an HTML surface or an SVG; existing SVG calls continue to work.
-
-Replaced elements and native controls (`input`, `img`, `video`, `canvas`, `select`, `textarea`) cannot host the rendering canvas and remain unchanged.
-
-React and Vue providers discover `data-glass="surface"` through the existing attribute workflow; the `glassity/auto` import works too. Include `[data-glass]` in a custom provider selector. SVGs inside surfaces stay plain unless they explicitly carry `data-glass`, including when a broad selector would otherwise pick them up. Material options (`look`, `frost`, `tint`, `depth`, and the lighting controls) apply to the slab. Icon geometry options (`tileRadius`, `padding`, `strokeWidth`, `glyphOpacity`) do not restyle its DOM children. Surfaces cap DPR at 1.5 or a lower `maxDpr` and reuse the region's backdrop.
-
 ## Attributes
 
 | Attribute | Effect |
 |---|---|
 | `data-glass` | Glass with the shared options |
 | `data-glass="clear"` | Pick a variant: `regular`, `clear`, `identity` |
-| `data-glass="surface"` | Glass background for an HTML element; preserve ordinary DOM content |
 | `data-glass="text"` | Use the element's text or icon-font glyph as the shape |
 | `data-glass="off"` | Leave this icon alone |
 | `data-glass-look="crystal"` | Pick a named look |
@@ -286,7 +262,6 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `text` | `false` | boolean | Use an HTML text element instead of looking for an SVG; also enabled by `data-glass="text"` |
 | `variant` | `'regular'` | `regular`, `clear`, `identity` | `clear` presets: frost 0, saturation 1.1, contrast 1, tintOpacity 0.04, dim `auto`, dispersion 0.5. `identity` leaves the SVG as is |
 | `profile` | `'squircle'` | `squircle`, `circle`, `lip`, `dome` | Edge cross-section. `dome`: a glass ball traced through both surfaces; magnifies, and from depth about 0.3 shows the page upside down. Best on a round tile |
-| `surface` | `false` | boolean | Glass slab filling an HTML container's CSS box, with its computed corner radii and content on top |
 | `tile` | `false` | boolean | Rounded glass plate filling the SVG's box; the icon becomes a glass mark on it |
 | `tileRadius` | `0.26` | 0 to 0.5 | Plate corner radius; `0.5` is a circle on a square box |
 | `glyphOpacity` | `0.9` | 0 to 1 | How solid the mark is on a plate |
@@ -323,7 +298,7 @@ All optional. Lengths are fractions of the icon's box, so a look holds at any si
 | `scheme` | `'auto'` | `auto`, `light`, `dark` | `auto` reads the backdrop under each icon; force for a known page colour |
 | `accessibility` | `true` | boolean | Follow reduced motion, reduced transparency, more contrast, forced colours. `false` ignores them except forced colours, which always win |
 | `backdrop` | `'auto'` | see below | What the glass refracts |
-| `maxDpr` | `2` | 0.5 to 4 | Cap on device pixel ratio (cost); surfaces also cap it at 1.5 |
+| `maxDpr` | `2` | 0.5 to 4 | Cap on device pixel ratio (cost) |
 
 ### Small icons and CSS colour
 
@@ -395,7 +370,7 @@ Playground links carry settings after `#`: keys that are option names are option
 
 - Text sources are limited to 512 UTF-16 code units, eight rendered lines and 64 descendant elements. Over-limit text stays plain. Horizontal text supports translation and positive axis-aligned scale. Vertical writing, rotation, skew, perspective and reflection leave the original visible; glyphs supplied only by pseudo-elements are outside this source.
 - Text web fonts need readable CSS `@font-face` rules and embeddable font files (same-origin or CORS). FontFace API-only fonts and unreadable remote rules cannot be reproduced; keep the original visible.
-- Rotation and skew of SVG icons, or of their canvas ancestors, are not followed; translation and scale are. Surfaces follow their own and their ancestors' 2D scale, rotation and skew. Under 3D or perspective transforms the surface follows the DOM, but backdrop sampling remains planar.
+- Rotation and skew of SVG icons, or of their canvas ancestors, are not followed; translation and scale are.
 - Multicolour SVGs use their outline unless layered mode and `colors: 'source'` are enabled. Layers have one solid tint each; gradients and patterns are not colour textures.
 - Layered icons use at most four marked groups. Extra marked groups and unmarked artwork outside layers are omitted; layer changes do not morph between outlines.
 - HTML snapshots are pictures: web fonts, cross-origin images without CORS, pseudo-elements and iframes may be missing. Local regions retain their last good pixels while queued replacements are prepared. Native HTML-in-Canvas paint events are used only for an already-rendered drawable subtree in an application-owned canvas, detected at runtime. The browser cannot capture arbitrary page HTML this way; ordinary HTML remains on snapshots. Never move app DOM or require a wrapper to enable native capture.

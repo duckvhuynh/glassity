@@ -1,5 +1,4 @@
-import { parentOf, SURFACE } from './dom';
-import { elementMap, type SurfaceSpace } from './surface-space';
+import { parentOf } from './dom';
 import { pageColor, snapshot, SnapshotBudgetError } from './snapshot';
 import { CaptureQueue } from './capture-queue';
 import { createHtmlCanvasCapture, type HtmlCanvasCapture } from './html-canvas';
@@ -27,8 +26,6 @@ export abstract class Backdrop {
 
   /** Area the source covers, in viewport CSS px. */
   abstract rect(): Rect;
-  /** Local source coordinates for surfaces inside transformed containers. */
-  space(): SurfaceSpace | null { return null; }
   /** Called once per frame before drawing; live sources bump `version` here. */
   tick(): void {}
   /** Re-read the source now. */
@@ -79,16 +76,6 @@ function fitRect(r: DOMRect, nw: number, nh: number, fit: string): Rect {
   return { x: r.left + (r.width - w) / 2, y: r.top + (r.height - h) / 2, w, h };
 }
 
-function fittedSpace(el: HTMLElement, nw: number, nh: number, fit: string): SurfaceSpace {
-  const w = el.offsetWidth;
-  const h = el.offsetHeight;
-  const fitted = fitRect(new DOMRect(0, 0, w, h), nw, nh, fit);
-  const map = elementMap(el, w, h, el.getBoundingClientRect());
-  const [a, b, c, d] = map.basis;
-  map.offset = [map.offset[0] + a * fitted.x + c * fitted.y, map.offset[1] + b * fitted.x + d * fitted.y];
-  return { map, width: fitted.w, height: fitted.h };
-}
-
 /** An <img>, <video> or <canvas> already on the page, used as is. */
 export class MediaBackdrop extends Backdrop {
   private lastTime = -1;
@@ -125,10 +112,6 @@ export class MediaBackdrop extends Backdrop {
 
   rect(): Rect {
     return fitRect(this.el.getBoundingClientRect(), this.width, this.height, this.fit);
-  }
-
-  space(): SurfaceSpace {
-    return fittedSpace(this.el, this.width, this.height, this.fit);
   }
 
   tick(): void {
@@ -174,10 +157,6 @@ export class UrlBackdrop extends Backdrop {
     const box = this.container ? this.container.getBoundingClientRect() : new DOMRect(0, 0, window.innerWidth, window.innerHeight);
     return fitRect(box, this.width, this.height, 'cover');
   }
-
-  space(): SurfaceSpace | null {
-    return this.container instanceof HTMLElement ? fittedSpace(this.container, this.width, this.height, 'cover') : null;
-  }
 }
 
 export interface SnapshotBackdropOptions {
@@ -200,10 +179,6 @@ export class SnapshotBackdrop extends Backdrop {
   private pending: AbortController | null = null;
   private capturedRect: Rect | null = null;
   private capturedFixed = false;
-  /** A local-region capture: where its pixels sit in the element's own untransformed box. */
-  private capturedCrop: Rect | null = null;
-  /** Pixels kept from another element's capture; only its viewport rect describes them. */
-  private borrowed = false;
   private native: HtmlCanvasCapture | null = null;
   private disposed = false;
   private resizeObserver: ResizeObserver | null = null;
@@ -278,8 +253,6 @@ export class SnapshotBackdrop extends Backdrop {
           x: fixed || this.root ? 0 : box.left + scrollX,
           y: fixed || this.root ? 0 : box.top + scrollY, w, h,
         };
-        // The snapshot draws the element's untransformed box offset by its bounding box origin.
-        const crop = region && !fixed && !this.root ? { x: region.x - box.left - scrollX, y: region.y - box.top - scrollY, w: region.w, h: region.h } : null;
         const request = { width: w, height: h, maxSize: this.options.maxSize, region, work, hide: this.options.isOwn };
         let result;
         try {
@@ -289,7 +262,7 @@ export class SnapshotBackdrop extends Backdrop {
           // Keep trying DOM on the next refresh: this region may become simpler.
           result = await snapshot(this.el, { ...request, mode: 'background' });
         }
-        return { result, rect, fixed, crop };
+        return { result, rect, fixed };
       }, { priority: this.options.priority, signal: pending.signal });
       if (!captured || pending.signal.aborted || this.disposed || this.pending !== pending) return;
       this.source = captured.result.canvas;
@@ -297,8 +270,6 @@ export class SnapshotBackdrop extends Backdrop {
       this.height = captured.result.canvas.height;
       this.capturedRect = captured.rect;
       this.capturedFixed = captured.fixed;
-      this.capturedCrop = captured.crop;
-      this.borrowed = false;
       this.changed();
     } catch (error) {
       if (!pending.signal.aborted) console.warn('glassity: could not snapshot the backdrop.', error);
@@ -334,8 +305,6 @@ export class SnapshotBackdrop extends Backdrop {
     const rect = previous.rect();
     this.capturedRect = { ...rect, x: rect.x + scrollX, y: rect.y + scrollY };
     this.capturedFixed = false;
-    this.capturedCrop = previous.capturedCrop;
-    this.borrowed = previous.el !== this.el || previous.borrowed;
     this.changed();
   }
 
@@ -349,22 +318,6 @@ export class SnapshotBackdrop extends Backdrop {
     }
     const r = this.el.getBoundingClientRect();
     return { x: r.left, y: r.top, w: r.width, h: r.height };
-  }
-
-  /**
-   * The source in the element's local pixels. A local-region capture holds only part of
-   * the element: map that crop, not the whole box, or surfaces sample the wrong place
-   * (text above a toolbar was stretched into it).
-   */
-  space(): SurfaceSpace | null {
-    if (this.fixed || this.root || this.borrowed) return null;
-    const { w, h } = this.area();
-    const map = elementMap(this.el, w, h, this.el.getBoundingClientRect());
-    const crop = this.capturedCrop;
-    if (!crop) return { map, width: w, height: h };
-    const [a, b, c, d] = map.basis;
-    map.offset = [map.offset[0] + a * crop.x + c * crop.y, map.offset[1] + b * crop.x + d * crop.y];
-    return { map, width: crop.w, height: crop.h };
   }
 
   refresh(): void {
@@ -391,7 +344,6 @@ export class SnapshotBackdrop extends Backdrop {
  */
 export function nearestSurface(el: Element): { el: Element; mode: 'background' | 'dom' } | null {
   for (let node = parentOf(el); node; node = parentOf(node)) {
-    if (node.hasAttribute(SURFACE)) continue;
     const cs = getComputedStyle(node);
     if (cs.backgroundImage && cs.backgroundImage !== 'none') return { el: node, mode: 'background' };
     const color = cs.backgroundColor;

@@ -8,15 +8,13 @@
 export const HIDDEN = 'data-glassity-hidden';
 /** On every node glassity inserts. */
 export const OWN = 'data-glassity-canvas';
-export const SURFACE = 'data-glassity-surface';
-export const SURFACE_ACTIVE = 'data-glassity-surface-active';
 
 /**
  * Hiding with an attribute and a stylesheet instead of an inline style: a
  * framework that rewrites the icon's `style` (Vue string styles, Svelte
  * `style="…"`, an animation library) cannot undo it. Print shows the original.
  */
-const CSS = `:where([${SURFACE}]){position:relative}[${SURFACE}]{isolation:isolate!important}@media not print{[${HIDDEN}]{opacity:0!important}[${SURFACE_ACTIVE}]{background-color:transparent!important;background-image:none!important}}@media print{canvas[${OWN}]{display:none!important}}`;
+const CSS = `@media not print{[${HIDDEN}]{opacity:0!important}}@media print{canvas[${OWN}]{display:none!important}}`;
 
 const styled = new WeakSet<Document | ShadowRoot>();
 

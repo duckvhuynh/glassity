@@ -39,8 +39,6 @@ export interface GlassOptions {
 
   /** Put the icon on a rounded glass plate that fills the SVG's box. Default `false`. */
   tile?: boolean;
-  /** Turn an HTML element's background into glass, using its CSS border radii. Default false. */
-  surface?: boolean;
   /** Plate corner radius as a fraction of the box, 0–0.5. Default `0.26`. */
   tileRadius?: number;
   /** How solid the icon is when it sits on a plate, 0–1. Default `0.9`. */
@@ -133,7 +131,6 @@ export interface ResolvedOptions {
   variant: GlassVariant;
   profile: GlassProfile;
   tile: boolean;
-  surface: boolean;
   tileRadius: number;
   glyphOpacity: number;
   padding: number;
@@ -195,7 +192,6 @@ export const OPTION_DESCRIPTORS = {
   variant: { kind: 'enum', default: 'regular', values: ['regular', 'clear', 'identity'] },
   profile: { kind: 'enum', default: 'squircle', values: ['squircle', 'circle', 'lip', 'dome'] },
   tile: { kind: 'boolean', default: false },
-  surface: { kind: 'boolean', default: false },
   tileRadius: { kind: 'number', default: 0.26, min: 0, max: 0.5 },
   glyphOpacity: { kind: 'number', default: 0.9, min: 0, max: 1 },
   padding: { kind: 'number', default: 0, min: 0, max: 0.45 },
@@ -314,7 +310,6 @@ export function readAttributes(el: { getAttribute(name: string): string | null; 
     if (v === 'off' || v === 'false' || v === 'none') return null;
     if (v === 'text') out.text = true;
     if (OPTION_DESCRIPTORS.variant.values.includes(v as GlassVariant)) out.variant = v;
-    if (v === 'surface') out.surface = true;
   }
   for (const name of el.getAttributeNames()) {
     const key = ATTRS.get(name);
