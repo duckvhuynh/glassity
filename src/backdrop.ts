@@ -243,6 +243,11 @@ export class SnapshotBackdrop extends Backdrop {
     if (this.disposed) return;
     clearTimeout(this.timer);
     this.pending?.abort();
+    // A new capture is coming: say so now, not only once the timer fires, so nothing
+    // treats the old picture as current in between. The aborted capture no longer owns
+    // the busy flag, so its cleanup cannot clear it.
+    this.pending = null;
+    this.busy = true;
     this.timer = window.setTimeout(() => this.capture(), delay);
   }
 

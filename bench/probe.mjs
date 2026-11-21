@@ -77,7 +77,8 @@ export function installProbe(version) {
         }
         const capture = proto.capture;
         proto.capture = function (...captureArgs) {
-          const started = !this.disposed && !this.busy;
+          // A capture starts when none is in flight; a scheduled one is already busy.
+          const started = !this.disposed && !this.pending;
           if (started) {
             counts.captures++;
             counts.pendingCaptures++;
