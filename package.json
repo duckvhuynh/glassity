@@ -1,6 +1,6 @@
 {
   "name": "glassity",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "Liquid-glass material for any SVG icon. One provider, real refraction, WebGL2.",
   "type": "module",
   "license": "MIT",

@@ -4,6 +4,8 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-21
+
 ### Upgrading from 0.3
 - **Small icons on dark or saturated surfaces look different.** They now take on their own CSS colour so they stay readable (light neutral surfaces keep their near-black small icons). For the old look, set `legibility: 'off'`.
 - **Flat backgrounds get faint studio highlights** (`environment: 'auto'`). For the old reflection, set `environment: 'none'`.
@@ -160,7 +162,8 @@ First release.
 - Follows reduced motion, reduced transparency, increased contrast and forced colours.
 - Without WebGL2, icons stay plain SVG with a soft highlight.
 
-[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/duckvhuynh/glassity/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/duckvhuynh/glassity/compare/v0.3.5...v0.4.0
 [0.3.5]: https://github.com/duckvhuynh/glassity/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/duckvhuynh/glassity/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/duckvhuynh/glassity/compare/v0.3.2...v0.3.3
