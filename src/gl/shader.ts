@@ -276,15 +276,22 @@ vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflec
   // Over a bright page the edge reflects a neutral room, so it darkens a little instead of vanishing.
   vec3 env = mix(mix(ambient, vec3(1.0), 0.55), mix(vec3(0.55), ambient, 0.4), bright);
   vec3 room = env * (0.35 + 0.65 * smoothstep(-0.3, 0.9, dot(mirror, uLight)));
+  float k = clamp(fresnel * reflectivity, 0.0, 0.9) * uLens;
+  // Studio light on a flat backdrop: only the bright parts of the procedural room (the
+  // window and the fill) are added, so the glass gains highlights and never turns darker.
+  // Polished glass shows them across most of its curve, so they fall off slower than
+  // Schlick's 4% at the face would allow.
+  vec3 studioLight = vec3(0.0);
   if (gEnvironmentStrength > 0.0) {
     vec3 reflected = reflect(vec3(0.0, 0.0, -1.0), L.n);
     float roughness = clamp(uFrost / max(0.16 * uUnit, 0.001), 0.0, 1.0);
-    room = mix(room, studioEnvironment(reflected, uLight, ambient, roughness), gEnvironmentStrength);
+    vec3 studio = studioEnvironment(reflected, uLight, ambient, roughness);
+    float sheen = 0.85 * (0.12 + 0.88 * pow(1.0 - L.n.z, 1.2)) * smoothstep(0.0, 0.3, reflectivity); // reflection: 0 turns it off
+    studioLight = max(studio - vec3(0.25), 0.0) * sheen * gEnvironmentStrength * uLens;
   }
-  float k = clamp(fresnel * reflectivity, 0.0, 0.9) * uLens;
   float shade = 1.0 - 0.22 * exp(-max(L.d, 0.0) / (L.edge * 0.7 + 0.5)) * max(-facing, 0.0) * uLens * min(uCurv, 1.0);
 
-  vec3 c = base * shade * (1.0 - k) + room * k;
+  vec3 c = base * shade * (1.0 - k) + room * k + studioLight;
   // Highlights take some colour from what is behind them rather than pure white.
   vec3 hl = mix(vec3(1.0), clamp(base * 1.25, 0.0, 1.0), 0.4);
   c += hl * (spec * 0.55 + rim * (0.75 + 1.5 * glow) + glow * 0.3) * uLens;
