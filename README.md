@@ -53,6 +53,17 @@ Each look above is a handful of options on the same icon. Thin strokes turn into
 
 It refracts whatever sits behind it: a photo, a CSS gradient, a canvas, or ordinary HTML text, which it photographs and looks through. On a white page it stays light, the way Apple's glass does, and is drawn by its own shadow seen through the edge and a thin contour. Small icons, under about 28 px, turn dark there to stay readable. On dark or saturated surfaces they blend toward their own CSS colour by default, keeping dimmed colours dimmer.
 
+### New in 0.4
+
+- **Small icons stay readable** on dark and saturated surfaces, by taking on their own colour ([options](#options): `legibility`, `tint: 'currentColor'`).
+- **Named looks and page defaults:** `look="frosted"` and `configure({ look: 'crystal' })` ([details](#named-looks-and-page-defaults)).
+- **Glass text and icon fonts:** headings, wordmarks and Material Symbols glyphs ([details](#text-and-icon-fonts)).
+- **Layered app icons** with dark, clear and tinted appearances ([details](#layered-app-icons)).
+- **Motion:** seekable morph sequences and interaction presets ([sequences](#seekable-morph-sequences), [interaction](#interaction-presets)).
+- **Studio lighting** so glass reads on flat backgrounds ([details](#lighting-on-flat-surfaces)), and a faster first paint.
+
+Upgrading from 0.3? See the [changelog](CHANGELOG.md) for the few visible changes and how to switch them off.
+
 ### Where it fits
 
 - **Premium landing pages.** Feature icons over a hero photo or gradient look like real glass without redrawing them.

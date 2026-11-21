@@ -6,7 +6,7 @@ Follow the steps below in order. Keep the change small: add glassity, mark a few
 
 - Repository: https://github.com/duckvhuynh/glassity
 - Playground (every option, live): https://duckvhuynh.github.io/glassity/
-- Full reference for agents: https://cdn.jsdelivr.net/npm/glassity@0.3/skills/glassity/SKILL.md
+- Full reference for agents: https://cdn.jsdelivr.net/npm/glassity@0.4/skills/glassity/SKILL.md
 
 This guide is enough to set glassity up. Open the full reference only when you need an option or a behaviour this guide does not cover.
 
@@ -210,10 +210,10 @@ import 'glassity/auto';
 ### Plain HTML, no build step
 
 ```html
-<script src="https://unpkg.com/glassity@0.3"></script>
+<script src="https://unpkg.com/glassity@0.4"></script>
 ```
 
-`@0.3` was the current minor version when this guide was written. Use the current one (`npm view glassity version`, keep major and minor): before 1.0 a new minor version may change options.
+`@0.4` was the current minor version when this guide was written. Use the current one (`npm view glassity version`, keep major and minor): before 1.0 a new minor version may change options.
 
 ## 4. Mark the icons
 
@@ -375,7 +375,7 @@ Each glass source gets a `<canvas data-glassity-canvas>` right after its SVG or 
 
 ## 7. Teach yourself for later
 
-The skill file is a complete reference: every option, recipe and edge case, written for agents. Ask the person once, for example: "Should I save the glassity reference in the project, so I know how to use it next time?" If yes, copy it **word for word**, not a summary: from `node_modules/glassity/skills/glassity/SKILL.md` (glassity 0.3.2 and later), or download it with `curl -fsSL https://cdn.jsdelivr.net/npm/glassity@0.3/skills/glassity/SKILL.md -o <path>`. Save it to:
+The skill file is a complete reference: every option, recipe and edge case, written for agents. Ask the person once, for example: "Should I save the glassity reference in the project, so I know how to use it next time?" If yes, copy it **word for word**, not a summary: from `node_modules/glassity/skills/glassity/SKILL.md` (glassity 0.3.2 and later), or download it with `curl -fsSL https://cdn.jsdelivr.net/npm/glassity@0.4/skills/glassity/SKILL.md -o <path>`. Save it to:
 
 - Claude Code: `.claude/skills/glassity/SKILL.md`
 - Cursor: `.cursor/rules/glassity.mdc` (keep the text; Cursor reads the front matter as rule metadata)

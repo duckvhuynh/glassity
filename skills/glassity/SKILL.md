@@ -9,7 +9,7 @@ glassity turns inline SVG icons and short text into liquid glass with WebGL2. It
 
 - Package: `glassity` on npm. ESM and CommonJS, types for every `moduleResolution`. No runtime dependencies.
 - Playground with every option: https://duckvhuynh.github.io/glassity/
-- Setup guide for agents: https://cdn.jsdelivr.net/npm/glassity@0.3/get-started.md
+- Setup guide for agents: https://cdn.jsdelivr.net/npm/glassity@0.4/get-started.md
 
 ## How it works, in one paragraph
 
@@ -27,7 +27,7 @@ Each glass icon gets a `<canvas data-glassity-canvas>` inserted right after its 
 | `glassity/solid` | `glass`, `glassProvider` directives |
 | `glassity/angular` | `provideGlassity`, `injectGlass`, `injectGlassProvider` |
 | `glassity/remix` | `glass`, `glassProvider` mixins (Remix 3) |
-| `https://unpkg.com/glassity@0.3` | Script-tag build: `window.glassity` and page-wide auto mode |
+| `https://unpkg.com/glassity@0.4` | Script-tag build: `window.glassity` and page-wide auto mode |
 
 ### Core API
 
@@ -198,7 +198,7 @@ Browser-only mixins. Add `glassity` to the asset server's `allowPackages`. For s
 
 - Astro: `<script>import 'glassity/auto';</script>` in a layout. Late islands become glass after they hydrate.
 - React Router framework mode: `import 'glassity/auto'` in `app/root` or a route module.
-- No build: `<script src="https://unpkg.com/glassity@0.3"></script>` (pin the current version) and `data-glass` on icons. `window.glassity.controller.update({...})` changes the page-wide options.
+- No build: `<script src="https://unpkg.com/glassity@0.4"></script>` (pin the current version) and `data-glass` on icons. `window.glassity.controller.update({...})` changes the page-wide options.
 
 ## Attributes
 

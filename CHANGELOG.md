@@ -4,38 +4,37 @@ All notable changes to glassity. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Upgrading from 0.3
+- **Small icons on dark or saturated surfaces look different.** They now take on their own CSS colour so they stay readable (light neutral surfaces keep their near-black small icons). For the old look, set `legibility: 'off'`.
+- **Flat backgrounds get faint studio highlights** (`environment: 'auto'`). For the old reflection, set `environment: 'none'`.
+- **TypeScript:** `GlassHandle.element` and `retarget()` take `GlassElement` (`SVGSVGElement | HTMLElement`), because text can be glass now. Narrow the type before reading SVG-only fields.
+- **Pressing an interactive icon no longer sets a CSS `transform` on its canvas;** the swell happens in the shader.
+- Nothing else needs a change: zero-config setups keep working as before.
+
 ### Added
-- An engine-owned backdrop capture queue with shared requests, visible-region priority, cancellation and cooperative DOM-work slices. HTML snapshots use local regions with a refraction/blur guard instead of shrinking an entire long page into one texture.
-- Feature-detected native paint updates for existing HTML-in-Canvas drawable content. Ordinary HTML retains snapshots because browser-native drawable images are bound to their owning canvas; no wrappers or new options are required.
-- `environment: 'auto' | 'studio' | 'none'` (default `auto`), also available as `data-glass-environment` and the exported `GlassEnvironment` type. Procedural window and fill lights plus a dark horizon give flat surfaces visible reflections, tinted by the backdrop and bounded by Fresnel. Automatic mode fades them over detailed backdrops; `studio` keeps them on, `none` preserves the original reflection, and frost broadens the highlights.
-- Opt-in layered glass icons: `layers` / `data-glass-layers` renders up to four explicitly marked `g[data-glass-layer]` groups in document order, with per-group material overrides and upper layers refracting the lower glass. Changes to the marked groups update automatically.
-- Layered icon appearances: `appearance: 'default' | 'dark' | 'clear' | 'tinted'`, plus `colors: 'source'` to use one solid SVG fill or stroke tint per layer. Ordinary SVGs keep their existing rendering.
-- Seekable morph sequences through `handle.sequence(shapes, { duration, loop, autoplay })`, with preloaded SVG elements or markup, `play()`, `pause()`, `seek()`, `cancel()`, `ready` and `finished` promises. Interruptions retain the visible blend; reduced-motion playback jumps to the end while manual seeking remains available.
-- `interaction: 'none' | 'subtle' | 'bouncy'` (default `subtle` when interactive): hover and focus-visible highlights, pointer and Enter/Space press feedback, and a touch light that spreads to nearby glass within about 120 px. Reduced motion disables swell and spreading light.
-- A motion fixture with a heart → star → check scrubber and interactive tiles, plus sequence, interaction and touch-light regression tests.
-- Glass text and icon-font glyphs: `data-glass="text"` or `glassify(element, { text: true })`. Browser-rendered masks preserve typography, ligatures, horizontal RTL and wrapped headings, wait for fonts and update with font, content and layout changes. Original text stays accessible and selectable. Each source is capped at 512 UTF-16 code units, eight rendered lines and 64 descendant elements; over-limit sources stay plain.
-- Named looks: `look: 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold'`, also available as `data-glass-look`. The readonly `looks` recipes and `GlassLook` type are exported from `glassity`. Explicit options override a recipe; switching looks does not retain the previous recipe's values.
-- `configure(options)` replaces page defaults for existing and future icons, beneath scopes and per-icon options. `configure({})` resets them.
-- `legibility: 'auto' | 'off'` (default `auto`): small icons on dark or saturated backdrops blend toward their own CSS colour, with smooth size and contrast ramps and hysteresis. Explicit tints are unchanged; `off` disables the new contrast correction.
-- `tint: 'currentColor'`: use the icon's computed CSS colour, including alpha, and follow class, state and theme changes.
-- A local Chromium performance benchmark for 50, 77 and 100 icons, with startup, idle, scrolling, pointer, theme and mount/destroy measurements, reproducible fixtures and JSON/Markdown budget reports (`npm run bench`).
+- **Readable small icons by default.** `legibility: 'auto' | 'off'` (default `auto`): small icons on dark or saturated backdrops blend toward their own CSS colour, with smooth size and contrast ramps. Explicit tints are left alone. `tint: 'currentColor'` uses the icon's computed colour and follows class, state and theme changes.
+- **Named looks.** `look: 'default' | 'clear' | 'frosted' | 'crystal' | 'tinted' | 'bold'`, also as `data-glass-look`. The `looks` recipes and the `GlassLook` type are exported. Explicit options override a recipe, and switching looks drops the previous recipe's values.
+- **Page-wide defaults.** `configure(options)` sets defaults for every existing and future icon, beneath scopes and per-icon options; `configure({})` resets them.
+- **Glass text and icon fonts.** `data-glass="text"` or `glassify(element, { text: true })` turns headings, wordmarks and icon-font glyphs (Material Symbols and others) into glass. The browser renders the text, so fonts, ligatures, right-to-left text and wrapped headings stay exact. The original text stays selectable and readable by screen readers. Up to 512 characters, eight lines and 64 child elements per element; longer text stays plain.
+- **Layered icons.** `data-glass-layers` with up to four marked `<g data-glass-layer>` groups renders each group as its own glass body, bottom to top, with per-group depth, frost, tint and opacity. `appearance: 'default' | 'dark' | 'clear' | 'tinted'` gives app-icon variants, and `colors: 'source'` keeps each layer's SVG colour. Ordinary SVGs render as before.
+- **Motion.** `handle.sequence([heart, star, check], { duration, loop, autoplay })` preloads shapes and returns `play()`, `pause()`, `seek(0–1)` (for scroll or a slider), `cancel()`, `ready` and `finished`. `interaction: 'none' | 'subtle' | 'bouncy'` adds hover and keyboard-focus highlights, pointer and Enter/Space press feedback, and a touch light that spreads to nearby glass. Reduced motion is respected throughout.
+- **Studio lighting for flat interfaces.** `environment: 'auto' | 'studio' | 'none'` (default `auto`): on plain backgrounds, glass picks up a soft window glint along its bevels. It fades out over photos; `studio` keeps it on, and frost softens it.
+- **Faster, steadier backdrops.** A capture queue shares, prioritises and slices HTML snapshots, and captures local regions around visible icons instead of shrinking a long page into one texture. Canvases drawn with Chrome's HTML-in-Canvas update natively.
+- **A performance benchmark** for 50, 77 and 100 icons (`npm run bench`), with startup, idle, scrolling, pointer, theme-change and mount/destroy budgets.
 
 ### Changed
-- `GlassHandle.element` and `retarget()` now use the exported `GlassElement` union (`SVGSVGElement | HTMLElement`) and accept HTML text elements as well as SVGs. Narrow the element type before reading SVG-only fields. Text uses font size for raster detail and small-glyph legibility; `strokeWidth` remains SVG-only.
-- One option registry supplies defaults, validation, attribute parsing and adapter option names.
-- Playground presets and real-app example look pickers use the library's named looks.
-- Small icons on dark and saturated surfaces look different by default and keep more contrast. Light neutral surfaces keep their near-black small icons. Tile glyphs use their size after padding: a default 48 px tile has a glyph of about 27 px. This sizing correction also applies with `legibility: 'off'`.
-- The real-app examples use the library's legibility policy instead of adding a tint workaround to each small icon. Their look and profile pickers still work through `data-glass-*` attributes.
+- One option registry now supplies defaults, validation, attribute parsing and the option names every framework adapter uses.
+- Tile glyphs are sized after padding (a default 48 px tile has a glyph of about 27 px), with or without legibility.
+- The playground presets and the real-app examples use the library's named looks and legibility instead of hand-copied recipes and workarounds.
 
 ### Fixed
-- First glass no longer waits for unrelated window-load resources: DOM readiness and a bounded idle wait start visible icons in batches, with deferred-hydration checks retained. Field construction and draw batches yield; shader compilation avoids blocking status queries when `KHR_parallel_shader_compile` is available.
-- Superseded or disposed captures cannot replace newer pixels. Refreshes retain the last good backdrop, and local crops carry document coordinates through scrolling.
-- Press swell deforms the shape in the shader instead of scaling the finished canvas, keeping the sampled backdrop in screen space.
-- Nested `auto()` scopes inherit options by DOM ancestry and update when an outer scope changes. Surviving controllers resume discovery when another controller on the same root is destroyed.
-- React document providers render no wrapper and share one discovery controller, including icons in portals. A provider with only `className` keeps its neutral layout, and `useGlass` follows a ref whose target changes.
-- Vue notices in-place option mutations. Solid, Angular and Remix restart discovery when the selector changes.
-- GPU failures and context loss show the original SVGs until glass can draw again. Restoring the context rebuilds resources from retained pixels and geometry; failed uploads keep the previous texture and backdrops retry with backoff.
-- Direct image, video and canvas backdrops are downscaled to fit the texture budget. Texture storage is released once, and snapshot and external sprite caches now have bounded sizes.
+- First glass no longer waits for the window `load` event or long hydration retries; visible icons start first, and heavy work is spread across frames.
+- GPU context loss and failed uploads show the original SVGs until glass can draw again; resources are rebuilt on restore and failed backdrops retry.
+- Large image, video and canvas backdrops are downscaled to fit the GPU; caches are bounded and textures are released once.
+- A newer capture always wins over an older or cancelled one, and the last good backdrop stays while a new one is taken.
+- Nested `auto()` scopes inherit options from the scope around them, and update when it changes.
+- React: `<GlassProvider scope="document">` renders no wrapper and covers portals; a provider with only `className` keeps a neutral layout; `useGlass` follows a ref whose element changes.
+- Vue notices in-place option changes; Solid, Angular and Remix rescan when the selector changes.
 
 ## [0.3.5] - 2026-11-20
 
