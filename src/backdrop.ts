@@ -200,6 +200,10 @@ export class SnapshotBackdrop extends Backdrop {
   private pending: AbortController | null = null;
   private capturedRect: Rect | null = null;
   private capturedFixed = false;
+  /** A local-region capture: where its pixels sit in the element's own untransformed box. */
+  private capturedCrop: Rect | null = null;
+  /** Pixels kept from another element's capture; only its viewport rect describes them. */
+  private borrowed = false;
   private native: HtmlCanvasCapture | null = null;
   private disposed = false;
   private resizeObserver: ResizeObserver | null = null;
@@ -269,6 +273,8 @@ export class SnapshotBackdrop extends Backdrop {
           x: fixed || this.root ? 0 : box.left + scrollX,
           y: fixed || this.root ? 0 : box.top + scrollY, w, h,
         };
+        // The snapshot draws the element's untransformed box offset by its bounding box origin.
+        const crop = region && !fixed && !this.root ? { x: region.x - box.left - scrollX, y: region.y - box.top - scrollY, w: region.w, h: region.h } : null;
         const request = { width: w, height: h, maxSize: this.options.maxSize, region, work, hide: this.options.isOwn };
         let result;
         try {
@@ -278,7 +284,7 @@ export class SnapshotBackdrop extends Backdrop {
           // Keep trying DOM on the next refresh: this region may become simpler.
           result = await snapshot(this.el, { ...request, mode: 'background' });
         }
-        return { result, rect, fixed };
+        return { result, rect, fixed, crop };
       }, { priority: this.options.priority, signal: pending.signal });
       if (!captured || pending.signal.aborted || this.disposed || this.pending !== pending) return;
       this.source = captured.result.canvas;
@@ -286,6 +292,8 @@ export class SnapshotBackdrop extends Backdrop {
       this.height = captured.result.canvas.height;
       this.capturedRect = captured.rect;
       this.capturedFixed = captured.fixed;
+      this.capturedCrop = captured.crop;
+      this.borrowed = false;
       this.changed();
     } catch (error) {
       if (!pending.signal.aborted) console.warn('glassity: could not snapshot the backdrop.', error);
@@ -321,6 +329,8 @@ export class SnapshotBackdrop extends Backdrop {
     const rect = previous.rect();
     this.capturedRect = { ...rect, x: rect.x + scrollX, y: rect.y + scrollY };
     this.capturedFixed = false;
+    this.capturedCrop = previous.capturedCrop;
+    this.borrowed = previous.el !== this.el || previous.borrowed;
     this.changed();
   }
 
@@ -336,10 +346,20 @@ export class SnapshotBackdrop extends Backdrop {
     return { x: r.left, y: r.top, w: r.width, h: r.height };
   }
 
+  /**
+   * The source in the element's local pixels. A local-region capture holds only part of
+   * the element: map that crop, not the whole box, or surfaces sample the wrong place
+   * (text above a toolbar was stretched into it).
+   */
   space(): SurfaceSpace | null {
-    if (this.fixed || this.root) return null;
+    if (this.fixed || this.root || this.borrowed) return null;
     const { w, h } = this.area();
-    return { map: elementMap(this.el, w, h, this.el.getBoundingClientRect()), width: w, height: h };
+    const map = elementMap(this.el, w, h, this.el.getBoundingClientRect());
+    const crop = this.capturedCrop;
+    if (!crop) return { map, width: w, height: h };
+    const [a, b, c, d] = map.basis;
+    map.offset = [map.offset[0] + a * crop.x + c * crop.y, map.offset[1] + b * crop.x + d * crop.y];
+    return { map, width: crop.w, height: crop.h };
   }
 
   refresh(): void {
