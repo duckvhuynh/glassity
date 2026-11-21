@@ -97,7 +97,7 @@ No other package is needed. The framework adapters (`glassity/react`, `glassity/
 Paste this into Claude Code, Cursor, Codex, Copilot or any coding agent:
 
 ```text
-Set up glassity for me. Fetch https://cdn.jsdelivr.net/npm/glassity@0.3/get-started.md and follow it.
+Set up glassity for me. Fetch https://cdn.jsdelivr.net/npm/glassity@0.4/get-started.md and follow it.
 ```
 
 The agent reads [get-started.md](get-started.md): it finds your framework and icon library, installs glassity, wires it in, marks a few icons and checks that the glass shows. [skills/glassity/SKILL.md](skills/glassity/SKILL.md) is the full reference written for agents (every option, recipe and fix); the guide offers to save it in your project so the agent knows glassity next time. Both files also ship in the npm package.
@@ -266,7 +266,7 @@ one.destroy();
 ### Script tag
 
 ```html
-<script src="https://unpkg.com/glassity@0.3"></script>
+<script src="https://unpkg.com/glassity@0.4"></script>
 <svg data-glass ...>...</svg>
 ```
 
