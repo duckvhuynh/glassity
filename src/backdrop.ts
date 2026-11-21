@@ -1,5 +1,8 @@
 import { parentOf } from './dom';
 import { pageColor, snapshot, SnapshotBudgetError } from './snapshot';
+import { CaptureQueue } from './capture-queue';
+import { createHtmlCanvasCapture, type HtmlCanvasCapture } from './html-canvas';
+import { captureRegion, intersects, type CaptureRegion } from './capture-region';
 
 export interface Rect {
   x: number;
@@ -159,6 +162,9 @@ export class UrlBackdrop extends Backdrop {
 export interface SnapshotBackdropOptions {
   mode: 'background' | 'dom';
   maxSize: number;
+  queue: CaptureQueue;
+  region?: CaptureRegion;
+  priority: () => number;
   /** True for nodes glassity itself writes to; their mutations must not trigger a new snapshot. */
   isOwn: (node: Node) => boolean;
 }
@@ -170,16 +176,21 @@ export class SnapshotBackdrop extends Backdrop {
   private root: boolean;
   private timer = 0;
   private busy = false;
-  private again = false;
+  private pending: AbortController | null = null;
+  private capturedRect: Rect | null = null;
+  private capturedFixed = false;
+  private native: HtmlCanvasCapture | null = null;
   private disposed = false;
   private resizeObserver: ResizeObserver | null = null;
   private mutationObserver: MutationObserver | null = null;
   private readonly onResize = () => this.schedule(120);
+  private readonly onScroll = () => { if (this.mode === 'dom') this.schedule(80); };
 
   constructor(private el: Element, private options: SnapshotBackdropOptions) {
     super();
     this.mode = options.mode;
     this.root = el === document.body || el === document.documentElement;
+    if (this.mode === 'dom') this.native = createHtmlCanvasCapture(el, () => this.schedule(0), options.isOwn);
     this.source = swatch(pageColor(el));
     this.width = this.height = 2;
     this.version = 1;
@@ -189,7 +200,8 @@ export class SnapshotBackdrop extends Backdrop {
       this.resizeObserver.observe(el);
     }
     this.mutationObserver = new MutationObserver((records) => {
-      if (records.some((record) => !options.isOwn(record.target))) this.schedule(250);
+      if (records.some((record) => !options.isOwn(record.target) &&
+        (record.type !== 'childList' || [...record.addedNodes, ...record.removedNodes].some((node) => !options.isOwn(node))))) this.schedule(120);
     });
     this.mutationObserver.observe(
       el,
@@ -198,12 +210,19 @@ export class SnapshotBackdrop extends Backdrop {
         : { attributes: true, attributeFilter: ['class', 'style'] },
     );
     window.addEventListener('resize', this.onResize);
+    window.addEventListener('scroll', this.onScroll, { capture: true, passive: true });
     this.capture();
   }
 
   private schedule(delay: number): void {
     if (this.disposed) return;
     clearTimeout(this.timer);
+    this.pending?.abort();
+    // A new capture is coming: say so now, not only once the timer fires, so nothing
+    // treats the old picture as current in between. The aborted capture no longer owns
+    // the busy flag, so its cleanup cannot clear it.
+    this.pending = null;
+    this.busy = true;
     this.timer = window.setTimeout(() => this.capture(), delay);
   }
 
@@ -219,42 +238,79 @@ export class SnapshotBackdrop extends Backdrop {
 
   private async capture(): Promise<void> {
     if (this.disposed) return;
-    if (this.busy) {
-      this.again = true;
-      return;
-    }
+    this.pending?.abort();
+    const pending = this.pending = new AbortController();
     this.busy = true;
     try {
-      this.fixed = this.mode === 'background' && getComputedStyle(this.el).backgroundAttachment.includes('fixed');
-      const { w, h } = this.area();
-      if (w >= 1 && h >= 1) {
+      const captured = await this.options.queue.enqueue(this, async (work) => {
+        this.fixed = this.mode === 'background' && getComputedStyle(this.el).backgroundAttachment.includes('fixed');
+        const { w, h } = this.area();
+        if (w < 1 || h < 1) return null;
+        const region = this.options.region;
+        const box = this.el.getBoundingClientRect();
+        const fixed = this.fixed;
+        const rect = region ? { x: region.x, y: region.y, w: region.w, h: region.h } : {
+          x: fixed || this.root ? 0 : box.left + scrollX,
+          y: fixed || this.root ? 0 : box.top + scrollY, w, h,
+        };
+        const request = { width: w, height: h, maxSize: this.options.maxSize, region, work, hide: this.options.isOwn };
         let result;
         try {
-          result = await snapshot(this.el, { mode: this.mode, width: w, height: h, maxSize: this.options.maxSize, hide: this.options.isOwn });
+          result = (region && this.native?.capture(region, this.options.maxSize)) || await snapshot(this.el, { ...request, mode: this.mode });
         } catch (error) {
           if (!(error instanceof SnapshotBudgetError) || this.mode !== 'dom') throw error;
-          console.warn('glassity: the page behind the glass is too large to snapshot; using only its CSS background. Pass `backdrop` to choose what to refract.');
-          this.mode = 'background';
-          result = await snapshot(this.el, { mode: 'background', width: w, height: h, maxSize: this.options.maxSize });
+          // Keep trying DOM on the next refresh: this region may become simpler.
+          result = await snapshot(this.el, { ...request, mode: 'background' });
         }
-        if (this.disposed) return;
-        this.source = result.canvas;
-        this.width = result.canvas.width;
-        this.height = result.canvas.height;
-        this.changed();
-      }
+        return { result, rect, fixed };
+      }, { priority: this.options.priority, signal: pending.signal });
+      if (!captured || pending.signal.aborted || this.disposed || this.pending !== pending) return;
+      this.source = captured.result.canvas;
+      this.width = captured.result.canvas.width;
+      this.height = captured.result.canvas.height;
+      this.capturedRect = captured.rect;
+      this.capturedFixed = captured.fixed;
+      this.changed();
     } catch (error) {
-      console.warn('glassity: could not snapshot the backdrop.', error);
+      if (!pending.signal.aborted) console.warn('glassity: could not snapshot the backdrop.', error);
     } finally {
-      this.busy = false;
-      if (this.again) {
-        this.again = false;
-        this.schedule(60);
+      if (this.pending === pending) {
+        this.busy = false;
+        this.pending = null;
       }
     }
   }
 
+  /** A moving icon changes cells only after crossing the shared core, not on every scroll. */
+  needsRegion(rect: DOMRect): boolean {
+    const region = this.options.region;
+    return !!region && captureRegion({ x: rect.left + scrollX, y: rect.top + scrollY, w: rect.width, h: rect.height },
+      this.options.maxSize, devicePixelRatio).key !== region.key;
+  }
+
+  /** True when this capture may hold `element`'s paint: it is inside the captured DOM and region. */
+  covers(element: Element): boolean {
+    if (this.mode !== 'dom' || this.disposed || !this.el.contains(element)) return false;
+    const region = this.options.region;
+    if (!region) return true;
+    const box = element.getBoundingClientRect();
+    return intersects(region, { x: box.left + scrollX, y: box.top + scrollY, w: box.width, h: box.height });
+  }
+
+  keepLast(previous: SnapshotBackdrop): void {
+    if (this.version !== 1 || previous.version < 2 || !previous.source) return;
+    this.source = previous.source;
+    this.width = previous.width;
+    this.height = previous.height;
+    const rect = previous.rect();
+    this.capturedRect = { ...rect, x: rect.x + scrollX, y: rect.y + scrollY };
+    this.capturedFixed = false;
+    this.changed();
+  }
+
   rect(): Rect {
+    if (this.capturedRect && this.capturedFixed) return this.capturedRect;
+    if (this.capturedRect) return { ...this.capturedRect, x: this.capturedRect.x - scrollX, y: this.capturedRect.y - scrollY };
     if (this.fixed) return { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
     if (this.root) {
       const { w, h } = this.area();
@@ -270,10 +326,13 @@ export class SnapshotBackdrop extends Backdrop {
 
   dispose(): void {
     this.disposed = true;
+    this.pending?.abort();
+    this.native?.dispose();
     clearTimeout(this.timer);
     this.resizeObserver?.disconnect();
     this.mutationObserver?.disconnect();
     window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('scroll', this.onScroll, { capture: true });
   }
 }
 

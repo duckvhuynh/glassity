@@ -1,9 +1,14 @@
-import { getEngine, type GlassHandle, type Scope } from './engine';
-import type { GlassOptions } from './options';
+import { inactiveSequence, getEngine, type GlassHandle, type Scope } from './engine';
+import { readAttributes, resolveOptions, type GlassOptions } from './options';
+import { textTarget, type GlassElement } from './text';
 import { awaitingHydration, findSvg, outsideZones, OWN, whenSettled } from './dom';
+import { mountInSlices } from './mount-queue';
 
+export type { SequenceController, SequenceOptions, SequenceResult, SequenceShape } from './motion/sequence';
 export type { GlassHandle } from './engine';
-export type { BackdropSource, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
+export type { GlassElement } from './text';
+export { looks } from './options';
+export type { BackdropSource, GlassAppearance, GlassColors, GlassEnvironment, GlassInteraction, GlassLook, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './options';
 
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
@@ -18,11 +23,12 @@ const inert: GlassHandle = {
   set() {},
   retarget() {},
   refresh() {},
+  sequence(_shapes, options) { return inactiveSequence(options); },
   destroy() {},
 };
 
 /**
- * Turn one SVG into glass.
+ * Turn one SVG or a text element into glass.
  *
  * ```js
  * import { glassify } from 'glassity';
@@ -31,16 +37,29 @@ const inert: GlassHandle = {
  * glass.destroy();
  * ```
  *
- * @param target an `<svg>`, or an element that contains one (also in its open shadow root)
+ * @param target an `<svg>`, an element containing one, or an HTML text element with `text: true`
  */
 export function glassify(target: Element, options: GlassOptions = {}): GlassHandle {
   if (!isBrowser) return inert;
-  const svg = findSvg(target);
+  const engine = outsideZones(getEngine);
+  const text = resolveOptions(...engine.scopes.layers(target), readAttributes(target), options).text;
+  const svg = textTarget(target, text) ?? findSvg(target);
   if (!svg) {
-    console.warn('glassity: no <svg> found. Pass an <svg> element, or an element that contains one.', target);
+    console.warn('glassity: no source found. Pass an <svg>, an element containing one, or use { text: true } for HTML text.', target);
     return inert;
   }
-  return outsideZones(() => wrap(getEngine().mount(svg, options, null)));
+  return outsideZones(() => wrap(engine.mount(svg, options, null)));
+}
+
+/** Replace the page defaults and update existing icons. Pass {} to reset them. Safe during SSR. */
+export function configure(options: GlassOptions): void {
+  if (!isBrowser) return;
+  outsideZones(() => {
+    const engine = getEngine();
+    engine.scopes.configure(options);
+    engine.configure();
+    engine.scopes.discover();
+  });
 }
 
 /** Calls made later on a handle also leave any zone.js zone. */
@@ -56,7 +75,7 @@ function wrap<T extends object>(target: T): T {
 export interface AutoOptions extends GlassOptions {
   /** Where to look for icons. Default: the whole document. */
   root?: Element | Document;
-  /** Which elements become glass. Default `[data-glass]`. May match an `<svg>` or an element that contains one. */
+  /** Which elements become glass. Default `[data-glass]`. May match an SVG, its wrapper, or `[data-glass="text"]`. */
   selector?: string;
 }
 
@@ -85,8 +104,8 @@ const noController: GlassController = { update() {}, set() {}, refresh() {}, des
  *
  * Per-icon attributes still apply: `data-glass="clear"`, `data-glass-depth="0.3"`, `data-glass="off"`.
  *
- * The first look happens once the page has loaded and the browser is idle, so a
- * server-rendered page can hydrate before anything changes.
+ * The first look happens after DOM readiness and a bounded idle wait. Icons still
+ * awaiting framework hydration are left untouched until they are claimed.
  */
 export function auto(options: AutoOptions = {}): GlassController {
   if (!isBrowser) return noController;
@@ -102,14 +121,18 @@ function startAuto(options: AutoOptions): GlassController {
   if (rootElement) rootElement.setAttribute(ROOT, '');
 
   let destroyed = false;
+  let started = false;
   let queued = false;
   let retry = 0;
   let retryDelay = 100;
+  let cancelMounts = () => {};
   const schedule = () => {
     if (queued || destroyed) return;
     queued = true;
     queueMicrotask(scan);
   };
+  engine.scopes.add(scope, () => { if (started) schedule(); });
+  engine.configure();
 
   // Web components (Ionicons, <iconify-icon>, Shoelace) keep their <svg> in a shadow
   // root, often filled in later. The page observer cannot see inside, so each one is
@@ -135,10 +158,12 @@ function startAuto(options: AutoOptions): GlassController {
   const scan = () => {
     queued = false;
     if (destroyed) return;
+    started = true;
     // What a copied page (Turbo, swup, Barba) left behind goes first.
     engine.sweep(container);
+    engine.syncScopes();
     let hydrating = false;
-    const wanted = new Set<SVGSVGElement>();
+    const wanted = new Set<GlassElement>();
     let matches: Element[] = [];
     try {
       matches = Array.from(container.querySelectorAll(selector));
@@ -153,7 +178,8 @@ function startAuto(options: AutoOptions): GlassController {
       const flag = match.getAttribute('data-glass')?.trim().toLowerCase();
       if (flag === 'off' || flag === 'false' || flag === 'none') continue;
       if (match.shadowRoot || match.localName.includes('-')) watchShadow(match);
-      const svg = findSvg(match);
+      const text = resolveOptions(...engine.scopes.layers(match), readAttributes(match)).text;
+      const svg = textTarget(match, text) ?? findSvg(match);
       if (!svg || svg.getAttribute('data-glass')?.trim().toLowerCase() === 'off') continue;
       // Not hydrated yet: look again shortly. An icon already glass keeps its glass.
       if (!engine.get(svg) && awaitingHydration(svg)) {
@@ -167,13 +193,16 @@ function startAuto(options: AutoOptions): GlassController {
     clearTimeout(retry);
     if (hydrating) {
       retry = window.setTimeout(schedule, retryDelay);
-      retryDelay = Math.min(retryDelay * 2, 2000);
+      retryDelay = Math.min(retryDelay * 2, 250);
     } else retryDelay = 100;
     for (const instance of engine.inScope(scope)) if (!wanted.has(instance.element) || !instance.element.isConnected) instance.destroy();
-    for (const svg of wanted) {
-      if (!engine.get(svg)) engine.mount(svg, {}, scope);
-      else engine.claim(svg, scope); // picked up earlier by an outer scope: this one owns it now
-    }
+    cancelMounts();
+    cancelMounts = mountInSlices([...wanted], (svg) => {
+      if (!engine.get(svg)) {
+        if (awaitingHydration(svg)) { schedule(); return; }
+        engine.mount(svg, {}, scope);
+      } else engine.claim(svg, scope); // picked up earlier by an outer scope: this one owns it now
+    });
   };
 
   const ownCanvas = (node: Node) => node instanceof Element && node.hasAttribute(OWN);
@@ -186,16 +215,17 @@ function startAuto(options: AutoOptions): GlassController {
     if (relevant) schedule();
   });
 
-  // Nothing is touched until the page has loaded and gone idle, so a server-rendered
-  // page can hydrate first (see whenSettled).
+  // Give hydration a bounded head start; per-icon checks protect deferred islands.
   const cancelStart = whenSettled(() => {
     if (destroyed) return;
-    observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', 'class', 'ssr'] });
+    observer.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-glass', ROOT, 'class', 'ssr'] });
     scan();
   });
 
   const apply = () => {
-    for (const instance of engine.inScope(scope)) instance.configure();
+    engine.configure();
+    engine.scopes.discover();
+    if (started) schedule();
   };
 
   return {
@@ -215,12 +245,16 @@ function startAuto(options: AutoOptions): GlassController {
       if (destroyed) return;
       destroyed = true;
       cancelStart();
+      cancelMounts();
       clearTimeout(retry);
       observer.disconnect();
       for (const watcher of shadows.values()) watcher.disconnect();
       shadows.clear();
       for (const instance of engine.inScope(scope)) instance.destroy();
-      rootElement?.removeAttribute(ROOT);
+      engine.scopes.delete(scope);
+      if (rootElement && !engine.scopes.hasRoot(rootElement)) rootElement.removeAttribute(ROOT);
+      engine.configure();
+      engine.scopes.discover();
     },
   };
 }

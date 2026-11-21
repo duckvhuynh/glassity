@@ -115,6 +115,7 @@ export function injectGlassProvider(
   const host = inject(ElementRef) as ElementRef<Element>;
   const zone = inject(NgZone);
   let current: GlassOptions | undefined;
+  let selector = '[data-glass]';
   const element = () => (typeof target === 'function' ? target() : (target ?? host).nativeElement);
   const shared = (o: AutoOptions): GlassOptions => {
     const { root: _root, selector: _selector, ...rest } = o;
@@ -126,14 +127,25 @@ export function injectGlassProvider(
     if (!el) return;
     const all = untracked(() => read<AutoOptions>(options));
     current = shared(all);
+    selector = all.selector ?? '[data-glass]';
     ref.current = zone.runOutsideAngular(() => auto({ ...all, root: el }));
   });
   if (typeof options === 'function')
     effect(() => {
-      const next = shared(read<AutoOptions>(options));
-      if (!ref.current || !changed(current, next)) return;
+      const all = read<AutoOptions>(options);
+      const next = shared(all);
+      const nextSelector = all.selector ?? '[data-glass]';
+      if (!ref.current) return;
+      if (selector !== nextSelector) {
+        const el = element();
+        if (!el) return;
+        zone.runOutsideAngular(() => {
+          ref.current!.destroy();
+          ref.current = auto({ ...all, root: el });
+        });
+        selector = nextSelector;
+      } else if (changed(current, next)) zone.runOutsideAngular(() => ref.current!.set(next));
       current = next;
-      zone.runOutsideAngular(() => ref.current!.set(next));
     });
   inject(DestroyRef).onDestroy(() => ref.current?.destroy());
   return ref;

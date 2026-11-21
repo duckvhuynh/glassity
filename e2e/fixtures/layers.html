@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glassity layered icon appearances</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; color: #ecf2ff; background: #10151f; font: 14px/1.5 Arial, sans-serif; }
+  main { max-width: 1120px; margin: auto; padding: 32px; }
+  h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -0.04em; }
+  p { margin: 0 0 24px; color: #b2bfd2; }
+  .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .appearance { padding: 18px; border: 1px solid #ffffff20; border-radius: 20px; background: repeating-linear-gradient(120deg, transparent 0 48px, #ffffff0a 48px 50px), linear-gradient(135deg, #31476a, #182137 55%, #46557c); }
+  h2 { margin: 0 0 12px; text-transform: capitalize; font-size: 17px; font-weight: 500; }
+  .icons { display: flex; justify-content: space-around; gap: 16px; }
+  figure { margin: 0; text-align: center; }
+  svg { display: block; width: 128px; height: 128px; color: #fff; }
+  figcaption { padding-top: 10px; font-size: 12px; color: #c4d0e2; }
+  @media (max-width: 620px) { .gallery { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Layered glass</h1>
+<p>The same two- and three-layer SVGs in every appearance. Each upper shape refracts the glass beneath it.</p>
+<div class="gallery">
+  <section class="appearance" aria-labelledby="default-heading">
+    <h2 id="default-heading">default</h2>
+    <div class="icons">
+      <figure>
+        <svg id="two-default" data-glass data-glass-layers data-glass-colors="source" data-glass-appearance="default" data-glass-tint="#647dff" viewBox="0 0 100 100" role="img" aria-label="Two-layer camera, default">
+          <g data-glass-layer="base" fill="#2479ef"><rect x="4" y="4" width="92" height="92" rx="24"/></g>
+          <g data-glass-layer="mark" data-glass-depth="0.08" fill="#ffffff">
+            <path fill-rule="evenodd" d="M32 29h10l4-6h14l4 6h4a10 10 0 0 1 10 10v29a10 10 0 0 1-10 10H32a10 10 0 0 1-10-10V39a10 10 0 0 1 10-10Zm18 11a15 15 0 1 0 0 30 15 15 0 0 0 0-30Zm0 6a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z"/>
+          </g>
+        </svg>
+        <figcaption>2 layers · Camera</figcaption>
+      </figure>
+      <figure>
+        <svg id="three-default" data-glass data-glass-layers data-glass-colors="source" data-glass-appearance="default" data-glass-tint="#647dff" viewBox="0 0 100 100" role="img" aria-label="Three-layer horizon, default">
+          <g data-glass-layer="base" fill="#7047da"><rect x="4" y="4" width="92" height="92" rx="24"/></g>
+          <g data-glass-layer="sun" data-glass-depth="0.1" fill="#ffbe55"><circle cx="51" cy="40" r="21"/></g>
+          <g data-glass-layer="wave" data-glass-depth="0.08" fill="#b9efff"><path d="M18 59Q34 44 50 59t32 0v17q-16 15-32 0T18 76Z"/></g>
+        </svg>
+        <figcaption>3 layers · Horizon</figcaption>
+      </figure>
+    </div>
+  </section>
+  <section class="appearance" aria-labelledby="dark-heading">
+    <h2 id="dark-heading">dark</h2>
+    <div class="icons">
+      <figure>
+        <svg id="two-dark" data-glass data-glass-layers data-glass-colors="source" data-glass-appearance="dark" data-glass-tint="#647dff" viewBox="0 0 100 100" role="img" aria-label="Two-layer camera, dark">
+          <g data-glass-layer="base" fill="#2479ef"><rect x="4" y="4" width="92" height="92" rx="24"/></g>
+          <g data-glass-layer="mark" data-glass-depth="0.08" fill="#ffffff">
+            <path fill-rule="evenodd" d="M32 29h10l4-6h14l4 6h4a10 10 0 0 1 10 10v29a10 10 0 0 1-10 10H32a10 10 0 0 1-10-10V39a10 10 0 0 1 10-10Zm18 11a15 15 0 1 0 0 30 15 15 0 0 0 0-30Zm0 6a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z"/>
+          </g>
+        </svg>
+        <figcaption>2 layers · Camera</figcaption>
+      </figure>
+      <figure>
+        <svg id="three-dark" data-glass data-glass-layers data-glass-colors="source" data-glass-appearance="dark" data-glass-tint="#647dff" viewBox="0 0 100 100" role="img" aria-label="Three-layer horizon, dark">
+          <g data-glass-layer="base" fill="#7047da"><rect x="4" y="4" width="92" height="92" rx="24"/></g>
+          <g data-glass-layer="sun" data-glass-depth="0.1" fill="#ffbe55"><circle cx="51" cy="40" r="21"/></g>
+          <g data-glass-layer="wave" data-glass-depth="0.08" fill="#b9efff"><path d="M18 59Q34 44 50 59t32 0v17q-16 15-32 0T18 76Z"/></g>
+        </svg>
+        <figcaption>3 layers · Horizon</figcaption>
+      </figure>
+    </div>
+  </section>
+  <section class="appearance" aria-labelledby="clear-heading">
+    <h2 id="clear-heading">clear</h2>
+    <div class="icons">
+      <figure>
+        <svg id="two-clear" data-glass data-glass-layers data-glass-colors="source" data-glass-appearance="clear" data-glass-tint="#647dff" viewBox="0 0 100 100" role="img" aria-label="Two-layer camera, clear">
+          <g data-glass-layer="base" fill="#2479ef"><rect x="4" y="4" width="92" height="92" rx="24"/></g>
+          <g data-glass-layer="mark" data-glass-depth="0.08" fill="#ffffff">
+            <path fill-rule="evenodd" d="M32 29h10l4-6h14l4 6h4a10 10 0 0 1 10 10v29a10 10 0 0 1-10 10H32a10 10 0 0 1-10-10V39a10 10 0 0 1 10-10Zm18 11a15 15 0 1 0 0 30 15 15 0 0 0 0-30Zm0 6a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z"/>
+          </g>
+        </svg>
+        <figcaption>2 layers · Camera</figcaption>
+      </figure>
+      <figure>
+        <svg id="three-clear" data-glass data-glass-layers data-glass-colors="source" data-glass-appearance="clear" data-glass-tint="#647dff" viewBox="0 0 100 100" role="img" aria-label="Three-layer horizon, clear">
+          <g data-glass-layer="base" fill="#7047da"><rect x="4" y="4" width="92" height="92" rx="24"/></g>
+          <g data-glass-layer="sun" data-glass-depth="0.1" fill="#ffbe55"><circle cx="51" cy="40" r="21"/></g>
+          <g data-glass-layer="wave" data-glass-depth="0.08" fill="#b9efff"><path d="M18 59Q34 44 50 59t32 0v17q-16 15-32 0T18 76Z"/></g>
+        </svg>
+        <figcaption>3 layers · Horizon</figcaption>
+      </figure>
+    </div>
+  </section>
+  <section class="appearance" aria-labelledby="tinted-heading">
+    <h2 id="tinted-heading">tinted</h2>
+    <div class="icons">
+      <figure>
+        <svg id="two-tinted" data-glass data-glass-layers data-glass-colors="source" data-glass-appearance="tinted" data-glass-tint="#647dff" viewBox="0 0 100 100" role="img" aria-label="Two-layer camera, tinted">
+          <g data-glass-layer="base" fill="#2479ef"><rect x="4" y="4" width="92" height="92" rx="24"/></g>
+          <g data-glass-layer="mark" data-glass-depth="0.08" fill="#ffffff">
+            <path fill-rule="evenodd" d="M32 29h10l4-6h14l4 6h4a10 10 0 0 1 10 10v29a10 10 0 0 1-10 10H32a10 10 0 0 1-10-10V39a10 10 0 0 1 10-10Zm18 11a15 15 0 1 0 0 30 15 15 0 0 0 0-30Zm0 6a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z"/>
+          </g>
+        </svg>
+        <figcaption>2 layers · Camera</figcaption>
+      </figure>
+      <figure>
+        <svg id="three-tinted" data-glass data-glass-layers data-glass-colors="source" data-glass-appearance="tinted" data-glass-tint="#647dff" viewBox="0 0 100 100" role="img" aria-label="Three-layer horizon, tinted">
+          <g data-glass-layer="base" fill="#7047da"><rect x="4" y="4" width="92" height="92" rx="24"/></g>
+          <g data-glass-layer="sun" data-glass-depth="0.1" fill="#ffbe55"><circle cx="51" cy="40" r="21"/></g>
+          <g data-glass-layer="wave" data-glass-depth="0.08" fill="#b9efff"><path d="M18 59Q34 44 50 59t32 0v17q-16 15-32 0T18 76Z"/></g>
+        </svg>
+        <figcaption>3 layers · Horizon</figcaption>
+      </figure>
+    </div>
+  </section>
+</div>
+</main>
+<script type="module">
+  import * as glassity from '/dist/index.js';
+  window.glassity = glassity;
+  window.controller = glassity.auto({ accessibility: false, duration: 0, pointerLight: false, tintOpacity: 0.55 });
+</script>
+</body>
+</html>

@@ -1,4 +1,8 @@
 import { parentOf } from './dom';
+import { intersects } from './capture-region';
+import type { Rect } from './backdrop';
+import type { CaptureContext } from './capture-queue';
+import { cachedLoad, LruCache } from './core/lru';
 /**
  * Turn a piece of the page into pixels so the glass has something to refract.
  * The browser has no "read what is behind me" API, so the element (or only its
@@ -15,29 +19,25 @@ const BACKGROUND = [
 /** Thrown when an element has more nodes than a snapshot is allowed to copy. */
 export class SnapshotBudgetError extends Error {}
 
-const dataUrls = new Map<string, Promise<string | null>>();
+const dataUrls = new LruCache<string, Promise<string | null>>(64);
 
 function toDataUrl(url: string): Promise<string | null> {
-  let pending = dataUrls.get(url);
-  if (!pending) {
-    pending = fetch(url)
-      .then((response) => (response.ok ? response.blob() : Promise.reject(new Error(String(response.status)))))
-      .then(
-        (blob) =>
-          new Promise<string | null>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
-          }),
-      )
-      .catch(() => {
-        console.warn(`glassity: could not read "${url}" for the backdrop (blocked by CORS?). It is left out.`);
-        return null;
-      });
-    dataUrls.set(url, pending);
-  }
-  return pending;
+  return cachedLoad(dataUrls, url, () => fetch(url)
+    .then((response) => (response.ok ? response.blob() : Promise.reject(new Error(String(response.status)))))
+    .then(
+      (blob) =>
+        new Promise<string | null>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => resolve(null);
+          reader.onabort = () => resolve(null);
+          reader.readAsDataURL(blob);
+        }),
+    )
+    .catch(() => {
+      console.warn(`glassity: could not read "${url}" for the backdrop (blocked by CORS?). It is left out.`);
+      return null;
+    }));
 }
 
 /** Replace every url(...) in a CSS value with an inlined data URL; unreadable ones become `none`. */
@@ -58,7 +58,7 @@ async function inlineUrls(css: string): Promise<string> {
 let sandbox: HTMLIFrameElement | null = null;
 let sandboxReady: Promise<boolean> | null = null;
 let sandboxUsable = false;
-const defaults = new Map<string, Map<string, string>>();
+const defaults = new LruCache<string, Map<string, string>>(128);
 
 /**
  * A hidden, empty document used to learn each tag's default styles.
@@ -144,14 +144,50 @@ interface CloneJob {
   limit: number;
   pending: Promise<void>[];
   hide: ((el: Element) => boolean) | undefined;
+  region?: Rect;
+  work?: CaptureContext;
+  visible: WeakMap<Node, boolean>;
 }
 
-function cloneTree(node: Node, job: CloneJob, isRoot: boolean): Node | null {
+async function paintsRegion(node: Node, job: CloneJob): Promise<boolean> {
+  if (!job.region) return true;
+  const known = job.visible.get(node);
+  if (known !== undefined) return known;
+  await job.work?.checkpoint();
+  let rect: DOMRect | undefined;
+  if (node instanceof Element) {
+    if (SKIP.has(node.localName) || node.hasAttribute('data-glassity-canvas')) return false;
+    rect = node.getBoundingClientRect();
+  } else if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    rect = range.getBoundingClientRect();
+  }
+  let visible = !!rect && intersects(job.region, { x: rect.left + scrollX, y: rect.top + scrollY, w: rect.width, h: rect.height });
+  // A positioned child may paint in the crop even when its parent is outside it.
+  if (!visible) for (const child of Array.from(node.childNodes)) {
+    if (await paintsRegion(child, job)) { visible = true; break; }
+  }
+  job.visible.set(node, visible);
+  return visible;
+}
+
+async function cloneTree(node: Node, job: CloneJob, isRoot: boolean): Promise<Node | null> {
+  await job.work?.checkpoint();
   if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.nodeValue ?? '');
   if (node.nodeType !== Node.ELEMENT_NODE) return null;
   const el = node as Element;
   if (SKIP.has(el.localName) || el.hasAttribute('data-glassity-canvas')) return null;
   if (++job.count > job.limit) throw new SnapshotBudgetError();
+  // Off-region branches keep their layout box, without copying every descendant.
+  if (!isRoot && job.region) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0 && !await paintsRegion(el, job)) {
+      const blank = document.createElementNS(el.namespaceURI, el.localName);
+      blank.setAttribute('style', styleText(el) + `visibility:hidden;box-sizing:border-box;width:${r.width}px;height:${r.height}px;min-width:${r.width}px;min-height:${r.height}px;`);
+      return blank;
+    }
+  }
 
   // Icons that are being turned into glass keep their place but must not be
   // painted into the backdrop, or the glass would refract its own original.
@@ -180,7 +216,7 @@ function cloneTree(node: Node, job: CloneJob, isRoot: boolean): Node | null {
   }
 
   let style = styleText(el);
-  if (isRoot) style += 'margin:0;position:relative;inset:auto;transform:none;box-sizing:border-box;' + `width:${(el as HTMLElement).offsetWidth}px;height:${(el as HTMLElement).offsetHeight}px;`;
+  if (isRoot) style += 'margin:0;position:relative;inset:auto;transform:none;translate:none;rotate:none;scale:none;zoom:1;box-sizing:border-box;' + `width:${(el as HTMLElement).offsetWidth}px;height:${(el as HTMLElement).offsetHeight}px;`;
   if (style.includes('url(')) job.pending.push(inlineUrls(style).then((inlined) => copy.setAttribute('style', inlined)));
   copy.setAttribute('style', style);
   copy.removeAttribute('class');
@@ -188,9 +224,21 @@ function cloneTree(node: Node, job: CloneJob, isRoot: boolean): Node | null {
 
   if (!(el instanceof HTMLCanvasElement || el instanceof HTMLVideoElement))
     for (const child of Array.from(el.childNodes)) {
-      const childCopy = cloneTree(child, job, false);
+      const childCopy = await cloneTree(child, job, false);
       if (childCopy) copy.appendChild(childCopy);
     }
+  // SVG images do not retain scroll offsets. Translate a layout-equivalent inner
+  // box so the captured pixels agree with the scroller's current viewport.
+  if ((el.scrollLeft || el.scrollTop) && el !== document.body && el !== document.documentElement) {
+    const cs = getComputedStyle(el);
+    const inner = document.createElement('div');
+    let layout = `width:${el.clientWidth - parseFloat(cs.paddingLeft || '0') - parseFloat(cs.paddingRight || '0')}px;transform:translate(${-el.scrollLeft}px,${-el.scrollTop}px);`;
+    for (const name of ['display', 'flex-direction', 'flex-wrap', 'align-items', 'align-content', 'justify-content', 'gap', 'grid-template-columns', 'grid-template-rows', 'grid-auto-flow', 'grid-auto-rows'])
+      layout += name + ':' + cs.getPropertyValue(name) + ';';
+    inner.setAttribute('style', layout);
+    while (copy.firstChild) inner.appendChild(copy.firstChild);
+    copy.appendChild(inner);
+  }
   return copy;
 }
 
@@ -217,6 +265,10 @@ export interface SnapshotRequest {
   height: number;
   /** Longest side of the result, in pixels. */
   maxSize: number;
+  /** Document-space crop, independent of the full layout size. */
+  region?: Rect;
+  /** Engine queue owns the CPU budget and cancellation. */
+  work?: CaptureContext;
   /** Most nodes a `dom` snapshot may copy before giving up. */
   nodeLimit?: number;
   /** Elements to keep in layout but not paint. */
@@ -238,8 +290,8 @@ export async function snapshot(el: Element, request: SnapshotRequest): Promise<S
     markup = new XMLSerializer().serializeToString(box);
   } else {
     await prepareSandbox();
-    const job: CloneJob = { count: 0, limit: request.nodeLimit ?? 1500, pending: [], hide: request.hide };
-    const copy = cloneTree(el, job, el !== document.body && el !== document.documentElement);
+    const job: CloneJob = { count: 0, limit: request.nodeLimit ?? 1500, pending: [], hide: request.hide, region: request.region, work: request.work, visible: new WeakMap() };
+    const copy = await cloneTree(el, job, el !== document.body && el !== document.documentElement);
     if (!copy) throw new Error('glassity: nothing to snapshot');
     await Promise.all(job.pending);
     const wrap = document.createElement('div');
@@ -249,16 +301,27 @@ export async function snapshot(el: Element, request: SnapshotRequest): Promise<S
   }
   if (!markup.includes(XHTML)) markup = markup.replace(/^<div/, `<div xmlns="${XHTML}"`);
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><foreignObject x="0" y="0" width="100%" height="100%">${markup}</foreignObject></svg>`;
+  await request.work?.checkpoint();
+  const box = el.getBoundingClientRect();
+  const root = el === document.body || el === document.documentElement;
+  const originX = root ? 0 : box.left + scrollX;
+  const originY = root ? 0 : box.top + scrollY;
+  const region = request.region;
+  const cropW = region?.w ?? width;
+  const cropH = region?.h ?? height;
+  const dx = region ? originX - region.x : 0;
+  const dy = region ? originY - region.y : 0;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cropW}" height="${cropH}"><foreignObject x="${dx}" y="${dy}" width="${width}" height="${height}">${markup}</foreignObject></svg>`;
   const image = new Image();
   image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   await image.decode();
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const scale = Math.min(dpr, request.maxSize / Math.max(width, height), Math.sqrt(4_194_304 / (width * height)));
+  const scale = Math.min(dpr, request.maxSize / Math.max(cropW, cropH), Math.sqrt(4_194_304 / (cropW * cropH)));
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(width * scale));
-  canvas.height = Math.max(1, Math.round(height * scale));
+  await request.work?.checkpoint();
+  canvas.width = Math.max(1, Math.round(cropW * scale));
+  canvas.height = Math.max(1, Math.round(cropH * scale));
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = pageColor(el);
   ctx.fillRect(0, 0, canvas.width, canvas.height);

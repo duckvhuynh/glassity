@@ -57,17 +57,25 @@ export const glassProvider = createMixin<Element, [options?: AutoOptions]>(
   (handle) => {
     let current: AutoOptions = {};
     let controller: GlassController | null = null;
+    let root: Element | null = null;
     const shared = ({ root: _root, selector: _selector, ...rest }: AutoOptions): GlassOptions => rest;
     handle.addEventListener('insert', ({ node }) => {
+      root = node;
       controller = auto({ ...current, root: node });
     });
     handle.addEventListener('remove', () => {
       controller?.destroy();
       controller = null;
+      root = null;
     });
     return (options = {}) => {
-      if (controller && changed(shared(current), shared(options))) controller.set(shared(options));
-      current = options;
+      if (controller && root) {
+        if ((current.selector ?? '[data-glass]') !== (options.selector ?? '[data-glass]')) {
+          controller.destroy();
+          controller = auto({ ...options, root });
+        } else if (changed(shared(current), shared(options))) controller.set(shared(options));
+      }
+      current = { ...options };
       return handle.element;
     };
   },

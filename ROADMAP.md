@@ -103,9 +103,15 @@ Ordered by what unlocks the most.
 
 - [ ] Device-motion highlights on phones (with permission, and off under reduced motion)
 - [ ] Caustics and an environment image for reflections
-- [ ] Glass for non-icon surfaces (bars, cards) sharing the same material
 - [ ] Canvas placement under rotated or skewed ancestors
 - [ ] Offscreen rendering in a worker
+
+## Parked
+
+glassity stays focused on icons. These were built or tried and set aside, not planned:
+
+- Glass for buttons, pills, toolbars and tab bars (`data-glass="surface"`): built for 0.6, kept on the `feat/0.6-surfaces` branch
+- Icons that merge with their neighbours
 
 ## Repository and release housekeeping
 

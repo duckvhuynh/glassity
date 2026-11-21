@@ -2,15 +2,12 @@ import {
   computed,
   defineComponent,
   h,
-  inject,
   onBeforeUnmount,
   onMounted,
   onUpdated,
-  provide,
   ref,
   unref,
   watch,
-  type ComputedRef,
   type Directive,
   type MaybeRef,
   type PropType,
@@ -19,6 +16,8 @@ import {
 import { auto, glassify, type GlassController, type GlassHandle, type GlassOptions } from './index';
 import { changed, fromAttributes } from './adapter';
 import { findSvg } from './dom';
+import { textTarget } from './text';
+import { readAttributes } from './options';
 
 export type { GlassHandle, GlassOptions } from './index';
 
@@ -43,17 +42,17 @@ const handles = new WeakMap<Element, { handle: GlassHandle; options: GlassOption
  */
 export const vGlass: Directive<Element, GlassOptions | undefined> = {
   mounted(el, binding) {
-    const options = binding.value ?? {};
+    const options = { ...binding.value };
     handles.set(el, { handle: glassify(el, options), options });
   },
   updated(el, binding) {
     const entry = handles.get(el);
     if (!entry) return;
-    const svg = findSvg(el);
-    if (svg && svg !== entry.handle.element) entry.handle.retarget(svg); // the child icon was swapped: morph
     const next = binding.value ?? {};
+    const svg = textTarget(el, next.text ?? readAttributes(el)?.text) ?? findSvg(el);
+    if (svg && svg !== entry.handle.element) entry.handle.retarget(svg); // the child icon was swapped: morph
     if (!changed(entry.options, next)) return;
-    entry.options = next;
+    entry.options = { ...next };
     entry.handle.set(next);
   },
   beforeUnmount(el) {
@@ -81,22 +80,20 @@ export function useGlass(target: Ref<Element | { $el: Element } | null | undefin
   onMounted(() => {
     const el = element();
     if (!el) return;
-    current = unref(options);
+    current = { ...unref(options) };
     handle = glassify(el, current);
   });
   watch(
     () => unref(options),
     (next) => {
       if (!handle || !changed(current, next)) return;
-      current = next;
+      current = { ...next };
       handle.set(next);
     },
     { deep: true },
   );
   onBeforeUnmount(() => handle?.destroy());
 }
-
-const INHERITED = Symbol('glassity');
 
 /**
  * Turns matching icons inside it into glass, and sets shared options for them.
@@ -121,27 +118,25 @@ export const GlassProvider = defineComponent({
     options: { type: Object as PropType<GlassOptions>, default: undefined },
   },
   setup(props, { slots, attrs }) {
-    const parent = inject<ComputedRef<GlassOptions> | null>(INHERITED, null);
     // Attributes are not reactive in Vue; they are read again after every update.
     const fromAttrs = ref<GlassOptions>(fromAttributes(attrs));
     onUpdated(() => {
       const next = fromAttributes(attrs);
       if (changed(fromAttrs.value, next)) fromAttrs.value = next;
     });
-    const merged = computed<GlassOptions>(() => ({ ...parent?.value, ...fromAttrs.value, ...props.options }));
-    provide(INHERITED, merged);
+    const merged = computed<GlassOptions>(() => ({ ...fromAttrs.value, ...props.options }));
 
     const root = ref<HTMLElement | null>(null);
     let controller: GlassController | null = null;
     let current: GlassOptions | undefined;
     onMounted(() => {
       if (!root.value) return;
-      current = merged.value;
+      current = { ...merged.value };
       controller = auto({ root: root.value, selector: props.selector, ...current });
     });
     watch(merged, (next) => {
       if (!controller || !changed(current, next)) return;
-      current = next;
+      current = { ...next };
       controller.set(next);
     });
     watch(

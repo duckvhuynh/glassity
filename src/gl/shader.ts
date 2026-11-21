@@ -1,3 +1,5 @@
+import { ENVIRONMENT } from './environment';
+
 export const VERTEX = /* glsl */ `#version 300 es
 out vec2 vUv;
 void main() {
@@ -7,7 +9,7 @@ void main() {
 }`;
 
 /**
- * One pass per icon. All lengths are CSS pixels unless noted; the origin is
+ * One pass per glass surface. All lengths are CSS pixels unless noted; the origin is
  * the top-left of the icon's canvas with y pointing down.
  */
 export const FRAGMENT = /* glsl */ `#version 300 es
@@ -26,10 +28,15 @@ uniform sampler2D uBack;
 uniform vec4 uBackRect;      // backdrop x, y, w, h relative to this canvas
 uniform float uBackDensity;  // backdrop texels per CSS px
 uniform float uBackMaxLod;
+uniform sampler2D uLayers;
+uniform bool uHasLayers;
+uniform float uLayersMaxLod;
+uniform float uLayersDensity;
 
 uniform vec2 uCanvas;
 uniform vec2 uBox;
 uniform float uUnit;
+uniform float uGlyphSize;
 uniform float uDpr;
 
 uniform int uProfile;        // 0 squircle, 1 circle, 2 lip, 3 dome
@@ -46,17 +53,22 @@ uniform float uBright;
 uniform float uContrast;
 uniform vec3 uTint;
 uniform float uTintAuto;
+uniform vec3 uLegibilityColor;
+uniform float uLegibilityAmount;
 uniform float uTintOpacity;
 uniform float uDim;          // < 0 means automatic
 uniform float uOpacity;
 uniform float uShine;
 uniform float uRim;
 uniform float uRefl;
+uniform int uEnvironment;    // 0 none, 1 auto, 2 studio
 uniform float uShadow;
 uniform vec2 uLight;         // unit vector towards the light
 uniform float uScheme;       // -1 automatic, 0 dark page, 1 light page
 uniform float uLens;         // 0 = not there yet, 1 = fully materialised
 uniform vec3 uTouch;         // x, y, strength
+uniform vec2 uMotion;        // shape scale, hover/focus highlight
+uniform vec3 uTouchLight;    // nearby touch in canvas coordinates, strength
 uniform float uTile;
 uniform float uTileRadius;
 uniform float uTileBevel;
@@ -98,6 +110,8 @@ float profile(float u) {
 }
 
 vec2 fieldAt(vec2 uv) {
+  // Deform only geometry: backdrop lookups keep their screen coordinates.
+  uv = (uv - 0.5) / uMotion.x + 0.5;
   vec2 a = texture(uFieldA, uv).rg;
   if (uMorph > 0.001) {
     a = mix(a, texture(uFieldB, uv).rg, uMorph);
@@ -108,7 +122,7 @@ vec2 fieldAt(vec2 uv) {
     a.g += 0.035 * swell;
   }
   // Offsetting a distance field grows or shrinks the shape evenly, strokes and fills alike.
-  return vec2(a.r - uWeight, max(a.g + uWeight, 0.002));
+  return vec2(a.r - uWeight, max(a.g + uWeight, 0.002)) * uMotion.x;
 }
 
 Layer makeLayer(float sd, vec2 g, float thick, float bevel, float aa) {
@@ -155,7 +169,7 @@ void smoothSurface(vec2 uv, inout Layer L) {
 
 vec2 backUv(vec2 p) { return (p - uBackRect.xy) / uBackRect.zw; }
 
-vec3 sampleBack(vec2 p, float blur) {
+vec3 samplePage(vec2 p, float blur) {
   float lod = max(log2(max(blur * uBackDensity, 1.0)), log2(max(uBackDensity / uDpr, 1.0)));
   vec2 uv = backUv(p);
   if (blur < 0.5) return textureLod(uBack, uv, min(lod, uBackMaxLod)).rgb;
@@ -167,6 +181,29 @@ vec3 sampleBack(vec2 p, float blur) {
   c += textureLod(uBack, uv + r * vec2(-0.92, -0.38), lod).rgb;
   c += textureLod(uBack, uv + r * vec2(0.38, -0.92), lod).rgb;
   return c * 0.25;
+}
+
+// Framebuffer textures have a bottom-left origin; the fields and DOM use top-left.
+vec4 sampleLayers(vec2 p, float blur) {
+  vec2 uv = p / uCanvas;
+  if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec4(0.0);
+  uv.y = 1.0 - uv.y;
+  float lod = max(log2(max(blur * uLayersDensity, 1.0)), log2(max(uLayersDensity / uDpr, 1.0)));
+  if (blur < 0.5) return textureLod(uLayers, uv, min(lod, uLayersMaxLod));
+  lod = min(max(lod - 1.0, 0.0), uLayersMaxLod);
+  vec2 r = vec2(blur * 0.5) / uCanvas;
+  vec4 c = textureLod(uLayers, uv + r * vec2(0.92, 0.38), lod);
+  c += textureLod(uLayers, uv + r * vec2(-0.38, 0.92), lod);
+  c += textureLod(uLayers, uv + r * vec2(-0.92, -0.38), lod);
+  c += textureLod(uLayers, uv + r * vec2(0.38, -0.92), lod);
+  return c * 0.25;
+}
+
+vec3 sampleBack(vec2 p, float blur) {
+  vec3 page = samplePage(p, blur);
+  if (!uHasLayers) return page;
+  vec4 lower = sampleLayers(p, blur);
+  return lower.rgb + page * (1.0 - lower.a);
 }
 
 float shadowSeen(vec2 q);
@@ -218,6 +255,8 @@ vec3 grade(vec3 c, float dim, vec3 tint, float tintOpacity) {
   return clamp(c, 0.0, 1.0);
 }
 
+${ENVIRONMENT}
+
 vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflectivity, float bright) {
   vec3 toLight = normalize(vec3(uLight, 0.85));
   vec3 halfway = normalize(toLight + vec3(0.0, 0.0, 1.0));
@@ -235,9 +274,21 @@ vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflec
   vec3 env = mix(mix(ambient, vec3(1.0), 0.55), mix(vec3(0.55), ambient, 0.4), bright);
   vec3 room = env * (0.35 + 0.65 * smoothstep(-0.3, 0.9, dot(mirror, uLight)));
   float k = clamp(fresnel * reflectivity, 0.0, 0.9) * uLens;
+  // Studio light on a flat backdrop: only the bright parts of the procedural room (the
+  // window and the fill) are added, so the glass gains highlights and never turns darker.
+  // Polished glass shows them across most of its curve, so they fall off slower than
+  // Schlick's 4% at the face would allow.
+  vec3 studioLight = vec3(0.0);
+  if (gEnvironmentStrength > 0.0) {
+    vec3 reflected = reflect(vec3(0.0, 0.0, -1.0), L.n);
+    float roughness = clamp(uFrost / max(0.16 * uUnit, 0.001), 0.0, 1.0);
+    vec3 studio = studioEnvironment(reflected, uLight, ambient, roughness);
+    float sheen = 0.85 * (0.12 + 0.88 * pow(1.0 - L.n.z, 1.2)) * smoothstep(0.0, 0.3, reflectivity); // reflection: 0 turns it off
+    studioLight = max(studio - vec3(0.25), 0.0) * sheen * gEnvironmentStrength * uLens;
+  }
   float shade = 1.0 - 0.22 * exp(-max(L.d, 0.0) / (L.edge * 0.7 + 0.5)) * max(-facing, 0.0) * uLens * min(uCurv, 1.0);
 
-  vec3 c = base * shade * (1.0 - k) + room * k;
+  vec3 c = base * shade * (1.0 - k) + room * k + studioLight;
   // Highlights take some colour from what is behind them rather than pure white.
   vec3 hl = mix(vec3(1.0), clamp(base * 1.25, 0.0, 1.0), 0.4);
   c += hl * (spec * 0.55 + rim * (0.75 + 1.5 * glow) + glow * 0.3) * uLens;
@@ -245,12 +296,13 @@ vec3 lit(vec3 base, Layer L, vec3 ambient, float grain, float glow, float reflec
 }
 
 float tileDistance(vec2 c, out vec2 g) {
+  c /= uMotion.x;
   vec2 halfBox = 0.5 * uBox;
   float r = min(uTileRadius, min(halfBox.x, halfBox.y));
   vec2 q = abs(c) - (halfBox - r);
   vec2 s = vec2(c.x < 0.0 ? -1.0 : 1.0, c.y < 0.0 ? -1.0 : 1.0);
   g = s * (q.x > 0.0 && q.y > 0.0 ? normalize(q) : (q.x > q.y ? vec2(1.0, 0.0) : vec2(0.0, 1.0)));
-  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+  return (length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r) * uMotion.x;
 }
 
 // The drop shadow at q, without the part hidden under the glass itself: a crescent
@@ -292,7 +344,7 @@ void main() {
 
   // The backdrop right under the icon decides light-on-dark or dark-on-light.
   float localLod = min(log2(max(uUnit * uBackDensity, 1.0)), uBackMaxLod);
-  vec3 ambient = textureLod(uBack, backUv(0.5 * uCanvas), localLod).rgb;
+  vec3 ambient = uHasLayers ? sampleBack(0.5 * uCanvas, uUnit) : textureLod(uBack, backUv(0.5 * uCanvas), localLod).rgb;
   float bright = uScheme < 0.0 ? smoothstep(0.76, 0.9, luma(ambient)) : uScheme;
   // Detail under the icon: the difference between a sharp and a blurred look at it.
   float busy = 0.0;
@@ -302,6 +354,7 @@ void main() {
     busy += abs(luma(textureLod(uBack, uv, max(localLod - 1.5, 0.0)).rgb) - luma(textureLod(uBack, uv, min(localLod + 1.0, uBackMaxLod)).rgb));
   }
   busy = clamp(busy * 0.8, 0.0, 1.0);
+  gEnvironmentStrength = environmentStrength(uEnvironment, busy);
   // The 35% dimming is for busy bright content behind clear glass, not for a plain light page.
   float dim = uDim < 0.0 ? 0.35 * smoothstep(0.5, 0.85, luma(ambient)) * smoothstep(0.02, 0.25, busy) : uDim;
   vec3 ink = mix(vec3(1.0), vec3(0.05, 0.06, 0.08), bright);
@@ -309,6 +362,8 @@ void main() {
   float grain = 0.86 + 0.14 * vnoise(p * 0.09 + uSeed);
   vec2 toTouch = p - uTouch.xy;
   float glow = uTouch.z * exp(-dot(toTouch, toTouch) / (0.2 * uUnit * uUnit));
+  vec2 toLight = p - uTouchLight.xy;
+  glow += uTouchLight.z * exp(-dot(toLight, toLight) / 14400.0) + uMotion.y;
 
   // Icon surface from the distance field.
   vec2 f = fieldAt(vUv);
@@ -329,7 +384,7 @@ void main() {
   gShadowBlur = shadowBlur;
   gSelfShadow = clamp(uShadow * 1.4, 0.0, 0.7) * uLens;
   // Only small glyphs flip to dark ink on a bright page, as small system symbols do.
-  float small = 1.0 - smoothstep(22.0, 34.0, uUnit);
+  float small = 1.0 - smoothstep(22.0, 34.0, uGlyphSize);
 
   vec3 color;
   float cover;
@@ -348,6 +403,8 @@ void main() {
     vec3 through = plate(lensed, aa, dim, bright, ambient, grain, glow, false, seen);
     vec3 face = mix(mix(through, vec3(1.0), 0.35), mix(vec3(1.0), ink, small), 0.55 + 0.4 * small);
     vec3 mark = lit(face, glyph, ambient, 1.0, glow, uRefl * 0.6, bright);
+    // Keep the plate optical; only its mark needs the small-icon contrast floor.
+    if (uLegibilityAmount > 0.0) mark = mix(clamp(mark, 0.0, 1.0), uLegibilityColor, uLegibilityAmount * uLens);
     color = mix(body, mark, glyph.cover * uGlyphOpacity * uLens);
     cover = tile.cover;
 
@@ -367,6 +424,7 @@ void main() {
     float inkiness = min(uTintOpacity + uTintAuto * small * (0.3 + 0.42 * bright), 1.0);
     body = grade(body, dim, mix(uTint, mix(vec3(1.0), ink, small), uTintAuto), inkiness);
     color = lit(body, glyph, ambient, grain, glow, uRefl, bright);
+    if (uLegibilityAmount > 0.0) color = mix(clamp(color, 0.0, 1.0), uLegibilityColor, uLegibilityAmount * uLens);
     cover = glyph.cover;
 
     float ssd = fieldAt(vUv - shadowShift / uCanvas).r * uUnit;
@@ -390,4 +448,5 @@ void main() {
   // Mostly the bending of light brings the glass in; alpha only covers the last moment.
   float presence = clamp(uLens * 4.0, 0.0, 1.0) * uOpacity;
   outColor = vec4(clamp(color, 0.0, 1.0) * cover, cover + shadow) * presence;
+  if (uHasLayers) outColor += sampleLayers(p, 0.0) * (1.0 - outColor.a);
 }`;

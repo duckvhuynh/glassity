@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>glassity e2e: backdrop sources</title>
+<!-- Icon outline from Lucide (ISC licence): https://lucide.dev -->
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 10px; background: #101218; display: grid; grid-template-columns: repeat(3, 200px); gap: 20px; }
+  .stage { position: relative; width: 200px; height: 200px; background: #222; }
+  .stage > .source { position: absolute; left: 0; top: 0; width: 200px; height: 200px; object-fit: fill; display: block; }
+  .stage > svg { position: absolute; left: 52px; top: 52px; width: 96px; height: 96px; color: #fff; }
+  .band { height: 50px; }
+  /* A busy background with a dark page colour under it: what 'none' must ignore. */
+  #s-none { background-color: #111111; background-image: repeating-linear-gradient(90deg, #ffd400 0 10px, #e2272e 10px 20px); }
+</style>
+</head>
+<body>
+<!-- Each stage has one icon and one source; a test turns only its own icon into glass. -->
+<div class="stage" id="s-url">
+  <svg id="i-url" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+</div>
+<div class="stage" id="s-img">
+  <img class="source" id="img" src="backdrop-a.svg" alt="">
+  <svg id="i-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+</div>
+<div class="stage" id="s-video">
+  <video class="source" id="video" muted playsinline></video>
+  <svg id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+</div>
+<div class="stage" id="s-canvas">
+  <canvas class="source" id="live" width="200" height="200"></canvas>
+  <svg id="i-canvas" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+</div>
+<div class="stage" id="panel">
+  <div class="band" style="background:#e2272e"></div>
+  <div class="band" id="band" style="background:#ffd400"></div>
+  <div class="band" style="background:#20c060"></div>
+  <div class="band" style="background:#1040ff"></div>
+  <svg id="i-element" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+</div>
+<div class="stage" id="s-none">
+  <svg id="i-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+</div>
+
+<script type="module">
+  import * as glassity from '/dist/index.js';
+  window.glassity = glassity;
+  // Two patterns that differ everywhere; backdrop-a.svg and backdrop-b.svg draw the same.
+  window.drawPattern = (canvas, kind) => {
+    const ctx = canvas.getContext('2d');
+    const { width, height } = canvas;
+    if (kind === 'a') {
+      ctx.fillStyle = '#e2272e';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#ffd400';
+      for (let x = 0; x < width; x += 20) ctx.fillRect(x, 0, 10, height);
+    } else {
+      ctx.fillStyle = '#1040ff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#20c060';
+      for (let y = 0; y < height; y += 25) for (let x = (y / 25) % 2 ? 25 : 0; x < width; x += 50) ctx.fillRect(x, y, 25, 25);
+    }
+  };
+  window.drawPattern(document.getElementById('live'), 'a');
+</script>
+</body>
+</html>

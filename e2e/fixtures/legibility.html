@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Small icon legibility</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #eee; font: 16px Arial, sans-serif; }
+  .surface { display: flex; align-items: center; gap: 36px; width: 500px; height: 100px; padding: 24px; position: relative; }
+  .white { background: #fff; color: #20252b; }
+  .dark { background: #1f1f1f; color: #f4f4f4; }
+  .lime { background: #c8e63a; color: #1f2318; }
+  svg { display: block; flex: none; }
+  #state[data-active="true"] { background: #c8e63a; color: #1f2318; }
+  #state.green { color: rgb(20, 220, 80); }
+  #state.hover-test:hover { background: #c8e63a; color: #1f2318; }
+</style>
+</head>
+<body>
+<div class="surface white" id="white"></div>
+<div class="surface dark" id="dark"></div>
+<div class="surface lime" id="lime"></div>
+<div class="surface dark" id="state"></div>
+<script type="module">
+  import * as glassity from '/dist/index.js';
+  window.glassity = glassity;
+  // Lucide's Menu outline (ISC): https://lucide.dev/icons/menu
+  const icon = (id, size) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.id = id;
+    for (const [name, value] of Object.entries({ width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'data-glass': '' })) svg.setAttribute(name, String(value));
+    const path = document.createElementNS(svg.namespaceURI, 'path');
+    path.setAttribute('d', 'M4 6h16M4 12h16M4 18h16');
+    svg.append(path);
+    return svg;
+  };
+  for (const surface of ['white', 'dark', 'lime']) {
+    for (const size of [16, 20, 24]) document.getElementById(surface).append(icon(surface + '-' + size, size));
+  }
+  document.getElementById('state').append(icon('changing', 20));
+  const tile = icon('tile', 48);
+  tile.setAttribute('data-glass-tile', '');
+  document.getElementById('lime').append(tile);
+</script>
+</body>
+</html>

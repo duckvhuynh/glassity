@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { installGlassHooks } from './helpers';
 
 declare global {
   interface Window {
@@ -315,12 +316,14 @@ test('pressing an interactive icon makes it swell and settle back', async ({ pag
   await drawn(page, 3);
   const canvas = page.locator('#t + canvas');
   const box = (await page.locator('#press').boundingBox())!;
+  await page.evaluate(installGlassHooks);
 
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await expect.poll(async () => canvas.evaluate((el) => (el as HTMLElement).style.transform)).toContain('scale(1.0');
+  await expect.poll(() => page.evaluate(() => window.glassityTest!.instance('#t')!.interaction.scale)).toBeGreaterThan(1.02);
+  expect(await canvas.evaluate((el) => (el as HTMLElement).style.transform)).toBe('');
   await page.mouse.up();
-  await expect.poll(async () => canvas.evaluate((el) => (el as HTMLElement).style.transform), { timeout: 5000 }).toBe('');
+  await expect.poll(() => page.evaluate(() => window.glassityTest!.instance('#t')!.interaction.scale), { timeout: 5000 }).toBe(1);
 });
 
 test.describe('system settings', () => {

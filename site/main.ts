@@ -94,6 +94,7 @@ const GROUPS: { title: string; open?: boolean; controls: Control[] }[] = [
     title: 'Material',
     open: true,
     controls: [
+      { key: 'look', kind: 'select', choices: ['default', 'clear', 'frosted', 'crystal', 'tinted', 'bold'] },
       { key: 'variant', kind: 'select', choices: ['regular', 'clear', 'identity'] },
       { key: 'profile', kind: 'select', choices: ['squircle', 'circle', 'lip', 'dome'] },
       { key: 'scheme', kind: 'select', choices: ['auto', 'light', 'dark'] },
@@ -161,14 +162,14 @@ const GROUPS: { title: string; open?: boolean; controls: Control[] }[] = [
 
 const PRESETS: [string, GlassOptions][] = [
   ['Default', {}],
-  ['Clear', { variant: 'clear' }],
-  ['Frosted', { frost: 0.8, tintOpacity: 0.32, dispersion: 0.1, shine: 0.8 }],
-  ['Crystal', { variant: 'clear', depth: 0.34, curvature: 1.7, dispersion: 1.3, shine: 1.6 }],
+  ['Clear', { look: 'clear' }],
+  ['Frosted', { look: 'frosted' }],
+  ['Crystal', { look: 'crystal' }],
   ['Chunky', { bevel: 0.2, depth: 0.42, curvature: 2.2, strokeWidth: 3.2 }],
   ['Bubble', { profile: 'circle', variant: 'clear', depth: 0.5, dispersion: 0.9, reflection: 1.4, rim: 1.6 }],
   ['Round', { tile: true, tileRadius: 0.5, profile: 'circle', bevel: 0.5, depth: 0.3, weight: 0.02 }],
   ['Lens', { tile: true, tileRadius: 0.5, profile: 'dome', variant: 'clear', depth: 0.6, weight: 0.02 }],
-  ['Bold', { weight: 0.04, depth: 0.22 }],
+  ['Bold', { look: 'bold' }],
   ['Tiles', { tile: true, interactive: true }],
 ];
 
@@ -366,7 +367,7 @@ function applyGlass(): void {
 
 // ── panel ──────────────────────────────────────────────────────────────────
 
-const defaults = (): ResolvedOptions => resolveOptions({ variant: state.options.variant, tile: state.options.tile });
+const defaults = (): ResolvedOptions => resolveOptions({ look: state.options.look, variant: state.options.variant, tile: state.options.tile });
 const isSet = (key: Key) => key in state.options && (state.options as Record<string, unknown>)[key] !== undefined;
 
 function current(key: Key): unknown {
@@ -377,9 +378,9 @@ function setOption(key: Key, value: unknown): void {
   const options = state.options as Record<string, unknown>;
   if (value === undefined) delete options[key];
   else options[key] = value;
-  // A value equal to the default for the current variant is not an override.
-  if (key !== 'variant' && key !== 'tile' && value !== undefined && defaults()[key] === value) delete options[key];
-  if ((key === 'variant' && value === 'regular') || (key === 'tile' && value === false)) delete options[key];
+  // Keep only overrides of the selected look and variant.
+  if (key !== 'look' && key !== 'variant' && key !== 'tile' && value !== undefined && defaults()[key] === value) delete options[key];
+  if ((key === 'variant' && value === resolveOptions({ look: state.options.look }).variant) || (key === 'tile' && value === false) || (key === 'look' && value === 'default')) delete options[key];
   update();
 }
 

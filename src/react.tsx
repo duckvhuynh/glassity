@@ -12,9 +12,12 @@ import {
   type RefObject,
 } from 'react';
 import { auto, glassify, type BackdropSource, type GlassController, type GlassHandle, type GlassOptions } from './index';
-import { OPTION_KEYS } from './options';
+import { OPTION_KEYS, readAttributes } from './options';
+import { textTarget } from './text';
+import { findSvg } from './dom';
+import { inheritedOptions } from './scopes';
 
-export type { BackdropSource, GlassHandle, GlassOptions, GlassProfile, GlassScheme, GlassVariant } from './index';
+export type { BackdropSource, GlassHandle, GlassOptions, GlassLook, GlassProfile, GlassScheme, GlassVariant } from './index';
 
 /** In React, `backdrop` may also be a ref to the element to refract. */
 export interface GlassProps extends Omit<GlassOptions, 'backdrop'> {
@@ -56,10 +59,51 @@ function unwrap(options: GlassProps): GlassOptions {
   return backdrop.current ? { ...others, backdrop: backdrop.current } : others;
 }
 
+// Document providers share discovery, including icons rendered into portals.
+const documentProviders = new Map<symbol, { selector: string; options: GlassOptions }>();
+let documentController: GlassController | null = null;
+let documentSelector = '';
+
+function syncDocumentProviders(): void {
+  if (!documentProviders.size) {
+    documentController?.destroy();
+    documentController = null;
+    documentSelector = '';
+    return;
+  }
+  const entries = [...documentProviders.values()];
+  const selector = [...new Set(entries.map((entry) => entry.selector))].join(',');
+  // Later-mounted providers win conflicts; removing one restores the remaining defaults.
+  const options = Object.assign({}, ...entries.map((entry) => entry.options)) as GlassOptions;
+  if (!documentController || selector !== documentSelector) {
+    documentController?.destroy();
+    documentController = auto({ selector, ...options });
+    documentSelector = selector;
+  } else documentController.set(options);
+}
+
+function documentProvider(selector: string, options: GlassOptions): Pick<GlassController, 'set' | 'destroy'> {
+  const owner = Symbol();
+  documentProviders.set(owner, { selector, options });
+  syncDocumentProviders();
+  return {
+    set(next) {
+      if (!documentProviders.has(owner)) return;
+      documentProviders.set(owner, { selector, options: next });
+      syncDocumentProviders();
+    },
+    destroy() {
+      if (documentProviders.delete(owner)) syncDocumentProviders();
+    },
+  };
+}
+
 export interface GlassProviderProps extends GlassProps {
   /** Which elements become glass. Default `[data-glass]`. Try `svg.lucide` for every Lucide icon. */
   selector?: string;
-  /** Element to render around the children. Default: a `<div>` that does not affect layout. */
+  /** `document` discovers icons across the page, including portals, without rendering a wrapper. Default `element`. */
+  scope?: 'element' | 'document';
+  /** Element to render around the children in element scope. Default: a layout-neutral `<div>`. */
   as?: keyof HTMLElementTagNameMap;
   className?: string;
   style?: CSSProperties;
@@ -80,31 +124,33 @@ export interface GlassProviderProps extends GlassProps {
  * Providers nest: the inner one inherits the outer options and overrides them.
  */
 export function GlassProvider(props: GlassProviderProps): ReactElement {
-  const { selector = '[data-glass]', as = 'div', className, style, children, ...glass } = props;
+  const { selector = '[data-glass]', scope = 'element', as = 'div', className, style, children, ...glass } = props;
   const parent = useContext(Inherited);
   const { options, key } = pickOptions(glass);
   const merged = useMemo<GlassProps>(() => ({ ...parent, ...options }), [parent, key, options.backdrop]); // eslint-disable-line react-hooks/exhaustive-deps
   const root = useRef<HTMLElement | null>(null);
-  const controller = useRef<GlassController | null>(null);
+  const controller = useRef<Pick<GlassController, 'set' | 'destroy'> | null>(null);
 
   useEffect(() => {
-    if (!root.current) return;
-    const created = auto({ root: root.current, selector, ...unwrap(merged) });
+    if (scope !== 'document' && !root.current) return;
+    const created = scope === 'document'
+      ? documentProvider(selector, unwrap(merged))
+      : auto({ root: root.current!, selector, ...unwrap(options) });
     controller.current = created;
     return () => {
       created.destroy();
       controller.current = null;
     };
-  }, [selector]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selector, scope, as]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    controller.current?.set(unwrap(merged));
-  }, [merged]);
+    controller.current?.set(unwrap(scope === 'document' ? merged : options));
+  }, [merged, scope]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return createElement(
     Inherited.Provider,
     { value: merged },
-    createElement(as, { ref: root, className, style: className || style ? style : { display: 'contents' } }, children),
+    scope === 'document' ? children : createElement(as, { ref: root, className, style: style ?? { display: 'contents' } }, children),
   );
 }
 
@@ -132,30 +178,32 @@ export function Glass(props: GlassComponentProps): ReactElement {
   const { children, as = 'span', className, style, ...glass } = props;
   const parent = useContext(Inherited);
   const { options, key } = pickOptions(glass);
-  const merged = useMemo<GlassProps>(() => ({ ...parent, ...options }), [parent, key, options.backdrop]); // eslint-disable-line react-hooks/exhaustive-deps
   const host = useRef<HTMLElement | null>(null);
   const handle = useRef<GlassHandle | null>(null);
-  const latest = useRef(merged);
-  latest.current = merged;
 
   // Runs after every commit: the child may have rendered a different <svg> node.
   useIsomorphicLayoutEffect(() => {
-    const svg = host.current?.querySelector('svg') ?? null;
+    const svg = host.current ? textTarget(host.current, options.text ?? readAttributes(host.current)?.text ?? parent.text) ?? findSvg(host.current) : null;
+    if (handle.current && handle.current.element !== svg) inheritedOptions.delete(handle.current.element);
     if (!svg) {
       if (!handle.current && typeof console !== 'undefined')
         console.warn('glassity: <Glass> found no <svg> in its children. Pass a component that renders an <svg>.');
+      handle.current?.destroy();
+      handle.current = null;
       return;
     }
-    if (!handle.current) handle.current = glassify(svg, unwrap(latest.current));
+    inheritedOptions.set(svg, unwrap(parent));
+    if (!handle.current) handle.current = glassify(svg, unwrap(options));
     else if (handle.current.element !== svg) handle.current.retarget(svg);
   });
 
   useEffect(() => {
-    handle.current?.set(unwrap(merged));
-  }, [merged]);
+    handle.current?.set(unwrap(options));
+  }, [parent, key, options.backdrop]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(
     () => () => {
+      if (handle.current) inheritedOptions.delete(handle.current.element);
       handle.current?.destroy();
       handle.current = null;
     },
@@ -168,7 +216,7 @@ export function Glass(props: GlassComponentProps): ReactElement {
       ref: host,
       className,
       'data-glassity-host': '',
-      style: { display: 'inline-flex', position: 'relative', lineHeight: 0, verticalAlign: 'middle', ...style },
+      style: { display: 'inline-flex', position: 'relative', lineHeight: (options.text ?? parent.text) ? undefined : 0, verticalAlign: 'middle', ...style },
     },
     children,
   );
@@ -186,20 +234,32 @@ export function Glass(props: GlassComponentProps): ReactElement {
 export function useGlass(target: RefObject<Element | null>, props: GlassProps = {}): void {
   const parent = useContext(Inherited);
   const { options, key } = pickOptions(props);
-  const merged = useMemo<GlassProps>(() => ({ ...parent, ...options }), [parent, key, options.backdrop]); // eslint-disable-line react-hooks/exhaustive-deps
   const handle = useRef<GlassHandle | null>(null);
 
-  useEffect(() => {
-    if (!target.current) return;
-    const created = glassify(target.current, unwrap(merged));
-    handle.current = created;
-    return () => {
-      created.destroy();
+  // Ref objects stay the same when React replaces their target node.
+  useIsomorphicLayoutEffect(() => {
+    const svg = target.current ? textTarget(target.current, options.text ?? readAttributes(target.current)?.text ?? parent.text) ?? findSvg(target.current) : null;
+    if (handle.current && handle.current.element !== svg) inheritedOptions.delete(handle.current.element);
+    if (!svg) {
+      handle.current?.destroy();
       handle.current = null;
-    };
-  }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
+      return;
+    }
+    inheritedOptions.set(svg, unwrap(parent));
+    if (!handle.current) handle.current = glassify(svg, unwrap(options));
+    else if (handle.current.element !== svg) handle.current.retarget(svg);
+  });
 
   useEffect(() => {
-    handle.current?.set(unwrap(merged));
-  }, [merged]);
+    handle.current?.set(unwrap(options));
+  }, [parent, key, options.backdrop]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(
+    () => () => {
+      if (handle.current) inheritedOptions.delete(handle.current.element);
+      handle.current?.destroy();
+      handle.current = null;
+    },
+    [],
+  );
 }

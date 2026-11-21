@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>glassity e2e: golden images</title>
+<!-- Icon outlines are from Lucide (ISC licence): https://lucide.dev; the star is from Feather (MIT). -->
+<style>
+  /* No text anywhere: fonts differ between machines and would move the pixels. */
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #101218; }
+  /* One surface for all large icons: sharp lines show any bending, the gradient shows colour. */
+  .wall {
+    display: grid; grid-template-columns: repeat(5, 150px); width: 750px;
+    background:
+      repeating-linear-gradient(90deg, #ffffff 0 2px, transparent 2px 14px),
+      linear-gradient(135deg, #e2572e, #2a2f7a);
+  }
+  .cell { position: relative; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; }
+  .wall svg { width: 96px; height: 96px; color: #fff; flex: none; }
+  /* Small icons on the surfaces they are most often used on. */
+  .matrix { width: 224px; margin-top: 10px; }
+  .row { display: flex; }
+  .spot { position: relative; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; }
+  .spot svg { flex: none; }
+</style>
+</head>
+<body>
+<div class="wall" id="wall">
+  <!-- Edge profiles, on a filled shape where the cross-section shows best. -->
+  <div class="cell" id="squircle">
+    <svg data-glass data-glass-profile="squircle" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+  </div>
+  <div class="cell" id="circle">
+    <svg data-glass data-glass-profile="circle" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+  </div>
+  <div class="cell" id="lip">
+    <svg data-glass data-glass-profile="lip" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+  </div>
+  <!-- A dome is meant for a round tile; at this depth the stripes show upside down. -->
+  <div class="cell" id="dome">
+    <svg data-glass data-glass-profile="dome" data-glass-tile data-glass-tile-radius="0.5" data-glass-depth="0.4" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+  </div>
+  <div class="cell" id="tile">
+    <svg data-glass data-glass-tile viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+  </div>
+  <div class="cell" id="clear">
+    <svg data-glass="clear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+  </div>
+  <!-- The same icon with the scheme forced each way, on the same surface. -->
+  <div class="cell" id="scheme-dark">
+    <svg data-glass data-glass-scheme="dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+  </div>
+  <div class="cell" id="scheme-light">
+    <svg data-glass data-glass-scheme="light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+  </div>
+  <div class="cell" id="filled">
+    <svg data-glass viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+  </div>
+  <div class="cell" id="stroked">
+    <svg data-glass viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+  </div>
+</div>
+
+<!-- 16, 20, 24 and 32 px stroked icons on white, #1f1f1f and lime. -->
+<div class="matrix" id="matrix"></div>
+
+<script>
+  // Built by script so the twelve icons stay identical apart from size and surface.
+  const bell = '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>';
+  const matrix = document.getElementById('matrix');
+  for (const [surface, ink] of [['#ffffff', '#1f1f1f'], ['#1f1f1f', '#ffffff'], ['#c8e63a', '#1f1f1f']]) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.style.cssText = `background:${surface};color:${ink}`;
+    for (const size of [16, 20, 24, 32])
+      row.insertAdjacentHTML(
+        'beforeend',
+        `<div class="spot"><svg data-glass width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${bell}</svg></div>`,
+      );
+    matrix.append(row);
+  }
+</script>
+<script type="module">
+  import * as glassity from '/dist/index.js';
+  window.glassity = glassity;
+</script>
+</body>
+</html>
