@@ -194,6 +194,48 @@ test('a reused backdrop omits a newly mounted surface own background and label',
   expect(pixel[3]).toBeGreaterThan(245);
 });
 
+test('a surface over a local capture region samples what is behind it, not the region stretched to its container', async ({ page }) => {
+  await openFixture(page, fixture);
+  await page.evaluate(() => {
+    // A small flat-colour wall: its DOM capture is a local region much larger than the wall.
+    const wall = document.createElement('section');
+    wall.id = 'region-wall';
+    wall.style.cssText = 'position:relative;margin:40px;width:360px;height:220px;background:rgb(20,60,120)';
+    const caption = document.createElement('div');
+    caption.style.cssText = 'position:absolute;left:20px;top:16px;width:320px;height:40px;background:rgb(240,220,20)';
+    const behind = document.createElement('div');
+    behind.id = 'region-behind';
+    behind.style.cssText = 'position:absolute;left:60px;top:110px;width:240px;height:80px;background:rgb(220,30,30)';
+    const slab = document.createElement('div');
+    slab.id = 'region-surface';
+    slab.style.cssText = 'position:absolute;left:60px;top:110px;width:240px;height:80px;border-radius:12px;background:rgb(30,200,60);color:rgb(0,0,0);font:24px sans-serif';
+    slab.textContent = 'Own label';
+    wall.append(caption, behind, slab);
+    document.body.append(wall);
+    window.handle = window.glassity.glassify(slab, {
+      surface: true, duration: 0, pointerLight: false, accessibility: false,
+      curvature: 0, depth: 0, refraction: 0, frost: 0, tintOpacity: 0,
+      shine: 0, rim: 0, reflection: 0, shadow: 0, saturation: 1, brightness: 1, contrast: 1, dim: 0,
+    });
+    wall.scrollIntoView();
+  });
+  await waitForGlass(page, { count: 6 });
+  await expect(canvasOf(page, '#region-surface')).toHaveCSS('visibility', 'visible');
+  // The capture really is a region larger than the wall, the case that was mis-mapped.
+  const capture = await page.evaluate(() => {
+    const backdrop = window.glassityTest!.instance('#region-surface')!.backdrop as unknown as { rect(): { w: number; h: number } };
+    return backdrop.rect();
+  });
+  expect(capture.w).toBeGreaterThan(400);
+  expect(capture.h).toBeGreaterThan(300);
+  // Neutral glass shows exactly what is behind it: the red block, never the yellow
+  // caption above, the blue wall elsewhere, or the surface's own green paint and label.
+  await expect.poll(async () => {
+    const pixels = await samples(page, '#region-surface', [[40, 20], [120, 40], [200, 60]]);
+    return pixels.every(([r, g, b, a]) => r > 200 && g < 50 && b < 50 && a > 245);
+  }).toBe(true);
+});
+
 test('destroy and attribute opt-out restore paint while retaining labels and handlers', async ({ page }) => {
   await openFixture(page, fixture);
   await waitForGlass(page, { count: 5 });
